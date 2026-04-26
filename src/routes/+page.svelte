@@ -5,6 +5,17 @@
 
   let idx = $state(0);
   let paused = $state(false);
+  let marqueePaused = $state(false);
+
+  // Placeholder callboard items - swap for real `callboard_posts` rows in v1.2.
+  const marqueeItems = [
+    { tag: "Audition", text: "Hamlet at Lakewood Playhouse - April 30" },
+    { tag: "Crew call", text: "Tacoma Little Theatre needs LD for spring season" },
+    { tag: "Now playing", text: "Indecent at Centerstage - through May 12" },
+    { tag: "Workshop", text: "Devised theatre with Wren Castellanos - weekend of May 4" },
+    { tag: "Audition", text: "Olympia Family Theater - stage manager needed" },
+    { tag: "Open call", text: "Gig Harbor New Works festival - submissions through June" },
+  ];
 
   $effect(() => {
     if (paused || data.featured.length <= 1) return;
@@ -51,7 +62,6 @@
   <div class="stats">
     <span>{data.artistCount} artists listed</span>
     <span>14 open calls</span>
-    <span>Spring intake closes May 8</span>
   </div>
 </section>
 
@@ -65,33 +75,63 @@
     <div class="featured-meta">
       <span class="eyebrow"><span class="num">0{idx + 1}</span>Featured artist</span>
     </div>
-    <button
-      class="featured-name"
-      type="button"
-      onclick={advance}
-      aria-label="Show next featured artist"
-    >
-      <span class="name-first">{split.first}</span>{#if split.last}<span class="name-last serif-it">{split.last}</span>{/if}
-    </button>
-    <div class="featured-line">
-      <p class="featured-disc">{formatDisciplines(cur.disciplines, cur.geographic_area)}</p>
-      <a class="featured-link" href={`/artists/${cur.slug}`}>
-        View profile <span aria-hidden="true">↗</span>
-      </a>
-    </div>
-    <div class="featured-rail">
-      {#each data.featured as f, i (f.slug)}
+    <div class="featured-spread">
+      <div class="featured-portrait">
+        <HeadshotPlaceholder
+          name={cur.full_name}
+          src={cur.headshot_url}
+          ratio="3 / 4"
+          tone={(idx % 4) as 0 | 1 | 2 | 3}
+        />
+      </div>
+      <div class="featured-text">
         <button
+          class="featured-name"
           type="button"
-          class="rail-dot"
-          class:on={i === idx}
-          aria-label={`Show ${f.full_name}`}
-          onclick={() => (idx = i)}
-        ></button>
-      {/each}
+          onclick={advance}
+          aria-label="Show next featured artist"
+        >
+          <span class="name-first">{split.first}</span>{#if split.last}<span class="name-last serif-it">{split.last}</span>{/if}
+        </button>
+        <div class="featured-line">
+          <p class="featured-disc">{formatDisciplines(cur.disciplines, cur.geographic_area)}</p>
+          <a class="featured-link" href={`/artists/${cur.slug}`}>
+            View profile <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <div class="featured-rail">
+          {#each data.featured as f, i (f.slug)}
+            <button
+              type="button"
+              class="rail-dot"
+              class:on={i === idx}
+              aria-label={`Show ${f.full_name}`}
+              onclick={() => (idx = i)}
+            ></button>
+          {/each}
+        </div>
+      </div>
     </div>
   </section>
 {/if}
+
+<!-- Marquee: placeholder callboard ticker. Real entries come from the
+     callboard table in v1.2. -->
+<div
+  class="marquee"
+  onmouseenter={() => (marqueePaused = true)}
+  onmouseleave={() => (marqueePaused = false)}
+  role="presentation"
+>
+  <div class="marquee-track" class:paused={marqueePaused}>
+    {#each [...marqueeItems, ...marqueeItems] as item, i}
+      <span class="m-item">
+        <span class="m-tag">{item.tag}</span>
+        <span class="m-text">{item.text}</span>
+      </span>
+    {/each}
+  </div>
+</div>
 
 <hr class="rule section-rule" />
 
@@ -100,25 +140,20 @@
     <span class="eyebrow"><span class="num">04</span>Recently added</span>
     <a class="recent-link" href="/directory">All artists ↗</a>
   </header>
-  <div class="recent-grid">
-    {#each data.recent as r, i (r.slug)}
-      <a class="recent-card" href={`/artists/${r.slug}`}>
-        <HeadshotPlaceholder
-          name={r.full_name}
-          src={r.headshot_url}
-          ratio="3 / 4"
-          tone={(i % 4) as 0 | 1 | 2 | 3}
-        />
-        <div class="recent-meta">
+  <ul class="recent-list">
+    {#each data.recent as r (r.slug)}
+      <li class="recent-row">
+        <a class="recent-link-row" href={`/artists/${r.slug}`}>
           <span class="recent-name">{r.full_name}</span>
           <span class="recent-disc">
             {r.disciplines.slice(0, 2).join(" · ")}
             {#if r.geographic_area}<span class="recent-area"> · {r.geographic_area}</span>{/if}
           </span>
-        </div>
-      </a>
+          <span class="recent-arrow" aria-hidden="true">↗</span>
+        </a>
+      </li>
     {/each}
-  </div>
+  </ul>
 </section>
 
 <style>
@@ -166,6 +201,18 @@
   .featured-meta {
     margin-bottom: 1rem;
   }
+  .featured-spread {
+    display: grid;
+    grid-template-columns: minmax(160px, 240px) 1fr;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    align-items: center;
+  }
+  .featured-portrait {
+    width: 100%;
+  }
+  .featured-text {
+    min-width: 0;
+  }
   .featured-name {
     background: none;
     border: 0;
@@ -178,7 +225,7 @@
     color: var(--ink);
     line-height: 0.92;
     letter-spacing: -0.05em;
-    font-size: clamp(64px, 14vw, 220px);
+    font-size: clamp(48px, 10vw, 180px);
     display: block;
     width: 100%;
   }
@@ -268,50 +315,118 @@
     color: var(--ink);
     text-decoration: none;
   }
-  .recent-grid {
+  .recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .recent-row {
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .recent-link-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
-  }
-  .recent-card {
-    text-decoration: none;
+    grid-template-columns: minmax(0, 280px) 1fr auto;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 1rem 0;
     color: inherit;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .recent-card:hover {
     text-decoration: none;
+    transition: padding-left 0.15s;
   }
-  .recent-card:hover .recent-name {
+  .recent-link-row:hover {
+    text-decoration: none;
+    padding-left: 0.5rem;
+  }
+  .recent-link-row:hover .recent-name {
     color: var(--accent);
   }
-  .recent-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+  .recent-link-row:hover .recent-arrow {
+    color: var(--accent);
+    transform: translateX(2px);
   }
   .recent-name {
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 18px;
+    font-size: clamp(20px, 2.5vw, 28px);
     color: var(--ink);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     transition: color 0.15s;
   }
   .recent-disc {
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 13px;
     color: var(--muted);
     text-transform: lowercase;
   }
   .recent-area {
     color: var(--muted);
   }
+  .recent-arrow {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    transition: color 0.15s, transform 0.15s;
+  }
 
-  @media (max-width: 900px) {
-    .recent-grid {
-      grid-template-columns: repeat(2, 1fr);
+  /* marquee */
+  .marquee {
+    margin: 2.5rem 0 0;
+    overflow: hidden;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0;
+    white-space: nowrap;
+    background: var(--bg);
+  }
+  .marquee-track {
+    display: inline-flex;
+    gap: 3rem;
+    animation: marquee 60s linear infinite;
+    will-change: transform;
+  }
+  .marquee-track.paused {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .m-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .m-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+  }
+  .m-text {
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 720px) {
+    .featured-spread {
+      grid-template-columns: 1fr;
+    }
+    .featured-portrait {
+      max-width: 200px;
+    }
+    .recent-link-row {
+      grid-template-columns: 1fr auto;
+    }
+    .recent-disc {
+      grid-column: 1 / -1;
     }
   }
   @media (max-width: 540px) {

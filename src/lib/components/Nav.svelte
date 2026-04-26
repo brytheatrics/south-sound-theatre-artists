@@ -15,7 +15,7 @@
 <nav class="nv">
   <a class="nv-left" href="/" aria-label="South Sound Theatre Artists - home">
     <span class="nv-dot" aria-hidden="true"></span>
-    <span class="nv-mark">SSTA <span class="nv-mark-it">spring '26</span></span>
+    <span class="nv-mark">SSTA</span>
   </a>
   <div class="nv-links" aria-label="Primary">
     {#each links as link (link.href)}
@@ -67,10 +67,6 @@
   }
   .nv-mark {
     color: var(--ink);
-  }
-  .nv-mark-it {
-    color: var(--muted);
-    margin-left: 0.4em;
   }
   .nv-links {
     display: flex;
