@@ -29,7 +29,7 @@
   let inputRef: HTMLInputElement | undefined = $state();
 
   async function uploadFile(file: File) {
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImage(file)) {
       fail("Please choose an image file (JPEG, PNG, WebP, or HEIC).");
       return;
     }
@@ -153,6 +153,20 @@
     progress = 0;
     errorMessage = "";
     if (inputRef) inputRef.value = "";
+  }
+
+  // Windows browsers often report file.type === "" for HEIC because the OS
+  // has no registered MIME type. Fall back to extension sniffing so iPhone
+  // users on Windows aren't locked out.
+  const IMAGE_EXTENSIONS = new Set([
+    "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif", "bmp",
+    "tif", "tiff", "dng",
+  ]);
+
+  function isLikelyImage(file: File): boolean {
+    if (file.type.startsWith("image/")) return true;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return !!ext && IMAGE_EXTENSIONS.has(ext);
   }
 
   function formatBytes(bytes: number): string {
