@@ -1,7 +1,10 @@
 <script lang="ts">
   // Headshot uploader for the public submission form. Asks the server to
-  // sign the upload, then POSTs the file directly to Cloudinary using XHR
-  // so we can show a progress bar. On success, calls onUpload(secureUrl).
+  // sign the upload, downsizes large images client-side via canvas (so
+  // 25 MB phone photos still fit Cloudinary's 10 MB ingest cap), then
+  // POSTs the file directly to Cloudinary using XHR for progress reporting.
+
+  import { downsizeImage } from "$lib/util/downsizeImage";
 
   type Props = {
     value?: string;
@@ -15,10 +18,9 @@
     onError = () => {},
   }: Props = $props();
 
-  const MAX_BYTES = 10 * 1024 * 1024; // Cloudinary free-tier per-image cap
-  const SLOW_BYTES = 3 * 1024 * 1024; // threshold for "this may take a moment"
+  const SLOW_BYTES = 3 * 1024 * 1024; // "may take a moment" hint threshold
 
-  let status: "idle" | "uploading" | "error" = $state("idle");
+  let status: "idle" | "preparing" | "uploading" | "error" = $state("idle");
   let progress = $state(0);
   let pendingBytes = $state(0);
   let errorMessage = $state("");
@@ -27,26 +29,25 @@
 
   async function uploadFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      fail("Please choose an image file (JPEG, PNG, or WebP).");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      fail(`That file is ${formatBytes(file.size)}, which is over the 10 MB limit.`);
+      fail("Please choose an image file (JPEG, PNG, WebP, or HEIC).");
       return;
     }
 
-    status = "uploading";
+    status = "preparing";
     progress = 0;
     pendingBytes = file.size;
     errorMessage = "";
 
     try {
+      const blob = await downsizeImage(file);
+      status = "uploading";
+
       const signResp = await fetch("/api/cloudinary/sign", { method: "POST" });
       if (!signResp.ok) throw new Error("Could not start the upload.");
       const sig = await signResp.json();
 
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", blob, file.name);
       form.append("api_key", sig.api_key);
       form.append("timestamp", String(sig.timestamp));
       form.append("signature", sig.signature);
@@ -157,7 +158,7 @@
     <label
       class="dropzone"
       class:drag-active={dragActive}
-      class:disabled={status === "uploading"}
+      class:disabled={status === "preparing" || status === "uploading"}
       ondrop={onDrop}
       ondragover={onDragOver}
       ondragleave={onDragLeave}
@@ -167,9 +168,14 @@
         type="file"
         accept="image/*"
         onchange={onChange}
-        disabled={status === "uploading"}
+        disabled={status === "preparing" || status === "uploading"}
       />
-      {#if status === "uploading"}
+      {#if status === "preparing"}
+        <p class="status">Preparing image...</p>
+        {#if pendingBytes > SLOW_BYTES}
+          <p class="hint">Large files may take a moment.</p>
+        {/if}
+      {:else if status === "uploading"}
         <p class="status">Uploading... {progress}%</p>
         <div class="bar"><div class="fill" style:width="{progress}%"></div></div>
         {#if pendingBytes > SLOW_BYTES}
@@ -177,7 +183,7 @@
         {/if}
       {:else}
         <p class="status">Click or drop a headshot image</p>
-        <p class="hint">JPEG, PNG, or WebP. Max 10 MB.</p>
+        <p class="hint">JPEG, PNG, WebP, or HEIC.</p>
       {/if}
     </label>
     {#if status === "error"}
