@@ -24,8 +24,15 @@ const ETHNICITY_OPTIONS = [
 ];
 
 export const load: PageServerLoad = async () => {
-  const [disciplinesRes, areasRes, unionsRes] = await Promise.all([
-    supabaseAdmin.from("disciplines").select("name").order("sort_order"),
+  const [disciplinesRes, categoriesRes, areasRes, unionsRes] = await Promise.all([
+    supabaseAdmin
+      .from("disciplines")
+      .select("name, category")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("discipline_categories")
+      .select("name")
+      .order("sort_order"),
     supabaseAdmin.from("areas").select("name").order("sort_order"),
     supabaseAdmin
       .from("unions")
@@ -33,12 +40,17 @@ export const load: PageServerLoad = async () => {
       .order("sort_order"),
   ]);
   if (disciplinesRes.error) throw disciplinesRes.error;
+  if (categoriesRes.error) throw categoriesRes.error;
   if (areasRes.error) throw areasRes.error;
   if (unionsRes.error) throw unionsRes.error;
 
   return {
-    disciplines: (disciplinesRes.data ?? []).map(
-      (d: { name: string }) => d.name,
+    disciplines: (disciplinesRes.data ?? []) as Array<{
+      name: string;
+      category: string;
+    }>,
+    disciplineCategories: (categoriesRes.data ?? []).map(
+      (c: { name: string }) => c.name,
     ),
     areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
     unions: (unionsRes.data ?? []) as Array<{

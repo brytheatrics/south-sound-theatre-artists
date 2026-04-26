@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import SlugCollisionModal from "$lib/components/SlugCollisionModal.svelte";
   import { slugify } from "$lib/util/slug";
@@ -212,37 +213,17 @@
 
     <fieldset>
       <legend>Disciplines <span class="req">*</span></legend>
-      <p class="hint">Pick all that apply.</p>
-      <div class="checkbox-grid">
-        {#each data.disciplines as d}
-          <label class="checkbox">
-            <input
-              type="checkbox"
-              name="disciplines"
-              value={d}
-              checked={selectedDisciplines.has(d)}
-              onchange={() =>
-                (selectedDisciplines = toggleSet(selectedDisciplines, d))}
-            />
-            <span>{d}</span>
-          </label>
-        {/each}
-      </div>
-      {#if selectedDisciplines.has("Other")}
-        <label class="field" style="margin-top: 0.75rem">
-          <span>Specify your discipline</span>
-          <input
-            name="discipline_other"
-            type="text"
-            bind:value={disciplineOther}
-            placeholder="What other discipline?"
-          />
-          <span class="hint">
-            Helps the admin add commonly-requested disciplines to the list.
-          </span>
-        </label>
-      {/if}
-      {#if errors.disciplines}<span class="error">{errors.disciplines}</span>{/if}
+      <p class="hint">Search or browse by category. Pick all that apply.</p>
+      <DisciplinePicker
+        items={data.disciplines}
+        categoryOrder={data.disciplineCategories}
+        selected={selectedDisciplines}
+        onToggle={(n) =>
+          (selectedDisciplines = toggleSet(selectedDisciplines, n))}
+        otherValue={disciplineOther}
+        onOtherChange={(v) => (disciplineOther = v)}
+        error={errors.disciplines}
+      />
     </fieldset>
 
     <fieldset>
