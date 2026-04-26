@@ -26,6 +26,7 @@
     instagram?: string;
     website?: string;
     disciplines?: string[];
+    disciplineOther?: string;
     ethnicities?: string[];
     ethnicityOther?: string;
   };
@@ -49,6 +50,7 @@
   let instagram = $state(v.instagram ?? "");
   let website = $state(v.website ?? "");
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
+  let disciplineOther = $state(v.disciplineOther ?? "");
   let selectedEthnicities = $state<Set<string>>(new Set(v.ethnicities ?? []));
   let ethnicityOther = $state(v.ethnicityOther ?? "");
 
@@ -218,6 +220,20 @@
           </label>
         {/each}
       </div>
+      {#if selectedDisciplines.has("Other")}
+        <label class="field" style="margin-top: 0.75rem">
+          <span>Specify your discipline</span>
+          <input
+            name="discipline_other"
+            type="text"
+            bind:value={disciplineOther}
+            placeholder="What other discipline?"
+          />
+          <span class="hint">
+            Helps the admin add commonly-requested disciplines to the list.
+          </span>
+        </label>
+      {/if}
       {#if errors.disciplines}<span class="error">{errors.disciplines}</span>{/if}
     </fieldset>
 

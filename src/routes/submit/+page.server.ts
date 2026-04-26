@@ -73,6 +73,7 @@ type Values = {
   instagram: string;
   website: string;
   disciplines: string[];
+  disciplineOther: string;
   ethnicities: string[];
   ethnicityOther: string;
 };
@@ -104,6 +105,7 @@ export const actions: Actions = {
       instagram: ((data.get("instagram") as string) ?? "").trim(),
       website: ((data.get("website") as string) ?? "").trim(),
       disciplines: data.getAll("disciplines").map(String).filter(Boolean),
+      disciplineOther: ((data.get("discipline_other") as string) ?? "").trim(),
       ethnicities: data.getAll("ethnicities").map(String).filter(Boolean),
       ethnicityOther: ((data.get("ethnicity_other") as string) ?? "").trim(),
     };
@@ -178,6 +180,16 @@ export const actions: Actions = {
       ),
     );
 
+    // If they checked "Other" and named the discipline, replace "Other" in
+    // the array with the typed value. Lexi can spot custom entries because
+    // they won't match anything in the disciplines table - good signal for
+    // adding popular ones to the canonical list.
+    const disciplines = [...values.disciplines];
+    if (values.disciplineOther && disciplines.includes("Other")) {
+      const idx = disciplines.indexOf("Other");
+      disciplines[idx] = values.disciplineOther;
+    }
+
     const ethnicities = [...values.ethnicities];
     if (values.ethnicityOther) ethnicities.push(values.ethnicityOther);
 
@@ -188,7 +200,7 @@ export const actions: Actions = {
         email_verified: false,
         full_name: values.fullName,
         bio: values.bio || null,
-        disciplines: values.disciplines,
+        disciplines,
         headshot_url: values.headshotUrl,
         headshot_consent: values.headshotConsent,
         availability_status: values.availability,
