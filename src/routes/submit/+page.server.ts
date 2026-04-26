@@ -8,8 +8,13 @@
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { sendEmail } from "$lib/server/email";
+import { generateToken, hashToken } from "$lib/server/tokens";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
+
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 const ETHNICITY_OPTIONS = [
   "African American / Black",
@@ -234,11 +239,17 @@ export const actions: Actions = {
       ),
     );
 
+    const verificationToken = generateToken();
+    const tokenHash = hashToken(verificationToken);
+    const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS).toISOString();
+
     const { error: insertErr } = await supabaseAdmin
       .from("pending_submissions")
       .insert({
         email: values.email,
         email_verified: false,
+        email_verification_token_hash: tokenHash,
+        email_verification_expires_at: expiresAt,
         full_name: values.fullName,
         bio: values.bio || null,
         disciplines,
@@ -270,8 +281,23 @@ export const actions: Actions = {
       });
     }
 
-    // TODO step 5: send email verification link via Resend wrapper
-    // (logs to email_log first).
+    // Fire the verification email. We don't roll the insert back if this
+    // fails - the row exists, the user sees the success page, and the admin
+    // can reach out manually. Failures are captured in email_log.
+    const verifyUrl = `${PUBLIC_SITE_URL}/verify/${verificationToken}`;
+    const sendResult = await sendEmail({
+      to: values.email,
+      templateSlug: "email_verification",
+      vars: {
+        name: values.fullName,
+        verify_url: verifyUrl,
+      },
+    });
+    if (!sendResult.ok) {
+      console.error(
+        `verification email failed for submission, reason=${sendResult.reason}`,
+      );
+    }
 
     throw redirect(303, "/submit/thanks");
   },
