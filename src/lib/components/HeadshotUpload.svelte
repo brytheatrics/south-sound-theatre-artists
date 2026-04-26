@@ -18,7 +18,8 @@
     onError = () => {},
   }: Props = $props();
 
-  const SLOW_BYTES = 3 * 1024 * 1024; // "may take a moment" hint threshold
+  const SLOW_BYTES = 3 * 1024 * 1024;  // "may take a moment" hint threshold
+  const CLOUDINARY_MAX_BYTES = 10 * 1024 * 1024;  // post-downsize fallback cap
 
   let status: "idle" | "preparing" | "uploading" | "error" = $state("idle");
   let progress = $state(0);
@@ -40,6 +41,19 @@
 
     try {
       const blob = await downsizeImage(file);
+
+      // Downsize is opportunistic - it skips formats the browser can't decode
+      // (RAW / DNG / TIFF, sometimes HEIC). For those, the original blob comes
+      // back unchanged, and if it's over Cloudinary's 10 MB ingest cap the
+      // upload will fail with an unfriendly server error. Catch it up front.
+      if (blob.size > CLOUDINARY_MAX_BYTES) {
+        fail(
+          `This image is ${formatBytes(blob.size)}, which is too large to ` +
+            `upload directly. Try saving it as a JPEG or PNG first.`,
+        );
+        return;
+      }
+
       status = "uploading";
 
       const signResp = await fetch("/api/cloudinary/sign", { method: "POST" });
