@@ -6,9 +6,6 @@
 
   let { data, form } = $props();
 
-  // Prefilled values when the server returns a validation failure or slug
-  // collision so the user doesn't lose their work. Widen the type because
-  // the three fail() branches in +page.server.ts have different shapes.
   type FormValues = {
     fullName?: string;
     email?: string;
@@ -17,16 +14,22 @@
     pronouns?: string;
     headshotUrl?: string;
     headshotConsent?: boolean;
-    availability?: string;
-    experience?: string;
-    union?: string;
     area?: string;
-    ageRange?: string;
+    areaOther?: string;
+    playableAgeMin?: string;
+    playableAgeMax?: string;
     languages?: string;
     instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    linkedin?: string;
+    twitter?: string;
+    youtube?: string;
     website?: string;
     disciplines?: string[];
     disciplineOther?: string;
+    unions?: string[];
+    unionOther?: string;
     ethnicities?: string[];
     ethnicityOther?: string;
   };
@@ -41,29 +44,31 @@
   let pronouns = $state(v.pronouns ?? "");
   let headshotUrl = $state(v.headshotUrl ?? "");
   let headshotConsent = $state(v.headshotConsent ?? false);
-  let availability = $state(v.availability ?? "Available");
-  let experience = $state(v.experience ?? "");
-  let unionStatus = $state(v.union ?? "");
   let area = $state(v.area ?? "");
-  let ageRange = $state(v.ageRange ?? "");
+  let areaOther = $state(v.areaOther ?? "");
+  let playableAgeMin = $state(v.playableAgeMin ?? "");
+  let playableAgeMax = $state(v.playableAgeMax ?? "");
   let languages = $state(v.languages ?? "");
   let instagram = $state(v.instagram ?? "");
+  let facebook = $state(v.facebook ?? "");
+  let tiktok = $state(v.tiktok ?? "");
+  let linkedin = $state(v.linkedin ?? "");
+  let twitter = $state(v.twitter ?? "");
+  let youtube = $state(v.youtube ?? "");
   let website = $state(v.website ?? "");
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
   let disciplineOther = $state(v.disciplineOther ?? "");
+  let selectedUnions = $state<Set<string>>(new Set(v.unions ?? []));
+  let unionOther = $state(v.unionOther ?? "");
   let selectedEthnicities = $state<Set<string>>(new Set(v.ethnicities ?? []));
   let ethnicityOther = $state(v.ethnicityOther ?? "");
 
-  // Auto-derive slug from name until the user edits it.
   $effect(() => {
-    if (!slugTouched && fullName) {
-      slug = slugify(fullName);
-    }
+    if (!slugTouched && fullName) slug = slugify(fullName);
   });
 
   let submitting = $state(false);
 
-  // Slug collision modal opens when the server reports a taken slug.
   let collisionOpen = $state(false);
   $effect(() => {
     if (form?.slugCollision) collisionOpen = true;
@@ -75,16 +80,10 @@
     collisionOpen = false;
   }
 
-  function toggleDiscipline(name: string) {
-    if (selectedDisciplines.has(name)) selectedDisciplines.delete(name);
-    else selectedDisciplines.add(name);
-    selectedDisciplines = new Set(selectedDisciplines);
-  }
-
-  function toggleEthnicity(name: string) {
-    if (selectedEthnicities.has(name)) selectedEthnicities.delete(name);
-    else selectedEthnicities.add(name);
-    selectedEthnicities = new Set(selectedEthnicities);
+  function toggleSet(set: Set<string>, value: string): Set<string> {
+    if (set.has(value)) set.delete(value);
+    else set.add(value);
+    return new Set(set);
   }
 
   const errors = $derived(
@@ -107,14 +106,16 @@
     <div class="form-error" role="alert">{errors._form}</div>
   {/if}
 
-  <form method="POST" use:enhance={() => {
-    submitting = true;
-    return async ({ update }) => {
-      await update({ reset: false });
-      submitting = false;
-    };
-  }}>
-    <!-- Honeypot: visually hidden, real users skip past it. -->
+  <form
+    method="POST"
+    use:enhance={() => {
+      submitting = true;
+      return async ({ update }) => {
+        await update({ reset: false });
+        submitting = false;
+      };
+    }}
+  >
     <div class="honeypot" aria-hidden="true">
       <label for="website_url_extra">Leave this empty</label>
       <input
@@ -180,27 +181,33 @@
           />
         </div>
         <span class="hint">Auto-suggested from your name. Lowercase letters, numbers, and hyphens.</span>
-        {#if errors.slug && errors.slug !== "taken"}<span class="error">{errors.slug}</span>{/if}
+        {#if errors.slug && errors.slug !== "taken"}
+          <span class="error">{errors.slug}</span>
+        {/if}
       </label>
     </fieldset>
 
     <fieldset>
-      <legend>Headshot <span class="req">*</span></legend>
+      <legend>Headshot</legend>
+      <p class="hint">Optional. Helps casting directors put a face to a name.</p>
       <HeadshotUpload bind:value={headshotUrl} />
       <input type="hidden" name="headshot_url" value={headshotUrl} />
-      {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
-      <label class="checkbox">
-        <input
-          type="checkbox"
-          name="headshot_consent"
-          bind:checked={headshotConsent}
-        />
-        <span>
-          I confirm I have the rights to use this image, including any
-          photographer credit if applicable.
-        </span>
-      </label>
-      {#if errors.headshot_consent}<span class="error">{errors.headshot_consent}</span>{/if}
+      {#if headshotUrl}
+        <label class="checkbox" style="margin-top: 0.75rem">
+          <input
+            type="checkbox"
+            name="headshot_consent"
+            bind:checked={headshotConsent}
+          />
+          <span>
+            I confirm I have the rights to use this image, including any
+            photographer credit if applicable.
+          </span>
+        </label>
+        {#if errors.headshot_consent}
+          <span class="error">{errors.headshot_consent}</span>
+        {/if}
+      {/if}
     </fieldset>
 
     <fieldset>
@@ -214,7 +221,8 @@
               name="disciplines"
               value={d}
               checked={selectedDisciplines.has(d)}
-              onchange={() => toggleDiscipline(d)}
+              onchange={() =>
+                (selectedDisciplines = toggleSet(selectedDisciplines, d))}
             />
             <span>{d}</span>
           </label>
@@ -250,66 +258,63 @@
     </fieldset>
 
     <fieldset>
-      <legend>Casting & availability</legend>
-
-      <div class="radio-group" role="radiogroup" aria-labelledby="availability-label">
-        <span id="availability-label" class="field-label">Availability <span class="req">*</span></span>
-        {#each data.options.availability as opt}
-          <label class="radio">
-            <input
-              type="radio"
-              name="availability"
-              value={opt}
-              checked={availability === opt}
-              onchange={() => (availability = opt)}
-            />
-            <span>{opt}</span>
-          </label>
-        {/each}
-        {#if errors.availability}<span class="error">{errors.availability}</span>{/if}
-      </div>
-
-      <label class="field">
-        <span>Experience level</span>
-        <select name="experience" bind:value={experience}>
-          <option value="">Choose one (optional)</option>
-          {#each data.options.experience as opt}
-            <option value={opt}>{opt}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class="field">
-        <span>Union status</span>
-        <select name="union" bind:value={unionStatus}>
-          <option value="">Choose one (optional)</option>
-          {#each data.options.union as opt}
-            <option value={opt}>{opt}</option>
-          {/each}
-        </select>
-      </label>
+      <legend>Casting details</legend>
 
       <label class="field">
         <span>Area <span class="req">*</span></span>
-        <select name="area" bind:value={area} required aria-invalid={!!errors.area}>
+        <select
+          name="area"
+          bind:value={area}
+          required
+          aria-invalid={!!errors.area}
+        >
           <option value="">Choose your primary area</option>
-          {#each data.options.area as opt}
+          {#each data.areas as opt}
             <option value={opt}>{opt}</option>
           {/each}
         </select>
         {#if errors.area}<span class="error">{errors.area}</span>{/if}
       </label>
 
-      <label class="field">
-        <span>Age range</span>
-        <select name="age_range" bind:value={ageRange}>
-          <option value="">Choose one (optional)</option>
-          {#each data.options.age as opt}
-            <option value={opt}>{opt}</option>
-          {/each}
-        </select>
-        <span class="hint">Optional. Helps with age-specific casting.</span>
-      </label>
+      {#if area === "Other"}
+        <label class="field">
+          <span>Specify area</span>
+          <input
+            name="area_other"
+            type="text"
+            bind:value={areaOther}
+            placeholder="Where are you based?"
+            aria-invalid={!!errors.area_other}
+          />
+          {#if errors.area_other}<span class="error">{errors.area_other}</span>{/if}
+        </label>
+      {/if}
+
+      <div class="field">
+        <span class="field-label">Playable age range</span>
+        <div class="age-row">
+          <span>From</span>
+          <input
+            name="playable_age_min"
+            type="number"
+            min="0"
+            max="120"
+            bind:value={playableAgeMin}
+            aria-invalid={!!errors.playable_age}
+          />
+          <span>to</span>
+          <input
+            name="playable_age_max"
+            type="number"
+            min="0"
+            max="120"
+            bind:value={playableAgeMax}
+            aria-invalid={!!errors.playable_age}
+          />
+        </div>
+        <span class="hint">Optional. The range of ages you can convincingly play.</span>
+        {#if errors.playable_age}<span class="error">{errors.playable_age}</span>{/if}
+      </div>
 
       <label class="field">
         <span>Languages spoken</span>
@@ -321,6 +326,40 @@
         />
         <span class="hint">Comma-separated.</span>
       </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Unions</legend>
+      <p class="hint">Optional. Pick all that apply.</p>
+      <div class="checkbox-grid">
+        {#each data.unions as u}
+          <label class="checkbox">
+            <input
+              type="checkbox"
+              name="unions"
+              value={u.name}
+              checked={selectedUnions.has(u.name)}
+              onchange={() =>
+                (selectedUnions = toggleSet(selectedUnions, u.name))}
+            />
+            <span>
+              <strong>{u.name}</strong>
+              {#if u.description}<span class="union-desc"> - {u.description}</span>{/if}
+            </span>
+          </label>
+        {/each}
+      </div>
+      {#if selectedUnions.has("Other")}
+        <label class="field" style="margin-top: 0.75rem">
+          <span>Specify union</span>
+          <input
+            name="union_other"
+            type="text"
+            bind:value={unionOther}
+            placeholder="Which union?"
+          />
+        </label>
+      {/if}
     </fieldset>
 
     <fieldset>
@@ -337,7 +376,8 @@
               name="ethnicities"
               value={opt}
               checked={selectedEthnicities.has(opt)}
-              onchange={() => toggleEthnicity(opt)}
+              onchange={() =>
+                (selectedEthnicities = toggleSet(selectedEthnicities, opt))}
             />
             <span>{opt}</span>
           </label>
@@ -358,16 +398,6 @@
       <legend>Links (optional)</legend>
 
       <label class="field">
-        <span>Instagram handle</span>
-        <input
-          name="instagram"
-          type="text"
-          bind:value={instagram}
-          placeholder="@yourhandle"
-        />
-      </label>
-
-      <label class="field">
         <span>Personal website</span>
         <input
           name="website"
@@ -378,6 +408,72 @@
           aria-invalid={!!errors.website}
         />
         {#if errors.website}<span class="error">{errors.website}</span>{/if}
+      </label>
+
+      <label class="field">
+        <span>Instagram handle</span>
+        <input
+          name="instagram"
+          type="text"
+          bind:value={instagram}
+          placeholder="@yourhandle"
+        />
+      </label>
+
+      <label class="field">
+        <span>TikTok handle</span>
+        <input
+          name="tiktok"
+          type="text"
+          bind:value={tiktok}
+          placeholder="@yourhandle"
+        />
+      </label>
+
+      <label class="field">
+        <span>X / Twitter handle</span>
+        <input
+          name="twitter"
+          type="text"
+          bind:value={twitter}
+          placeholder="@yourhandle"
+        />
+      </label>
+
+      <label class="field">
+        <span>Facebook URL</span>
+        <input
+          name="facebook"
+          type="url"
+          bind:value={facebook}
+          placeholder="https://facebook.com/yourname"
+          aria-invalid={!!errors.facebook}
+        />
+        {#if errors.facebook}<span class="error">{errors.facebook}</span>{/if}
+      </label>
+
+      <label class="field">
+        <span>LinkedIn URL</span>
+        <input
+          name="linkedin"
+          type="url"
+          bind:value={linkedin}
+          placeholder="https://linkedin.com/in/yourname"
+          aria-invalid={!!errors.linkedin}
+        />
+        {#if errors.linkedin}<span class="error">{errors.linkedin}</span>{/if}
+      </label>
+
+      <label class="field">
+        <span>YouTube URL</span>
+        <input
+          name="youtube"
+          type="url"
+          bind:value={youtube}
+          placeholder="https://youtube.com/@yourchannel"
+          aria-invalid={!!errors.youtube}
+        />
+        {#if errors.youtube}<span class="error">{errors.youtube}</span>{/if}
       </label>
     </fieldset>
 
@@ -446,6 +542,7 @@
   input[type="text"],
   input[type="email"],
   input[type="url"],
+  input[type="number"],
   textarea,
   select {
     padding: 0.55rem 0.7rem;
@@ -506,29 +603,37 @@
     flex: 1;
     border-radius: 0 6px 6px 0;
   }
+  .age-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .age-row input {
+    width: 5.5rem;
+  }
+  .age-row span {
+    color: #666;
+  }
   .checkbox-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 0.5rem 1rem;
     margin-bottom: 0.5rem;
   }
-  .checkbox,
-  .radio {
+  .checkbox {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
     cursor: pointer;
     padding: 0.25rem 0;
   }
-  .checkbox input,
-  .radio input {
+  .checkbox input {
     margin: 0.2rem 0 0;
   }
-  .radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-bottom: 1rem;
+  .union-desc {
+    color: #666;
+    font-weight: normal;
+    font-size: 0.9rem;
   }
   .submit {
     background: #38817d;

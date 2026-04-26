@@ -1,30 +1,16 @@
-// Public artist submission form. Loads the discipline list, validates the
-// posted form, checks slug collision, and inserts a row into
-// pending_submissions with status='pending_email'.
+// Public artist submission form. Loads the discipline / area / union
+// reference lists from the DB, validates the posted form, checks slug
+// collision, and inserts a row into pending_submissions with
+// status='pending_email'.
 //
 // Email verification (sending the link, the click-to-confirm endpoint) is
-// step 5 of BUILD_PLAN - not wired here yet. The success page tells the
-// artist a verification email is on the way.
+// step 5 of BUILD_PLAN - not wired here yet.
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 
-const AVAILABILITY_OPTIONS = ["Available", "Currently Committed"];
-const EXPERIENCE_OPTIONS = ["Emerging", "Mid-Career", "Veteran"];
-const UNION_OPTIONS = ["AEA", "AGMA", "Non-Union"];
-const AREA_OPTIONS = ["Tacoma", "Olympia", "Gig Harbor", "Other South Sound"];
-const AGE_OPTIONS = [
-  "Under 18",
-  "18-24",
-  "25-34",
-  "35-44",
-  "45-54",
-  "55-64",
-  "65+",
-  "Prefer not to say",
-];
 const ETHNICITY_OPTIONS = [
   "African American / Black",
   "Asian",
@@ -38,21 +24,28 @@ const ETHNICITY_OPTIONS = [
 ];
 
 export const load: PageServerLoad = async () => {
-  const { data, error } = await supabaseAdmin
-    .from("disciplines")
-    .select("name")
-    .order("sort_order");
-  if (error) throw error;
+  const [disciplinesRes, areasRes, unionsRes] = await Promise.all([
+    supabaseAdmin.from("disciplines").select("name").order("sort_order"),
+    supabaseAdmin.from("areas").select("name").order("sort_order"),
+    supabaseAdmin
+      .from("unions")
+      .select("name, description")
+      .order("sort_order"),
+  ]);
+  if (disciplinesRes.error) throw disciplinesRes.error;
+  if (areasRes.error) throw areasRes.error;
+  if (unionsRes.error) throw unionsRes.error;
+
   return {
-    disciplines: (data ?? []).map((d: { name: string }) => d.name),
-    options: {
-      availability: AVAILABILITY_OPTIONS,
-      experience: EXPERIENCE_OPTIONS,
-      union: UNION_OPTIONS,
-      area: AREA_OPTIONS,
-      age: AGE_OPTIONS,
-      ethnicity: ETHNICITY_OPTIONS,
-    },
+    disciplines: (disciplinesRes.data ?? []).map(
+      (d: { name: string }) => d.name,
+    ),
+    areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
+    unions: (unionsRes.data ?? []) as Array<{
+      name: string;
+      description: string | null;
+    }>,
+    options: { ethnicity: ETHNICITY_OPTIONS },
   };
 };
 
@@ -64,16 +57,22 @@ type Values = {
   pronouns: string;
   headshotUrl: string;
   headshotConsent: boolean;
-  availability: string;
-  experience: string;
-  union: string;
   area: string;
-  ageRange: string;
+  areaOther: string;
+  playableAgeMin: string;
+  playableAgeMax: string;
   languages: string;
   instagram: string;
+  facebook: string;
+  tiktok: string;
+  linkedin: string;
+  twitter: string;
+  youtube: string;
   website: string;
   disciplines: string[];
   disciplineOther: string;
+  unions: string[];
+  unionOther: string;
   ethnicities: string[];
   ethnicityOther: string;
 };
@@ -82,8 +81,7 @@ export const actions: Actions = {
   default: async ({ request }) => {
     const data = await request.formData();
 
-    // Honeypot: bots fill this field, humans don't see it. Pretend success
-    // so they don't iterate against us.
+    // Honeypot: bots fill this hidden field, humans don't see it.
     if ((data.get("website_url_extra") as string)?.trim()) {
       throw redirect(303, "/submit/thanks");
     }
@@ -96,16 +94,22 @@ export const actions: Actions = {
       pronouns: ((data.get("pronouns") as string) ?? "").trim(),
       headshotUrl: ((data.get("headshot_url") as string) ?? "").trim(),
       headshotConsent: data.get("headshot_consent") === "on",
-      availability: ((data.get("availability") as string) ?? "").trim(),
-      experience: ((data.get("experience") as string) ?? "").trim(),
-      union: ((data.get("union") as string) ?? "").trim(),
       area: ((data.get("area") as string) ?? "").trim(),
-      ageRange: ((data.get("age_range") as string) ?? "").trim(),
+      areaOther: ((data.get("area_other") as string) ?? "").trim(),
+      playableAgeMin: ((data.get("playable_age_min") as string) ?? "").trim(),
+      playableAgeMax: ((data.get("playable_age_max") as string) ?? "").trim(),
       languages: ((data.get("languages") as string) ?? "").trim(),
       instagram: ((data.get("instagram") as string) ?? "").trim(),
+      facebook: ((data.get("facebook") as string) ?? "").trim(),
+      tiktok: ((data.get("tiktok") as string) ?? "").trim(),
+      linkedin: ((data.get("linkedin") as string) ?? "").trim(),
+      twitter: ((data.get("twitter") as string) ?? "").trim(),
+      youtube: ((data.get("youtube") as string) ?? "").trim(),
       website: ((data.get("website") as string) ?? "").trim(),
       disciplines: data.getAll("disciplines").map(String).filter(Boolean),
       disciplineOther: ((data.get("discipline_other") as string) ?? "").trim(),
+      unions: data.getAll("unions").map(String).filter(Boolean),
+      unionOther: ((data.get("union_other") as string) ?? "").trim(),
       ethnicities: data.getAll("ethnicities").map(String).filter(Boolean),
       ethnicityOther: ((data.get("ethnicity_other") as string) ?? "").trim(),
     };
@@ -114,27 +118,50 @@ export const actions: Actions = {
 
     if (!values.fullName) errors.full_name = "Required.";
     if (!isValidEmail(values.email)) errors.email = "Enter a valid email address.";
-    if (!values.headshotUrl) errors.headshot_url = "Headshot is required.";
-    if (!values.headshotConsent) {
+
+    // Headshot is optional, but if uploaded, the rights consent is required.
+    if (values.headshotUrl && !values.headshotConsent) {
       errors.headshot_consent = "Please confirm you have rights to use this image.";
     }
-    if (values.disciplines.length === 0) errors.disciplines = "Choose at least one.";
-    if (!AVAILABILITY_OPTIONS.includes(values.availability)) {
-      errors.availability = "Choose your availability.";
-    }
-    if (!AREA_OPTIONS.includes(values.area)) errors.area = "Choose an area.";
 
-    if (values.experience && !EXPERIENCE_OPTIONS.includes(values.experience)) {
-      errors.experience = "Pick from the list.";
+    if (values.disciplines.length === 0) errors.disciplines = "Choose at least one.";
+    if (!values.area) errors.area = "Choose an area.";
+    if (values.area === "Other" && !values.areaOther) {
+      errors.area_other = "Tell us where.";
     }
-    if (values.union && !UNION_OPTIONS.includes(values.union)) {
-      errors.union = "Pick from the list.";
+
+    // Playable age range: optional, but if either is set both must be,
+    // and 0 ≤ min ≤ max ≤ 120.
+    let ageMin: number | null = null;
+    let ageMax: number | null = null;
+    if (values.playableAgeMin || values.playableAgeMax) {
+      if (!values.playableAgeMin || !values.playableAgeMax) {
+        errors.playable_age = "Set both ages or leave both blank.";
+      } else {
+        const a = Number(values.playableAgeMin);
+        const b = Number(values.playableAgeMax);
+        if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b > 120) {
+          errors.playable_age = "Ages must be whole numbers between 0 and 120.";
+        } else if (a > b) {
+          errors.playable_age = "Min must be less than or equal to max.";
+        } else {
+          ageMin = a;
+          ageMax = b;
+        }
+      }
     }
-    if (values.ageRange && !AGE_OPTIONS.includes(values.ageRange)) {
-      errors.age_range = "Pick from the list.";
-    }
+
     if (values.website && !isValidUrl(values.website)) {
       errors.website = "Must be a valid URL.";
+    }
+    if (values.facebook && !isValidUrl(values.facebook)) {
+      errors.facebook = "Must be a valid URL (https://facebook.com/...).";
+    }
+    if (values.linkedin && !isValidUrl(values.linkedin)) {
+      errors.linkedin = "Must be a valid URL (https://linkedin.com/in/...).";
+    }
+    if (values.youtube && !isValidUrl(values.youtube)) {
+      errors.youtube = "Must be a valid URL (https://youtube.com/...).";
     }
 
     const slugCheck = validateSlug(values.slug);
@@ -144,15 +171,12 @@ export const actions: Actions = {
       return fail(400, { errors, values });
     }
 
-    // Slug collision: only check against live profiles. Pending submissions
-    // don't reserve slugs (per planning notes); a tied pair is rare enough
-    // that the admin handles it at approval time.
+    // Slug collision against live profiles only.
     const { data: existing, error: existErr } = await supabaseAdmin
       .from("profiles")
       .select("slug")
       .eq("slug", values.slug)
       .maybeSingle();
-
     if (existErr) {
       console.error("slug collision check failed", existErr);
       return fail(500, {
@@ -160,7 +184,6 @@ export const actions: Actions = {
         values,
       });
     }
-
     if (existing) {
       const suggestions = await findFreeSuggestions(values.fullName);
       return fail(409, {
@@ -170,7 +193,26 @@ export const actions: Actions = {
       });
     }
 
-    // Languages: comma-separated input → array, trimmed, dedup.
+    // Resolve "Other" placeholders to typed values.
+    const disciplines = [...values.disciplines];
+    if (values.disciplineOther && disciplines.includes("Other")) {
+      disciplines[disciplines.indexOf("Other")] = values.disciplineOther;
+    }
+
+    const unions = [...values.unions];
+    if (values.unionOther && unions.includes("Other")) {
+      unions[unions.indexOf("Other")] = values.unionOther;
+    }
+
+    const ethnicities = [...values.ethnicities];
+    if (values.ethnicityOther) ethnicities.push(values.ethnicityOther);
+
+    const area =
+      values.area === "Other" && values.areaOther
+        ? values.areaOther
+        : values.area;
+
+    // Languages: comma-separated → trimmed, deduped array.
     const languages = Array.from(
       new Set(
         values.languages
@@ -180,19 +222,6 @@ export const actions: Actions = {
       ),
     );
 
-    // If they checked "Other" and named the discipline, replace "Other" in
-    // the array with the typed value. Lexi can spot custom entries because
-    // they won't match anything in the disciplines table - good signal for
-    // adding popular ones to the canonical list.
-    const disciplines = [...values.disciplines];
-    if (values.disciplineOther && disciplines.includes("Other")) {
-      const idx = disciplines.indexOf("Other");
-      disciplines[idx] = values.disciplineOther;
-    }
-
-    const ethnicities = [...values.ethnicities];
-    if (values.ethnicityOther) ethnicities.push(values.ethnicityOther);
-
     const { error: insertErr } = await supabaseAdmin
       .from("pending_submissions")
       .insert({
@@ -201,15 +230,19 @@ export const actions: Actions = {
         full_name: values.fullName,
         bio: values.bio || null,
         disciplines,
-        headshot_url: values.headshotUrl,
+        headshot_url: values.headshotUrl || null,
         headshot_consent: values.headshotConsent,
-        availability_status: values.availability,
-        experience_level: values.experience || null,
-        union_status: values.union || null,
-        geographic_area: values.area,
-        age_range: values.ageRange || null,
+        geographic_area: area,
+        playable_age_min: ageMin,
+        playable_age_max: ageMax,
         languages,
+        unions,
         instagram_handle: values.instagram || null,
+        facebook_url: values.facebook || null,
+        tiktok_handle: values.tiktok || null,
+        linkedin_url: values.linkedin || null,
+        twitter_handle: values.twitter || null,
+        youtube_url: values.youtube || null,
         website_url: values.website || null,
         desired_slug: values.slug,
         pronouns: values.pronouns || null,
@@ -226,8 +259,7 @@ export const actions: Actions = {
     }
 
     // TODO step 5: send email verification link via Resend wrapper
-    // (logs to email_log first). For now, the success page tells the user
-    // to expect an email.
+    // (logs to email_log first).
 
     throw redirect(303, "/submit/thanks");
   },
