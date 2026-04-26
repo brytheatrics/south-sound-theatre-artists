@@ -56,8 +56,8 @@
 
 <section class="hero">
   <p class="lede">
-    A free, community-run directory of theatre artists from Tacoma to Gig
-    Harbor. No accounts to browse. Five-minute submission to be listed.
+    A free, community-run directory of theatre artists from the South Puget
+    Sound. No accounts to browse. Five-minute submission to be listed.
     <span class="lede-cta">You belong here.</span>
   </p>
   <div class="stats">
