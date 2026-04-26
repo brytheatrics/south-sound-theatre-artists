@@ -248,12 +248,11 @@
     margin: 0;
     cursor: pointer;
     text-align: left;
-    font-family: var(--font-accent);
-    font-style: italic;
-    font-weight: 400;
+    font-family: var(--font-display);
+    font-weight: 600;
     color: var(--ink);
     line-height: 0.92;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
     font-size: clamp(72px, 13vw, 200px);
     display: block;
     width: 100%;
@@ -262,9 +261,15 @@
     outline-offset: 6px;
   }
   .name-last {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
     color: var(--accent);
+    letter-spacing: -0.02em;
   }
   .name-comma {
+    font-family: var(--font-accent);
+    font-style: italic;
     color: var(--accent);
   }
 
@@ -273,10 +278,11 @@
     font-family: var(--font-accent);
     font-style: italic;
     font-weight: 400;
-    color: var(--accent);
+    color: var(--ink-soft);
     font-size: clamp(28px, 4.5vw, 56px);
     line-height: 1.05;
     letter-spacing: -0.02em;
+    text-transform: lowercase;
   }
 
   .featured-foot {
@@ -315,7 +321,7 @@
     border-bottom: 1px solid var(--rule);
     padding: 16px 0;
     white-space: nowrap;
-    background: var(--bg);
+    background: var(--paper);
   }
   .marquee-track {
     display: inline-flex;
@@ -420,7 +426,7 @@
     font-family: var(--font-accent);
     font-style: italic;
     font-size: 15px;
-    color: var(--ink-soft);
+    color: var(--muted);
     line-height: 1.3;
   }
 
