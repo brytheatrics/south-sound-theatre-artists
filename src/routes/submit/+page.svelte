@@ -97,11 +97,16 @@
 </svelte:head>
 
 <main>
-  <h1>Submit your profile</h1>
-  <p class="intro">
-    Add yourself to the South Sound theatre artist directory. Fields marked
-    with <span class="req">*</span> are required.
-  </p>
+  <header class="hd">
+    <span class="eyebrow"><span class="num">→</span>Submit your profile</span>
+    <h1 class="h1-display">
+      You belong <span class="serif-it">here</span>.
+    </h1>
+    <p class="intro">
+      Add yourself to the South Sound theatre artist directory. Fields
+      marked with <span class="req">*</span> are required.
+    </p>
+  </header>
 
   {#if errors._form}
     <div class="form-error" role="alert">{errors._form}</div>
@@ -479,92 +484,133 @@
 
 <style>
   main {
-    max-width: 640px;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 2rem 1rem 4rem;
-    font-family: system-ui, sans-serif;
-    color: #222;
+    padding: clamp(2rem, 4vw, 3rem) var(--page-pad-x) 4rem;
   }
-  h1 {
-    margin: 0 0 0.5rem;
-    color: #2d1f3d;
+  .hd {
+    margin-bottom: 3rem;
+  }
+  .h1-display {
+    margin: 0.75rem 0 1rem;
   }
   .intro {
-    color: #555;
-    margin: 0 0 2rem;
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: clamp(16px, 1.5vw, 18px);
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
   }
   .req {
-    color: #c00;
+    color: var(--accent);
+    font-style: normal;
+    font-family: var(--font-body);
+  }
+
+  form {
+    counter-reset: section;
   }
   fieldset {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 1.25rem;
-    margin: 0 0 1.5rem;
+    border: 0;
+    border-top: 1px solid var(--rule);
+    padding: 2rem 0;
+    margin: 0;
+    counter-increment: section;
+  }
+  fieldset:last-of-type {
+    border-bottom: 1px solid var(--rule);
   }
   legend {
-    font-weight: 600;
-    color: #2d1f3d;
-    padding: 0 0.5rem;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 1.5rem;
   }
+  legend::before {
+    content: counter(section, decimal-leading-zero) " ";
+    color: var(--accent);
+    margin-right: 0.6em;
+  }
+
   .field {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    margin-bottom: 1rem;
+    gap: 6px;
+    margin-bottom: 1.25rem;
   }
   .field:last-child {
     margin-bottom: 0;
   }
   .field > span:first-child,
   .field-label {
-    font-weight: 500;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
+
   input[type="text"],
   input[type="email"],
   input[type="url"],
   input[type="number"],
   textarea,
   select {
-    padding: 0.55rem 0.7rem;
-    border: 1px solid #aaa;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-family: inherit;
-    background: white;
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-family: var(--font-body);
+    background: var(--bg-raised);
+    color: var(--ink);
+    line-height: 1.4;
   }
   input:focus,
   textarea:focus,
   select:focus {
-    outline: 2px solid #38817d;
+    outline: 2px solid var(--accent);
     outline-offset: -1px;
-    border-color: #38817d;
+    border-color: var(--accent);
   }
   input[aria-invalid="true"],
   select[aria-invalid="true"] {
-    border-color: #c00;
+    border-color: var(--error);
   }
   textarea {
     resize: vertical;
-    min-height: 120px;
+    min-height: 140px;
+    font-family: var(--font-body);
   }
   .hint {
-    font-size: 0.85rem;
-    color: #666;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
   }
   .error {
-    color: #c00;
-    font-size: 0.85rem;
-    margin-top: 0.2rem;
+    color: var(--error);
+    font-size: 13px;
+    margin-top: 4px;
+    font-family: var(--font-body);
   }
   .form-error {
-    background: #ffe5e5;
-    border: 1px solid #c00;
-    color: #800;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    padding: 12px 16px;
+    border-radius: var(--radius);
     margin-bottom: 1.5rem;
+    font-size: 14px;
+    font-family: var(--font-body);
   }
+
   .slug-row {
     display: flex;
     align-items: stretch;
@@ -572,73 +618,93 @@
   .slug-row .prefix {
     display: flex;
     align-items: center;
-    padding: 0 0.6rem;
-    background: #f0f0f0;
-    border: 1px solid #aaa;
+    padding: 0 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
     border-right: none;
-    border-radius: 6px 0 0 6px;
-    color: #666;
-    font-size: 0.95rem;
+    border-radius: var(--radius) 0 0 var(--radius);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
   }
   .slug-row input {
     flex: 1;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 var(--radius) var(--radius) 0;
   }
+
   .age-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
   }
   .age-row input {
-    width: 5.5rem;
+    width: 5rem;
   }
   .age-row span {
-    color: #666;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
   }
+
   .checkbox-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 0.5rem 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 16px;
     margin-bottom: 0.5rem;
   }
   .checkbox {
     display: flex;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 10px;
     cursor: pointer;
-    padding: 0.25rem 0;
+    padding: 4px 0;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
   }
   .checkbox input {
-    margin: 0.2rem 0 0;
+    margin: 4px 0 0;
+    accent-color: var(--accent);
   }
   .union-desc {
-    color: #666;
+    color: var(--muted);
     font-weight: normal;
-    font-size: 0.9rem;
+    font-size: 13px;
   }
+
   .submit {
-    background: #38817d;
-    color: white;
-    border: none;
-    padding: 0.85rem 1.5rem;
-    border-radius: 8px;
-    font-size: 1.05rem;
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    padding: 14px 24px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-family: var(--font-body);
     font-weight: 500;
     cursor: pointer;
     width: 100%;
+    margin-top: 2rem;
+    transition: background 0.15s, color 0.15s;
   }
   .submit:hover:not(:disabled) {
-    background: #2d6b67;
+    background: var(--accent);
+    border-color: var(--accent);
   }
   .submit:disabled {
-    background: #888;
+    opacity: 0.5;
     cursor: progress;
   }
   .footer-note {
-    margin-top: 1rem;
-    font-size: 0.9rem;
-    color: #666;
+    margin-top: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
     text-align: center;
+    line-height: 1.7;
   }
   .honeypot {
     position: absolute;

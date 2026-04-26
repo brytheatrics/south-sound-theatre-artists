@@ -232,19 +232,22 @@
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    border: 2px dashed #aaa;
-    border-radius: 8px;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius-lg);
     padding: 2rem 1rem;
-    min-height: 180px;
+    min-height: 200px;
     cursor: pointer;
-    background: #fafafa;
+    background: var(--paper);
     text-align: center;
     transition: border-color 0.15s, background 0.15s;
+    font-family: var(--font-body);
+    color: var(--ink-soft);
   }
   .dropzone:hover,
   .drag-active {
-    border-color: #555;
-    background: #f0f0f0;
+    border-color: var(--ink);
+    border-style: solid;
+    background: var(--paper-2);
   }
   .dropzone.disabled {
     cursor: progress;
@@ -255,50 +258,58 @@
   .status {
     margin: 0;
     font-weight: 500;
+    color: var(--ink);
+    font-family: var(--font-body);
   }
   .hint {
     margin: 0;
-    font-size: 0.85rem;
-    color: #666;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
   }
   .bar {
     width: 100%;
     max-width: 320px;
-    height: 8px;
-    background: #e0e0e0;
-    border-radius: 4px;
+    height: 4px;
+    background: var(--paper-2);
+    border-radius: 0;
     overflow: hidden;
   }
   .fill {
     height: 100%;
-    background: #4a90e2;
+    background: var(--accent);
     transition: width 0.15s;
   }
   .preview {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
   .preview img {
     max-width: 240px;
     max-height: 240px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
+    background: var(--paper);
   }
   .replace {
-    font-size: 0.9rem;
-    padding: 0.35rem 0.8rem;
-    border: 1px solid #888;
-    background: white;
-    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 14px;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    background: transparent;
+    border-radius: var(--radius);
     cursor: pointer;
   }
   .replace:hover {
-    background: #f0f0f0;
+    border-color: var(--ink);
   }
   .error {
-    color: #c00;
+    color: var(--error);
     font-size: 0.9rem;
     margin: 0;
   }

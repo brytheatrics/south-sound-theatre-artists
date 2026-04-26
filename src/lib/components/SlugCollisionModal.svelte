@@ -100,26 +100,37 @@
     padding: 1rem;
   }
   .modal {
-    background: white;
-    border-radius: 8px;
-    padding: 1.5rem;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
     max-width: 480px;
     width: 100%;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    font-family: var(--font-body);
+    color: var(--ink);
   }
   h2 {
     margin: 0 0 0.5rem;
-    font-size: 1.25rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
   p {
-    margin: 0 0 1rem;
-    color: #444;
+    margin: 0 0 1.25rem;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1.55;
   }
   code {
-    background: #f0f0f0;
-    padding: 0.1rem 0.3rem;
-    border-radius: 3px;
-    font-size: 0.9rem;
+    background: var(--paper);
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink);
   }
   .suggestions {
     list-style: none;
@@ -127,84 +138,103 @@
     margin: 0 0 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 6px;
   }
   .suggestion {
     width: 100%;
     text-align: left;
-    padding: 0.6rem 0.8rem;
-    background: #f7f7f7;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    padding: 10px 14px;
+    background: var(--paper);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
     cursor: pointer;
-    font-family: inherit;
-    font-size: 0.95rem;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    transition: border-color 0.15s, color 0.15s;
   }
   .suggestion:hover {
-    background: #ebebeb;
-    border-color: #999;
+    border-color: var(--ink);
+    color: var(--ink);
   }
   .suggestion strong {
-    color: #2d1f3d;
+    color: var(--accent);
+    font-weight: 500;
   }
   .custom {
     margin-top: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--rule-soft);
   }
   .custom label {
     display: block;
-    font-weight: 500;
-    margin-bottom: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 8px;
   }
   .custom-row {
     display: flex;
     align-items: stretch;
-    gap: 0.5rem;
+    gap: 8px;
   }
   .prefix {
     display: flex;
     align-items: center;
-    color: #666;
-    font-size: 0.9rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 0 4px;
   }
   .custom-row input {
     flex: 1;
-    padding: 0.5rem 0.7rem;
-    border: 1px solid #aaa;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-family: inherit;
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .custom-row input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
   }
   .primary {
-    padding: 0.5rem 1rem;
-    background: #38817d;
-    color: white;
+    padding: 10px 18px;
+    background: var(--ink);
+    color: var(--bg);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius);
     cursor: pointer;
     font-weight: 500;
-    font-size: 0.95rem;
+    font-size: 14px;
+    font-family: var(--font-body);
   }
   .primary:hover {
-    background: #2d6b67;
+    background: var(--accent);
   }
   .cancel {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background: white;
-    color: #666;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    margin-top: 1.25rem;
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 13px;
+    font-family: var(--font-body);
   }
   .cancel:hover {
-    background: #f5f5f5;
+    border-color: var(--ink);
+    color: var(--ink);
   }
   .error {
-    color: #c00;
-    font-size: 0.85rem;
-    margin: 0.4rem 0 0;
+    color: var(--error);
+    font-size: 13px;
+    margin: 6px 0 0;
   }
 </style>
