@@ -63,9 +63,11 @@ pnpm check              # typecheck - must be 0 errors before committing
 
 ## Git Workflow
 
-**Standing permission to commit local changes.** Commit at natural breakpoints with clear messages. Prefer new commits over amending.
+**Standing permission granted to commit local changes without asking.** Commit at natural breakpoints (feature complete, typecheck passing, before task switch) with clear messages matching the existing repo style. Prefer new commits over amending. Mention what was committed in the response summary so Blake can review in `git log`.
 
-**Never push without explicit permission.** Pushing triggers Netlify deploy.
+**Never push without explicit permission.** Pushing triggers a Netlify build + deploy on the free tier (300 build minutes / month). We don't want to burn through that budget on incremental pushes. Always ask "want me to push these commits?" and wait for approval before `git push`. This is a hard rule - do not override it even if Blake has approved a push earlier in the same session. Each push needs its own approval.
+
+**Never deploy manually (Netlify CLI, deploy hooks, etc.) without explicit permission.** Same rationale - any deploy consumes build minutes.
 
 ## Cost Constraints
 
