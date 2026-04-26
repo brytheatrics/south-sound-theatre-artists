@@ -251,6 +251,11 @@ These came up in planning and were explicitly cut. Do not add without revisiting
 
 ---
 
+## Deploy Targets
+
+- **Netlify preview / staging URL**: https://southsoundtheatreartists.netlify.app (auto-deploys from `main`)
+- **Custom domain** (post-launch): TBD - Lexi owns it, DNS access pending
+
 ## Open Items Pending Real-World Information
 
 - Domain name (Lexi owns it; needs access for DNS configuration ~2 weeks before launch)
