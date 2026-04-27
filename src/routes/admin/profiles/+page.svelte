@@ -129,9 +129,9 @@
                 class="pill"
                 class:on={p.trusted}
                 disabled={busyId === p.id}
-                title={p.trusted ? "Trusted - their edits apply directly. Click to require admin review." : "Untrusted - major edits queue for admin review. Click to trust."}
+                title={p.trusted ? "Trusted - their edits apply directly. Click to revoke." : "Not trusted - major edits (headshot, disciplines) will queue for admin review. Click to grant trust."}
               >
-                {p.trusted ? "Trusted" : "Review"}
+                {p.trusted ? "Trusted" : "Not trusted"}
               </button>
             </form>
           </td>
