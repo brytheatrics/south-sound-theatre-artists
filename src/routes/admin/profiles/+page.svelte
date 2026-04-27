@@ -19,10 +19,12 @@
     <input type="search" name="q" placeholder="Search name, slug, or email..." value={data.q} />
     <button type="submit" class="bt bt-pri">Search</button>
     {#if data.q}<a class="bt bt-ghost" href="/admin/profiles">Clear</a>{/if}
+    <a class="bt bt-acc" href="/admin/profiles/new">+ New profile</a>
     <a class="bt bt-ghost" href="/admin/profiles/trash">Trash ({data.trashCount})</a>
   </form>
 
   {#if form?.deleted}<div class="form-ok" role="status">Deleted {form.deleted}.</div>{/if}
+  {#if form?.linkSent}<div class="form-ok" role="status">Edit link emailed to {form.linkSent}.</div>{/if}
   {#if form?.error}<div class="form-error" role="alert">{form.error}</div>{/if}
 </header>
 
@@ -74,6 +76,23 @@
           <td class="actions-col">
             <form
               method="POST"
+              action="?/sendEditLink"
+              use:enhance={() => {
+                busyId = p.id;
+                return async ({ update }) => {
+                  await update();
+                  busyId = null;
+                };
+              }}
+              style="display: inline"
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <button type="submit" class="bt-link" disabled={busyId === p.id}>
+                Send edit link
+              </button>
+            </form>
+            <form
+              method="POST"
               action="?/softDelete"
               onsubmit={(e) => { if (!confirm(`Move ${p.full_name} to trash?`)) e.preventDefault(); }}
               use:enhance={() => {
@@ -83,6 +102,7 @@
                   busyId = null;
                 };
               }}
+              style="display: inline"
             >
               <input type="hidden" name="id" value={p.id} />
               <button type="submit" class="bt-link warn" disabled={busyId === p.id}>Trash</button>
@@ -152,6 +172,14 @@
   }
   .bt-pri:hover {
     background: var(--accent);
+    text-decoration: none;
+  }
+  .bt-acc {
+    background: var(--accent);
+    color: #fff;
+  }
+  .bt-acc:hover {
+    background: var(--ink);
     text-decoration: none;
   }
   .bt-ghost {

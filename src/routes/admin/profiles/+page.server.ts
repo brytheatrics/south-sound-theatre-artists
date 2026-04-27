@@ -1,10 +1,15 @@
-// /admin/profiles: searchable list of live profiles with publish toggle
-// + soft-delete actions. Soft-deleted rows live in /admin/profiles/trash
-// for 30 days before a daily cron hard-deletes them.
+// /admin/profiles: searchable list of live profiles with publish toggle,
+// soft-delete, and "send a fresh edit link" actions. Soft-deleted rows
+// live in /admin/profiles/trash for 30 days.
 
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { sendEmail } from "$lib/server/email";
+import { generateToken, hashToken } from "$lib/server/tokens";
+
+const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 const PAGE_SIZE = 50;
 
@@ -59,5 +64,40 @@ export const actions: Actions = {
       .in("id", ids);
     if (error) return fail(500, { error: "Could not delete." });
     return { deleted: ids.length };
+  },
+
+  sendEditLink: async ({ request }) => {
+    const data = await request.formData();
+    const id = (data.get("id") as string) ?? "";
+    if (!id) return fail(400, { error: "Missing id." });
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("id", id)
+      .maybeSingle();
+    if (!profile) return fail(404, { error: "Profile not found." });
+
+    const token = generateToken();
+    const tokenHash = hashToken(token);
+    const expires = new Date(Date.now() + EDIT_TOKEN_TTL_MS).toISOString();
+    await supabaseAdmin.from("magic_link_tokens").insert({
+      token_hash: tokenHash,
+      email: profile.email.toLowerCase(),
+      purpose: "edit_profile",
+      target_id: profile.id,
+      expires_at: expires,
+    });
+    const editUrl = `${PUBLIC_SITE_URL}/edit/${token}`;
+    const result = await sendEmail({
+      to: profile.email,
+      templateSlug: "magic_link_resend",
+      vars: { name: profile.full_name, edit_url: editUrl },
+    });
+    if (!result.ok) {
+      return fail(500, {
+        error: `Token generated but email failed: ${result.reason}`,
+      });
+    }
+    return { linkSent: profile.email };
   },
 };
