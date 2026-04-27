@@ -15,8 +15,13 @@
     categoryOrder: string[];
     selected: Set<string>;
     onToggle: (name: string) => void;
-    otherValue: string;
-    onOtherChange: (value: string) => void;
+    /** Optional - when omitted, the "Other" custom-text field is hidden. */
+    otherValue?: string;
+    onOtherChange?: (value: string) => void;
+    /** Form field name for the hidden inputs. Defaults to "disciplines". */
+    inputName?: string;
+    /** Whether to render the "Other" + custom-text input. Defaults to true. */
+    showOtherInput?: boolean;
     error?: string;
   };
 
@@ -25,8 +30,10 @@
     categoryOrder,
     selected,
     onToggle,
-    otherValue,
-    onOtherChange,
+    otherValue = "",
+    onOtherChange = () => {},
+    inputName = "disciplines",
+    showOtherInput = true,
     error,
   }: Props = $props();
 
@@ -105,7 +112,7 @@
        inputs for visible items, so we duplicate every selection here so
        FormData picks them up regardless of which category is collapsed. -->
   {#each [...selected] as name}
-    <input type="hidden" name="disciplines" value={name} />
+    <input type="hidden" name={inputName} value={name} />
   {/each}
 
   <div class="categories">
@@ -145,7 +152,7 @@
     {/each}
   </div>
 
-  {#if selected.has("Other")}
+  {#if showOtherInput && selected.has("Other")}
     <label class="field other-field">
       <span>Specify your discipline</span>
       <input

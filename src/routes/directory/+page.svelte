@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
 
   let { data } = $props();
@@ -18,11 +19,6 @@
   /* svelte-ignore state_referenced_locally */
   let ageMax = $state(data.filters.ageMax);
 
-  // Top discipline chips: take the top ~10 by category sort to fit in a row.
-  // Click to toggle; full picker available by expanding.
-  const topDisciplines = $derived(data.options.disciplines.slice(0, 10));
-
-  let showAllDisciplines = $state(false);
   let formEl: HTMLFormElement | undefined = $state();
 
   function toggleSet(set: Set<string>, value: string): Set<string> {
@@ -33,6 +29,19 @@
 
   function submitNow() {
     formEl?.requestSubmit();
+  }
+
+  function toggleDiscipline(name: string) {
+    selectedDisciplines = toggleSet(selectedDisciplines, name);
+    submitNow();
+  }
+  function toggleArea(name: string) {
+    selectedAreas = toggleSet(selectedAreas, name);
+    submitNow();
+  }
+  function toggleUnion(name: string) {
+    selectedUnions = toggleSet(selectedUnions, name);
+    submitNow();
   }
 
   function clearFilters() {
@@ -91,49 +100,53 @@
 
   <div class="filter-block">
     <span class="block-label">Discipline</span>
+    <DisciplinePicker
+      items={data.options.disciplines}
+      categoryOrder={data.options.disciplineCategories}
+      selected={selectedDisciplines}
+      onToggle={toggleDiscipline}
+      inputName="d"
+      showOtherInput={false}
+    />
+  </div>
+
+  <div class="filter-block">
+    <span class="block-label">Area</span>
     <div class="chip-row">
-      {#each (showAllDisciplines ? data.options.disciplines : topDisciplines) as d (d.name)}
+      {#each data.options.areas as a (a)}
         <label class="chip-label">
           <input
             type="checkbox"
-            name="d"
-            value={d.name}
-            checked={selectedDisciplines.has(d.name)}
-            onchange={() => {
-              selectedDisciplines = toggleSet(selectedDisciplines, d.name);
-              submitNow();
-            }}
+            name="area"
+            value={a}
+            checked={selectedAreas.has(a)}
+            onchange={() => toggleArea(a)}
           />
-          <span class="chip" class:on={selectedDisciplines.has(d.name)}>{d.name}</span>
+          <span class="chip" class:on={selectedAreas.has(a)}>{a}</span>
         </label>
       {/each}
-      {#if !showAllDisciplines && data.options.disciplines.length > topDisciplines.length}
-        <button type="button" class="more-link" onclick={() => (showAllDisciplines = true)}>
-          + {data.options.disciplines.length - topDisciplines.length} more
-        </button>
-      {/if}
+    </div>
+  </div>
+
+  <div class="filter-block">
+    <span class="block-label">Union</span>
+    <div class="chip-row">
+      {#each data.options.unions as u (u)}
+        <label class="chip-label">
+          <input
+            type="checkbox"
+            name="u"
+            value={u}
+            checked={selectedUnions.has(u)}
+            onchange={() => toggleUnion(u)}
+          />
+          <span class="chip" class:on={selectedUnions.has(u)}>{u}</span>
+        </label>
+      {/each}
     </div>
   </div>
 
   <div class="filter-secondary">
-    <label class="ff">
-      <span>Area</span>
-      <select multiple name="area" bind:value={selectedAreas as unknown as string[]} onchange={submitNow} size="3">
-        {#each data.options.areas as a}
-          <option value={a} selected={selectedAreas.has(a)}>{a}</option>
-        {/each}
-      </select>
-    </label>
-
-    <label class="ff">
-      <span>Union</span>
-      <select multiple name="u" bind:value={selectedUnions as unknown as string[]} onchange={submitNow} size="3">
-        {#each data.options.unions as u}
-          <option value={u} selected={selectedUnions.has(u)}>{u}</option>
-        {/each}
-      </select>
-    </label>
-
     <label class="ff">
       <span>Language</span>
       <input type="text" name="lang" bind:value={language} placeholder="English" />
@@ -316,22 +329,10 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  .more-link {
-    background: none;
-    border: 0;
-    padding: 5px 8px;
-    color: var(--accent);
-    font-family: var(--font-body);
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .more-link:hover {
-    color: var(--ink);
-  }
 
   .filter-secondary {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
   }
   .ff {
@@ -346,8 +347,7 @@
     text-transform: uppercase;
     color: var(--muted);
   }
-  .ff input,
-  .ff select {
+  .ff input {
     padding: 8px 12px;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
@@ -355,8 +355,7 @@
     font-family: var(--font-body);
     background: var(--bg-raised);
   }
-  .ff input:focus,
-  .ff select:focus {
+  .ff input:focus {
     outline: 2px solid var(--accent);
     outline-offset: -1px;
     border-color: var(--accent);
