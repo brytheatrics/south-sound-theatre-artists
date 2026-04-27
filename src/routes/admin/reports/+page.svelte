@@ -12,6 +12,24 @@
     if (h < 24) return `${h}h ago`;
     return `${Math.floor(h / 24)}d ago`;
   }
+
+  function toggleNote(r: { id: string; admin_notes: string | null }) {
+    if (openNote === r.id) {
+      openNote = null;
+    } else {
+      // Pre-fill with the saved note when editing an existing one. Open
+      // rows still get an empty box (the note's a fresh add-while-resolving).
+      if (notes[r.id] === undefined) {
+        notes[r.id] = r.admin_notes ?? "";
+      }
+      openNote = r.id;
+    }
+  }
+
+  function closeAfterSubmit() {
+    busyId = null;
+    openNote = null;
+  }
 </script>
 
 <svelte:head><title>Reports - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
@@ -26,6 +44,7 @@
   </div>
   {#if form?.resolved}<div class="form-ok">Resolved {form.resolved}.</div>{/if}
   {#if form?.dismissed}<div class="form-ok">Dismissed {form.dismissed}.</div>{/if}
+  {#if form?.noteSaved}<div class="form-ok">Note saved.</div>{/if}
 </header>
 
 {#if data.reports.length === 0}
@@ -47,33 +66,83 @@
               from {r.reporter_email ?? "anon"} · {timeAgo(r.created_at)}
             </span>
           </div>
-          {#if r.status === "open"}
-            <div class="actions">
-              <button type="button" class="bt-link" onclick={() => (openNote = openNote === r.id ? null : r.id)}>
-                Add note
-              </button>
-              <form method="POST" action="?/resolve" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
+          <div class="actions">
+            <button
+              type="button"
+              class="bt-link"
+              onclick={() => toggleNote(r)}
+            >
+              {openNote === r.id ? "Cancel" : r.admin_notes ? "Edit note" : "Add note"}
+            </button>
+            {#if r.status === "open"}
+              <form
+                method="POST"
+                action="?/resolve"
+                use:enhance={() => {
+                  busyId = r.id;
+                  return async ({ update }) => {
+                    await update();
+                    closeAfterSubmit();
+                  };
+                }}
+              >
                 <input type="hidden" name="id" value={r.id} />
-                <input type="hidden" name="note" value={notes[r.id] ?? ""} />
+                <input type="hidden" name="note" value={openNote === r.id ? (notes[r.id] ?? "") : ""} />
                 <button type="submit" class="bt-link" disabled={busyId === r.id}>Resolved</button>
               </form>
-              <form method="POST" action="?/dismiss" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
+              <form
+                method="POST"
+                action="?/dismiss"
+                use:enhance={() => {
+                  busyId = r.id;
+                  return async ({ update }) => {
+                    await update();
+                    closeAfterSubmit();
+                  };
+                }}
+              >
                 <input type="hidden" name="id" value={r.id} />
-                <input type="hidden" name="note" value={notes[r.id] ?? ""} />
+                <input type="hidden" name="note" value={openNote === r.id ? (notes[r.id] ?? "") : ""} />
                 <button type="submit" class="bt-link warn" disabled={busyId === r.id}>Dismiss</button>
               </form>
-            </div>
-          {/if}
+            {/if}
+          </div>
         </div>
         <p class="reason">{r.reason}</p>
+
         {#if openNote === r.id}
-          <textarea
-            bind:value={notes[r.id]}
-            placeholder="Internal note (optional). Saved with the report."
-            rows="2"
-          ></textarea>
-        {/if}
-        {#if r.admin_notes}
+          <div class="note-editor">
+            <textarea
+              bind:value={notes[r.id]}
+              placeholder="Internal note. Visible only to admin."
+              rows="3"
+            ></textarea>
+            <div class="note-actions">
+              <form
+                method="POST"
+                action="?/updateNote"
+                use:enhance={() => {
+                  busyId = r.id;
+                  return async ({ update }) => {
+                    await update();
+                    closeAfterSubmit();
+                  };
+                }}
+              >
+                <input type="hidden" name="id" value={r.id} />
+                <input type="hidden" name="note" value={notes[r.id] ?? ""} />
+                <button type="submit" class="bt-save" disabled={busyId === r.id}>
+                  {busyId === r.id ? "Saving..." : "Save note"}
+                </button>
+              </form>
+              {#if r.status === "open"}
+                <span class="note-hint">
+                  Or click Resolved / Dismiss above to save the note alongside that action.
+                </span>
+              {/if}
+            </div>
+          </div>
+        {:else if r.admin_notes}
           <p class="note"><strong>Note:</strong> {r.admin_notes}</p>
         {/if}
       </li>
@@ -96,7 +165,7 @@
   .target { font-family: var(--font-display); font-weight: 600; color: var(--ink); margin-right: 8px; }
   .target:hover { color: var(--accent); }
   .meta { color: var(--muted); font-size: 12px; }
-  .actions { display: flex; gap: 4px; }
+  .actions { display: flex; gap: 4px; align-items: center; }
   .bt-link {
     background: none;
     border: 0;
@@ -117,13 +186,25 @@
     white-space: pre-line;
   }
   .note {
-    margin: 8px 0 0;
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    background: var(--paper);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
     font-family: var(--font-body);
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-soft);
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+  .note strong { color: var(--ink); margin-right: 6px; }
+  .note-editor {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
   textarea {
-    margin-top: 8px;
     width: 100%;
     padding: 8px 12px;
     border: 1px solid var(--rule);
@@ -134,4 +215,25 @@
     resize: vertical;
   }
   textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .note-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .bt-save {
+    background: var(--ink);
+    color: var(--bg);
+    border: 0;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .bt-save:hover:not(:disabled) { background: var(--accent); }
+  .bt-save:disabled { opacity: 0.5; cursor: progress; }
+  .note-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
 </style>

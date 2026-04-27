@@ -57,23 +57,41 @@ export const actions: Actions = {
   resolve: async ({ request }) => {
     const data = await request.formData();
     const ids = data.getAll("id").map(String).filter(Boolean);
-    const note = ((data.get("note") as string) ?? "").trim() || null;
+    const note = ((data.get("note") as string) ?? "").trim();
     if (ids.length === 0) return fail(400, { error: "Nothing selected." });
-    await supabaseAdmin
-      .from("reports")
-      .update({ status: "resolved", admin_notes: note, resolved_at: new Date().toISOString() })
-      .in("id", ids);
+    const update: Record<string, unknown> = {
+      status: "resolved",
+      resolved_at: new Date().toISOString(),
+    };
+    // Only overwrite admin_notes if a note was typed - otherwise keep
+    // whatever was there.
+    if (note) update.admin_notes = note;
+    await supabaseAdmin.from("reports").update(update).in("id", ids);
     return { resolved: ids.length };
   },
   dismiss: async ({ request }) => {
     const data = await request.formData();
     const ids = data.getAll("id").map(String).filter(Boolean);
-    const note = ((data.get("note") as string) ?? "").trim() || null;
+    const note = ((data.get("note") as string) ?? "").trim();
     if (ids.length === 0) return fail(400, { error: "Nothing selected." });
-    await supabaseAdmin
-      .from("reports")
-      .update({ status: "dismissed", admin_notes: note, resolved_at: new Date().toISOString() })
-      .in("id", ids);
+    const update: Record<string, unknown> = {
+      status: "dismissed",
+      resolved_at: new Date().toISOString(),
+    };
+    if (note) update.admin_notes = note;
+    await supabaseAdmin.from("reports").update(update).in("id", ids);
     return { dismissed: ids.length };
+  },
+  updateNote: async ({ request }) => {
+    const data = await request.formData();
+    const id = (data.get("id") as string) ?? "";
+    const note = ((data.get("note") as string) ?? "").trim();
+    if (!id) return fail(400, { error: "Missing id." });
+    const { error } = await supabaseAdmin
+      .from("reports")
+      .update({ admin_notes: note || null })
+      .eq("id", id);
+    if (error) return fail(500, { error: "Could not save note." });
+    return { noteSaved: id };
   },
 };
