@@ -60,7 +60,8 @@
   }
   function setSort(value: typeof sortOptions[number]["value"]) {
     sort = value;
-    submitNow();
+    // Defer so the hidden <input name="sort"> rerenders before submit.
+    setTimeout(submitNow, 0);
   }
 
   function clearFilters() {
