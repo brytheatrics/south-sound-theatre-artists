@@ -150,15 +150,37 @@
   <div class="filter-secondary">
     <label class="ff">
       <span>Language</span>
-      <input type="text" name="lang" bind:value={language} placeholder="English" />
+      <input
+        type="text"
+        name="lang"
+        bind:value={language}
+        placeholder="English"
+        onkeydown={(e) => e.key === "Enter" && submitNow()}
+      />
     </label>
 
     <label class="ff">
-      <span>Plays age</span>
+      <span>Playable age</span>
       <span class="age-row">
-        <input type="number" name="ageMin" min="0" max="120" bind:value={ageMin} placeholder="from" />
+        <input
+          type="number"
+          name="ageMin"
+          min="0"
+          max="120"
+          bind:value={ageMin}
+          placeholder="from"
+          onkeydown={(e) => e.key === "Enter" && submitNow()}
+        />
         <span class="dash" aria-hidden="true">to</span>
-        <input type="number" name="ageMax" min="0" max="120" bind:value={ageMax} placeholder="to" />
+        <input
+          type="number"
+          name="ageMax"
+          min="0"
+          max="120"
+          bind:value={ageMax}
+          placeholder="to"
+          onkeydown={(e) => e.key === "Enter" && submitNow()}
+        />
       </span>
     </label>
   </div>

@@ -112,7 +112,7 @@
       <dl class="kv">
         <dt>Disciplines</dt><dd>{p.disciplines.join(", ")}</dd>
         {#if p.geographic_area}<dt>Area</dt><dd>{p.geographic_area}</dd>{/if}
-        {#if playable}<dt>Plays age</dt><dd>{playable}</dd>{/if}
+        {#if playable}<dt>Playable age</dt><dd>{playable}</dd>{/if}
         {#if p.languages.length > 0}<dt>Languages</dt><dd>{p.languages.join(", ")}</dd>{/if}
         {#if p.unions.length > 0}<dt>Unions</dt><dd>{p.unions.join(", ")}</dd>{/if}
         {#if p.ethnicities.length > 0}<dt>Ethnicity</dt><dd>{p.ethnicities.join(", ")}</dd>{/if}
