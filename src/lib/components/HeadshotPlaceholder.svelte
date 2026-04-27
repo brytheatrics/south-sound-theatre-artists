@@ -28,7 +28,7 @@
     <svg
       class="hs-fig"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 -960 960 960"
+      viewBox="160 -800 640 640"
       aria-hidden="true"
     >
       <path
@@ -79,11 +79,11 @@
     z-index: 2;
   }
   .hs-fig {
-    width: 75%;
+    width: 100%;
     height: auto;
     fill: var(--ink-soft);
     opacity: 0.22;
-    margin-bottom: -8%;
+    margin-bottom: -10%;
     position: relative;
     z-index: 1;
   }
