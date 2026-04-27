@@ -230,6 +230,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    max-width: calc(900px + var(--page-pad-x) * 2);
   }
   .search-row {
     display: flex;
