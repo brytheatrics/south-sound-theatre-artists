@@ -1,0 +1,278 @@
+<script lang="ts">
+  import { enhance } from "$app/forms";
+
+  let { data, form } = $props();
+  let busyId = $state<string | null>(null);
+</script>
+
+<svelte:head>
+  <title>All profiles - SSTA admin</title>
+  <meta name="robots" content="noindex" />
+</svelte:head>
+
+<header class="hd">
+  <span class="eyebrow"><span class="num">·</span>Admin · profiles</span>
+  <h1 class="h1-display">All profiles.</h1>
+  <p class="lede">{data.total} live{data.trashCount ? `, ${data.trashCount} in trash` : ""}.</p>
+
+  <form method="GET" class="search-row">
+    <input type="search" name="q" placeholder="Search name, slug, or email..." value={data.q} />
+    <button type="submit" class="bt bt-pri">Search</button>
+    {#if data.q}<a class="bt bt-ghost" href="/admin/profiles">Clear</a>{/if}
+    <a class="bt bt-ghost" href="/admin/profiles/trash">Trash ({data.trashCount})</a>
+  </form>
+
+  {#if form?.deleted}<div class="form-ok" role="status">Deleted {form.deleted}.</div>{/if}
+  {#if form?.error}<div class="form-error" role="alert">{form.error}</div>{/if}
+</header>
+
+{#if data.profiles.length === 0}
+  <p class="empty">No profiles match.</p>
+{:else}
+  <table class="rows">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Slug</th>
+        <th>Disciplines</th>
+        <th>Area</th>
+        <th>Published</th>
+        <th class="actions-col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each data.profiles as p (p.id)}
+        <tr>
+          <td>
+            <a href={`/artists/${p.slug}`} target="_blank" rel="noopener">
+              {p.full_name}
+            </a>
+            <div class="email">{p.email}</div>
+          </td>
+          <td><code>/{p.slug}</code></td>
+          <td class="disc">{p.disciplines.slice(0, 3).join(", ")}{p.disciplines.length > 3 ? " +" + (p.disciplines.length - 3) : ""}</td>
+          <td>{p.geographic_area ?? "—"}</td>
+          <td>
+            <form
+              method="POST"
+              action="?/togglePublish"
+              use:enhance={() => {
+                busyId = p.id;
+                return async ({ update }) => {
+                  await update();
+                  busyId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="publish" value={(!p.published).toString()} />
+              <button type="submit" class="pill" class:on={p.published} disabled={busyId === p.id}>
+                {p.published ? "Live" : "Hidden"}
+              </button>
+            </form>
+          </td>
+          <td class="actions-col">
+            <form
+              method="POST"
+              action="?/softDelete"
+              onsubmit={(e) => { if (!confirm(`Move ${p.full_name} to trash?`)) e.preventDefault(); }}
+              use:enhance={() => {
+                busyId = p.id;
+                return async ({ update }) => {
+                  await update();
+                  busyId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <button type="submit" class="bt-link warn" disabled={busyId === p.id}>Trash</button>
+            </form>
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/if}
+
+<style>
+  .hd {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 1000px;
+    margin-bottom: 2rem;
+  }
+  .h1-display {
+    margin: 0.5rem 0 0.25rem;
+  }
+  .lede {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 18px;
+    color: var(--muted);
+    margin: 0 0 1rem;
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .search-row input {
+    flex: 1;
+    min-width: 220px;
+    padding: 8px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    background: var(--bg-raised);
+  }
+  .search-row input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .bt {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+  }
+  .bt-pri {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .bt-pri:hover {
+    background: var(--accent);
+    text-decoration: none;
+  }
+  .bt-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--rule);
+  }
+  .bt-ghost:hover {
+    border-color: var(--ink);
+    text-decoration: none;
+  }
+  .form-ok {
+    background: color-mix(in oklch, var(--accent), var(--bg) 85%);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
+  .form-error {
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
+
+  .empty {
+    color: var(--muted);
+    font-family: var(--font-accent);
+    font-style: italic;
+    padding: 3rem 0;
+    text-align: center;
+  }
+
+  .rows {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    font-weight: 500;
+  }
+  td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  td a {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  td a:hover {
+    color: var(--accent);
+  }
+  .email {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  td code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--paper);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .disc {
+    color: var(--ink-soft);
+    max-width: 240px;
+  }
+  .actions-col {
+    text-align: right;
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .pill {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 4px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 100px;
+  }
+  .pill:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .pill.on {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .bt-link {
+    background: none;
+    border: 0;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .bt-link.warn {
+    color: var(--warn);
+  }
+  .bt-link:hover {
+    text-decoration: underline;
+  }
+</style>

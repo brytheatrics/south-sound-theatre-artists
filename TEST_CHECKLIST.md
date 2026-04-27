@@ -41,6 +41,16 @@ autonomous build session. Newest entries on top within each section.
 
 ---
 
-## Things spawning into background tasks / future sessions
+## Known shortcuts to clean up later
 
-(Will fill in if any come up.)
+- **`window.confirm()` in admin actions**: the project rule is "no
+  native browser dialogs." For speed, the destructive actions on
+  `/admin/profiles` and `/admin/profiles/trash` use `confirm()`.
+  Should swap for the themed `ConfirmModal` pattern eventually.
+- **No admin-side profile editor** in step 12. Lexi can use the artist
+  edit-link flow (request a link to her own admin email if she needs to
+  test) or the Supabase Table Editor for direct field changes. A proper
+  /admin/profiles/[id]/edit page is a follow-up.
+- **No flagged_edits split** in the magic-link edit flow. Per the spec
+  major changes (headshot, disciplines) should queue in `flagged_edits`
+  for admin re-approval; v1 step 9 applies all edits directly.
