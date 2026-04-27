@@ -9,10 +9,9 @@
   <hr class="rule" />
   <div class="ft-row">
     <div class="ft-left">
-      <span class="ft-mark">
-        <span class="ft-dot" aria-hidden="true"></span>
-        SSTA
-      </span>
+      <a class="ft-mark" href="/" aria-label="South Sound Theatre Artists - home">
+        <img class="ft-logo" src="/logo-short.svg" alt="" aria-hidden="true" />
+      </a>
       {#if tagline}
         <span class="ft-tag">{@html renderMarkdownInline(tagline)}</span>
       {/if}
@@ -54,14 +53,13 @@
   .ft-mark {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
     color: var(--ink);
+    text-decoration: none;
   }
-  .ft-dot {
-    width: 6px;
-    height: 6px;
-    background: var(--accent);
-    border-radius: 50%;
+  .ft-logo {
+    height: 24px;
+    width: auto;
+    display: block;
   }
   .ft-links {
     display: flex;

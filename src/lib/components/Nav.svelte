@@ -14,8 +14,7 @@
 
 <nav class="nv">
   <a class="nv-left" href="/" aria-label="South Sound Theatre Artists - home">
-    <span class="nv-dot" aria-hidden="true"></span>
-    <span class="nv-mark">SSTA</span>
+    <img class="nv-logo" src="/logo-short.svg" alt="" aria-hidden="true" />
   </a>
   <div class="nv-links" aria-label="Primary">
     {#each links as link (link.href)}
@@ -58,15 +57,10 @@
   .nv-left:hover {
     text-decoration: none;
   }
-  .nv-dot {
-    width: 7px;
-    height: 7px;
-    background: var(--accent);
-    border-radius: 50%;
-    display: inline-block;
-  }
-  .nv-mark {
-    color: var(--ink);
+  .nv-logo {
+    height: 32px;
+    width: auto;
+    display: block;
   }
   .nv-links {
     display: flex;
