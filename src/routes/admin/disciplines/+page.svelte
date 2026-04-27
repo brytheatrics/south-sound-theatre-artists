@@ -1,7 +1,24 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   let { data, form } = $props();
   let busy = $state<string | null>(null);
+
+  let pendingRemoveForm = $state<HTMLFormElement | null>(null);
+  let pendingRemoveName = $state<string>("");
+
+  function askRemove(e: MouseEvent, name: string) {
+    pendingRemoveForm = (e.currentTarget as HTMLElement).closest("form");
+    pendingRemoveName = name;
+  }
+  function cancelRemove() {
+    pendingRemoveForm = null;
+    pendingRemoveName = "";
+  }
+  function confirmRemove() {
+    pendingRemoveForm?.requestSubmit();
+    cancelRemove();
+  }
 
   // Group by category for display
   const byCategory = $derived.by(() => {
@@ -48,6 +65,16 @@
 {#if form?.error}<div class="form-error" role="alert">{form.error}</div>{/if}
 {#if form?.added}<div class="form-ok" role="status">Added {form.added}.</div>{/if}
 
+<ConfirmModal
+  open={pendingRemoveForm !== null}
+  title="Remove discipline?"
+  body={`"${pendingRemoveName}" will no longer appear in submission picker. Profiles already tagged with it keep the tag.`}
+  confirmLabel="Remove"
+  variant="warn"
+  onConfirm={confirmRemove}
+  onClose={cancelRemove}
+/>
+
 {#each [...byCategory] as [cat, items] (cat)}
   <section class="cat">
     <h2>{cat}</h2>
@@ -60,10 +87,16 @@
             <input type="number" name="sort_order" value={d.sort_order} class="num-input" />
             <button type="submit" class="bt-link" disabled={busy === d.id}>Save</button>
           </form>
-          <form method="POST" action="?/remove" use:enhance={() => { busy = d.id; return async ({ update }) => { await update(); busy = null; }; }}
-            onsubmit={(e) => { if (!confirm(`Remove ${d.name}?`)) e.preventDefault(); }}>
+          <form method="POST" action="?/remove" use:enhance={() => { busy = d.id; return async ({ update }) => { await update(); busy = null; }; }}>
             <input type="hidden" name="id" value={d.id} />
-            <button type="submit" class="bt-link warn" disabled={busy === d.id}>Remove</button>
+            <button
+              type="button"
+              class="bt-link warn"
+              disabled={busy === d.id}
+              onclick={(e) => askRemove(e, d.name)}
+            >
+              Remove
+            </button>
           </form>
         </li>
       {/each}

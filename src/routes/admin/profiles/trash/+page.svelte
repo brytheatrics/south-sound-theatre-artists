@@ -1,8 +1,25 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
 
   let { data, form } = $props();
   let busyId = $state<string | null>(null);
+
+  let pendingDeleteForm = $state<HTMLFormElement | null>(null);
+  let pendingDeleteName = $state<string>("");
+
+  function askDelete(e: MouseEvent, fullName: string) {
+    pendingDeleteForm = (e.currentTarget as HTMLElement).closest("form");
+    pendingDeleteName = fullName;
+  }
+  function cancelDelete() {
+    pendingDeleteForm = null;
+    pendingDeleteName = "";
+  }
+  function confirmDelete() {
+    pendingDeleteForm?.requestSubmit();
+    cancelDelete();
+  }
 
   function daysAgo(iso: string): string {
     const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -51,17 +68,33 @@
           <form
             method="POST"
             action="?/hardDelete"
-            onsubmit={(e) => { if (!confirm(`Permanently delete ${t.full_name}? This can't be undone.`)) e.preventDefault(); }}
             use:enhance={() => { busyId = t.id; return async ({ update }) => { await update(); busyId = null; }; }}
           >
             <input type="hidden" name="id" value={t.id} />
-            <button type="submit" class="bt-link warn" disabled={busyId === t.id}>Delete forever</button>
+            <button
+              type="button"
+              class="bt-link warn"
+              disabled={busyId === t.id}
+              onclick={(e) => askDelete(e, t.full_name)}
+            >
+              Delete forever
+            </button>
           </form>
         </div>
       </li>
     {/each}
   </ul>
 {/if}
+
+<ConfirmModal
+  open={pendingDeleteForm !== null}
+  title="Delete forever?"
+  body={`${pendingDeleteName} will be permanently removed. This can't be undone.`}
+  confirmLabel="Delete forever"
+  variant="warn"
+  onConfirm={confirmDelete}
+  onClose={cancelDelete}
+/>
 
 <style>
   .hd {

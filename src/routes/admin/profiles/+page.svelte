@@ -1,8 +1,26 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
 
   let { data, form } = $props();
   let busyId = $state<string | null>(null);
+
+  // The form to submit when the user confirms the trash action.
+  let pendingTrashForm = $state<HTMLFormElement | null>(null);
+  let pendingTrashName = $state<string>("");
+
+  function askTrash(e: MouseEvent, fullName: string) {
+    pendingTrashForm = (e.currentTarget as HTMLElement).closest("form");
+    pendingTrashName = fullName;
+  }
+  function cancelTrash() {
+    pendingTrashForm = null;
+    pendingTrashName = "";
+  }
+  function confirmTrash() {
+    pendingTrashForm?.requestSubmit();
+    cancelTrash();
+  }
 </script>
 
 <svelte:head>
@@ -94,7 +112,6 @@
             <form
               method="POST"
               action="?/softDelete"
-              onsubmit={(e) => { if (!confirm(`Move ${p.full_name} to trash?`)) e.preventDefault(); }}
               use:enhance={() => {
                 busyId = p.id;
                 return async ({ update }) => {
@@ -105,7 +122,14 @@
               style="display: inline"
             >
               <input type="hidden" name="id" value={p.id} />
-              <button type="submit" class="bt-link warn" disabled={busyId === p.id}>Trash</button>
+              <button
+                type="button"
+                class="bt-link warn"
+                disabled={busyId === p.id}
+                onclick={(e) => askTrash(e, p.full_name)}
+              >
+                Trash
+              </button>
             </form>
           </td>
         </tr>
@@ -113,6 +137,16 @@
     </tbody>
   </table>
 {/if}
+
+<ConfirmModal
+  open={pendingTrashForm !== null}
+  title="Move to trash?"
+  body={`${pendingTrashName} will be moved to the 30-day trash. You can restore them anytime within that window.`}
+  confirmLabel="Move to trash"
+  variant="warn"
+  onConfirm={confirmTrash}
+  onClose={cancelTrash}
+/>
 
 <style>
   .hd {
