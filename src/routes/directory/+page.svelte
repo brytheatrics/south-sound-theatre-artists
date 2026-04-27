@@ -20,6 +20,14 @@
   let ageMin = $state(data.filters.ageMin);
   /* svelte-ignore state_referenced_locally */
   let ageMax = $state(data.filters.ageMax);
+  /* svelte-ignore state_referenced_locally */
+  let sort = $state(data.filters.sort);
+
+  const sortOptions = [
+    { value: "newest", label: "Newest members" },
+    { value: "updated", label: "Recently updated" },
+    { value: "name", label: "Name A-Z" },
+  ] as const;
 
   let formEl: HTMLFormElement | undefined = $state();
 
@@ -48,6 +56,10 @@
   }
   function toggleHeadshot() {
     hasHeadshot = !hasHeadshot;
+    submitNow();
+  }
+  function setSort(value: typeof sortOptions[number]["value"]) {
+    sort = value;
     submitNow();
   }
 
@@ -209,12 +221,30 @@
     </label>
   </div>
 
+  <input type="hidden" name="sort" value={sort} />
+
   <noscript>
     <button type="submit" class="bt bt-pri">Apply filters</button>
   </noscript>
 </form>
 
 <hr class="rule sep" />
+
+<div class="sort-row" aria-label="Sort">
+  <span class="sort-label">Sort</span>
+  <div class="chip-row">
+    {#each sortOptions as opt (opt.value)}
+      <button
+        type="button"
+        class="chip"
+        class:on={sort === opt.value}
+        onclick={() => setSort(opt.value)}
+      >
+        {opt.label}
+      </button>
+    {/each}
+  </div>
+</div>
 
 {#if data.profiles.length === 0}
   <p class="empty">
@@ -440,6 +470,41 @@
 
   .sep {
     margin: 2rem var(--page-pad-x);
+  }
+
+  .sort-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 var(--page-pad-x);
+    margin: -1rem 0 1.5rem;
+    flex-wrap: wrap;
+  }
+  .sort-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .sort-row .chip {
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 100px;
+  }
+  .sort-row .chip:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .sort-row .chip.on {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
   }
 
   .empty {

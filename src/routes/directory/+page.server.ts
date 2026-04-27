@@ -16,6 +16,9 @@ export const load: PageServerLoad = async ({ url }) => {
   const hasHeadshot = params.get("headshot") === "1";
   const ageMinStr = params.get("ageMin") ?? "";
   const ageMaxStr = params.get("ageMax") ?? "";
+  const sortParam = (params.get("sort") ?? "").trim();
+  const sort: "newest" | "name" | "updated" =
+    sortParam === "name" || sortParam === "updated" ? sortParam : "newest";
   const ageMin = ageMinStr && /^\d+$/.test(ageMinStr) ? Number(ageMinStr) : null;
   const ageMax = ageMaxStr && /^\d+$/.test(ageMaxStr) ? Number(ageMaxStr) : null;
 
@@ -64,7 +67,14 @@ export const load: PageServerLoad = async ({ url }) => {
     query = query.lte("playable_age_min", ageMax);
   }
 
-  query = query.order("member_since", { ascending: false }).limit(PAGE_SIZE);
+  if (sort === "name") {
+    query = query.order("full_name", { ascending: true });
+  } else if (sort === "updated") {
+    query = query.order("updated_at", { ascending: false });
+  } else {
+    query = query.order("member_since", { ascending: false });
+  }
+  query = query.limit(PAGE_SIZE);
 
   const { data, count, error } = await query;
   if (error) throw error;
@@ -109,6 +119,7 @@ export const load: PageServerLoad = async ({ url }) => {
       hasHeadshot,
       ageMin: ageMinStr,
       ageMax: ageMaxStr,
+      sort,
     },
     options: {
       areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),

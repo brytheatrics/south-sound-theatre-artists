@@ -35,11 +35,29 @@
 
   <form method="GET" class="search-row">
     <input type="search" name="q" placeholder="Search name, slug, or email..." value={data.q} />
+    <input type="hidden" name="sort" value={data.sort} />
     <button type="submit" class="bt bt-pri">Search</button>
-    {#if data.q}<a class="bt bt-ghost" href="/admin/profiles">Clear</a>{/if}
+    {#if data.q}<a class="bt bt-ghost" href={`/admin/profiles?sort=${data.sort}`}>Clear</a>{/if}
     <a class="bt bt-acc" href="/admin/profiles/new">+ New profile</a>
     <a class="bt bt-ghost" href="/admin/profiles/trash">Trash ({data.trashCount})</a>
   </form>
+
+  <div class="sort-row" aria-label="Sort">
+    <span class="sort-label">Sort</span>
+    {#each [
+      { value: "updated", label: "Recently updated" },
+      { value: "newest", label: "Newest members" },
+      { value: "name", label: "Name A-Z" },
+    ] as opt (opt.value)}
+      <a
+        class="chip"
+        class:on={data.sort === opt.value}
+        href={`?${new URLSearchParams({ ...(data.q ? { q: data.q } : {}), sort: opt.value }).toString()}`}
+      >
+        {opt.label}
+      </a>
+    {/each}
+  </div>
 
   {#if form?.deleted}<div class="form-ok" role="status">Deleted {form.deleted}.</div>{/if}
   {#if form?.linkSent}<div class="form-ok" role="status">Edit link emailed to {form.linkSent}.</div>{/if}
@@ -336,5 +354,43 @@
   }
   .bt-link:hover {
     text-decoration: underline;
+  }
+
+  .sort-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .sort-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .sort-row .chip {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 100px;
+    text-decoration: none;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .sort-row .chip:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .sort-row .chip.on {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
   }
 </style>

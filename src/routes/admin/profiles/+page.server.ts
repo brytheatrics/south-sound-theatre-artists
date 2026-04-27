@@ -15,15 +15,26 @@ const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ url }) => {
   const q = (url.searchParams.get("q") ?? "").trim();
+  const sortParam = (url.searchParams.get("sort") ?? "").trim();
+  const sort: "updated" | "newest" | "name" =
+    sortParam === "newest" || sortParam === "name" ? sortParam : "updated";
+
   let query = supabaseAdmin
     .from("profiles")
     .select(
-      "id, slug, full_name, email, geographic_area, disciplines, published, created_at, updated_at",
+      "id, slug, full_name, email, geographic_area, disciplines, published, created_at, updated_at, member_since",
       { count: "exact" },
     )
     .is("deleted_at", null);
   if (q) query = query.or(`full_name.ilike.%${q}%,slug.ilike.%${q}%,email.ilike.%${q}%`);
-  query = query.order("updated_at", { ascending: false }).limit(PAGE_SIZE);
+  if (sort === "name") {
+    query = query.order("full_name", { ascending: true });
+  } else if (sort === "newest") {
+    query = query.order("member_since", { ascending: false });
+  } else {
+    query = query.order("updated_at", { ascending: false });
+  }
+  query = query.limit(PAGE_SIZE);
   const { data, count, error } = await query;
   if (error) throw error;
 
@@ -37,6 +48,7 @@ export const load: PageServerLoad = async ({ url }) => {
     total: count ?? 0,
     trashCount: trashCount ?? 0,
     q,
+    sort,
   };
 };
 
