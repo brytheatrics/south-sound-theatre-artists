@@ -232,6 +232,16 @@
   {/if}
 {/if}
 
+{#if (ageMin || ageMax) && data.noAgeCount > 0}
+  <p class="exclusion-note">
+    {data.noAgeCount}
+    {data.noAgeCount === 1 ? "artist hasn't" : "artists haven't"}
+    set a playable-age range and
+    {data.noAgeCount === 1 ? "isn't" : "aren't"}
+    shown when an age filter is on.
+  </p>
+{/if}
+
 <style>
   .hd {
     padding: clamp(2rem, 5vw, 3.5rem) var(--page-pad-x) 1.5rem;
@@ -485,6 +495,15 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
+  }
+  .exclusion-note {
+    margin: 1.5rem var(--page-pad-x);
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   @media (max-width: 1100px) {

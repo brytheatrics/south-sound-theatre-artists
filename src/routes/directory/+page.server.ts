@@ -18,45 +18,65 @@ export const load: PageServerLoad = async ({ url }) => {
   const ageMin = ageMinStr && /^\d+$/.test(ageMinStr) ? Number(ageMinStr) : null;
   const ageMax = ageMaxStr && /^\d+$/.test(ageMaxStr) ? Number(ageMaxStr) : null;
 
-  let query = supabaseAdmin
-    .from("profiles")
-    .select(
-      `slug, full_name, pronouns, disciplines, geographic_area,
-       playable_age_min, playable_age_max, headshot_url, member_since`,
-      { count: "exact" },
-    )
-    .eq("published", true)
-    .is("deleted_at", null);
+  // Build a base query with every filter EXCEPT age - shared between the
+  // main grid query and the "no-age-set" count below the grid.
+  const buildBase = () => {
+    let q2 = supabaseAdmin
+      .from("profiles")
+      .select(
+        `slug, full_name, pronouns, disciplines, geographic_area,
+         playable_age_min, playable_age_max, headshot_url, member_since`,
+        { count: "exact" },
+      )
+      .eq("published", true)
+      .is("deleted_at", null);
+    if (q) {
+      // ilike against the name. Slug match too so direct URLs find each other.
+      q2 = q2.or(`full_name.ilike.%${q}%,slug.ilike.%${q}%`);
+    }
+    if (disciplines.length > 0) {
+      q2 = q2.overlaps("disciplines", disciplines);
+    }
+    if (unions.length > 0) {
+      q2 = q2.overlaps("unions", unions);
+    }
+    if (areas.length > 0) {
+      q2 = q2.in("geographic_area", areas);
+    }
+    if (language) {
+      q2 = q2.contains("languages", [language]);
+    }
+    return q2;
+  };
 
-  if (q) {
-    // ilike against the name. Slug match too so direct URLs find each other.
-    query = query.or(`full_name.ilike.%${q}%,slug.ilike.%${q}%`);
-  }
-  if (disciplines.length > 0) {
-    // Match if profile.disciplines overlaps any selected discipline.
-    query = query.overlaps("disciplines", disciplines);
-  }
-  if (unions.length > 0) {
-    query = query.overlaps("unions", unions);
-  }
-  if (areas.length > 0) {
-    query = query.in("geographic_area", areas);
-  }
-  if (language) {
-    query = query.contains("languages", [language]);
-  }
+  let query = buildBase();
+  const ageFilterActive = ageMin !== null || ageMax !== null;
   if (ageMin !== null) {
-    // Profile's playable max should be >= the requested min (artist can play that age)
-    query = query.or(`playable_age_max.gte.${ageMin},playable_age_max.is.null`);
+    // Strict: artist must have set their range AND their max must be >= the
+    // requested min. Profiles with no range set are surfaced separately.
+    query = query.gte("playable_age_max", ageMin);
   }
   if (ageMax !== null) {
-    query = query.or(`playable_age_min.lte.${ageMax},playable_age_min.is.null`);
+    query = query.lte("playable_age_min", ageMax);
   }
 
   query = query.order("member_since", { ascending: false }).limit(PAGE_SIZE);
 
   const { data, count, error } = await query;
   if (error) throw error;
+
+  // Count "no age set" profiles that match every other active filter, so the
+  // UI can tell the searcher how many artists were excluded by their age
+  // filter for not specifying a range.
+  let noAgeCount = 0;
+  if (ageFilterActive) {
+    const noAgeQuery = buildBase()
+      .is("playable_age_min", null)
+      .limit(0);
+    const { count: nac, error: nacErr } = await noAgeQuery;
+    if (nacErr) throw nacErr;
+    noAgeCount = nac ?? 0;
+  }
 
   const [areasRes, disciplinesRes, categoriesRes, unionsRes] = await Promise.all([
     supabaseAdmin.from("areas").select("name").order("sort_order"),
@@ -74,6 +94,7 @@ export const load: PageServerLoad = async ({ url }) => {
   return {
     profiles: data ?? [],
     total: count ?? 0,
+    noAgeCount,
     pageSize: PAGE_SIZE,
     filters: {
       q,
