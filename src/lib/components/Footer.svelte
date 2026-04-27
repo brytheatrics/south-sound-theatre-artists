@@ -1,5 +1,8 @@
 <script lang="ts">
-  const year = new Date().getFullYear();
+  import { renderMarkdownInline } from "$lib/util/markdown";
+
+  type Props = { tagline: string | null };
+  let { tagline }: Props = $props();
 </script>
 
 <footer class="ft">
@@ -10,7 +13,9 @@
         <span class="ft-dot" aria-hidden="true"></span>
         SSTA
       </span>
-      <span class="ft-tag">South Sound Theatre Artists · {year}</span>
+      {#if tagline}
+        <span class="ft-tag">{@html renderMarkdownInline(tagline)}</span>
+      {/if}
     </div>
     <nav class="ft-links" aria-label="Footer">
       <a href="/about">About</a>
@@ -68,6 +73,18 @@
     text-decoration: none;
   }
   .ft-links a:hover {
+    color: var(--ink);
+  }
+  .ft-tag :global(em) {
+    font-family: var(--font-accent);
+    font-style: italic;
+    color: var(--accent);
+  }
+  .ft-tag :global(a) {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .ft-tag :global(a:hover) {
     color: var(--ink);
   }
 </style>

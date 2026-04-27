@@ -20,7 +20,7 @@
   <main class="content">
     {@render children()}
   </main>
-  <Footer />
+  <Footer tagline={data?.footer ?? null} />
 </div>
 
 <style>
