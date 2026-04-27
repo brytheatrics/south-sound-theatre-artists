@@ -101,7 +101,14 @@
   </p>
 </header>
 
-<form bind:this={formEl} method="GET" class="filters" aria-label="Filter directory">
+<form
+  bind:this={formEl}
+  method="GET"
+  class="filters"
+  aria-label="Filter directory"
+  data-sveltekit-noscroll
+  data-sveltekit-replacestate
+>
   <div class="search-row">
     <input
       type="search"

@@ -42,7 +42,7 @@
     <a class="bt bt-ghost" href="/admin/profiles/trash">Trash ({data.trashCount})</a>
   </form>
 
-  <div class="sort-row" aria-label="Sort">
+  <div class="sort-row" aria-label="Sort" data-sveltekit-noscroll data-sveltekit-replacestate>
     <span class="sort-label">Sort</span>
     {#each [
       { value: "updated", label: "Recently updated" },
