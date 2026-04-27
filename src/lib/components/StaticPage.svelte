@@ -41,24 +41,35 @@
     font-weight: 600;
     color: var(--ink);
     line-height: 1.02;
-    letter-spacing: -0.035em;
-    font-size: clamp(40px, 7vw, 72px);
-    margin: 0 0 1rem;
+    letter-spacing: -0.04em;
+    font-size: clamp(40px, 8vw, 88px);
+    margin: 0.5rem 0 1.5rem;
+  }
+  /* Editorial italic accent - admins write *word* in a heading to get
+     this moss-green DM Serif Display italic treatment. */
+  .prose :global(h1 em),
+  .prose :global(h2 em),
+  .prose :global(h3 em) {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: -0.02em;
   }
   .prose :global(h2) {
     font-family: var(--font-display);
     font-weight: 600;
     color: var(--ink);
-    font-size: clamp(20px, 2.4vw, 26px);
+    font-size: clamp(20px, 2.4vw, 28px);
     letter-spacing: -0.015em;
-    margin: 1.5rem 0 0.25rem;
+    margin: 2.5rem 0 0.5rem;
   }
   .prose :global(h3) {
     font-family: var(--font-display);
     font-weight: 600;
     color: var(--ink);
     font-size: 18px;
-    margin: 1rem 0 0.25rem;
+    margin: 1.5rem 0 0.5rem;
   }
   .prose :global(p) {
     font-size: 16px;
@@ -67,13 +78,30 @@
     margin: 0;
     max-width: 580px;
   }
+  /* Lede: first paragraph after the H1. Larger, serif italic, muted -
+     same treatment as the homepage and other landing-style intros. */
+  .prose :global(h1 + p) {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 1.5;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  /* Body italic (not headings, not the lede) gets a quieter moss accent
+     for inline emphasis. */
+  .prose :global(p em) {
+    font-family: var(--font-accent);
+    font-style: italic;
+    color: var(--accent);
+  }
   .prose :global(ul) {
-    margin: 0;
+    margin: 0.5rem 0;
     padding-left: 22px;
     color: var(--ink-soft);
   }
   .prose :global(li) {
-    margin: 4px 0;
+    margin: 6px 0;
     font-size: 16px;
     line-height: 1.6;
   }
@@ -87,11 +115,6 @@
   .prose :global(strong) {
     color: var(--ink);
     font-weight: 600;
-  }
-  .prose :global(em) {
-    font-family: var(--font-accent);
-    font-style: italic;
-    color: var(--ink);
   }
   .prose :global(img) {
     max-width: 100%;
