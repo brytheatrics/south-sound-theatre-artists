@@ -74,7 +74,8 @@
         <th>Slug</th>
         <th>Disciplines</th>
         <th>Area</th>
-        <th>Published</th>
+        <th>Status</th>
+        <th>Trust</th>
         <th class="actions-col">Actions</th>
       </tr>
     </thead>
@@ -109,7 +110,33 @@
               </button>
             </form>
           </td>
+          <td>
+            <form
+              method="POST"
+              action="?/toggleTrust"
+              use:enhance={() => {
+                busyId = p.id;
+                return async ({ update }) => {
+                  await update();
+                  busyId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={p.id} />
+              <input type="hidden" name="trust" value={(!p.trusted).toString()} />
+              <button
+                type="submit"
+                class="pill"
+                class:on={p.trusted}
+                disabled={busyId === p.id}
+                title={p.trusted ? "Trusted - their edits apply directly. Click to require admin review." : "Untrusted - major edits queue for admin review. Click to trust."}
+              >
+                {p.trusted ? "Trusted" : "Review"}
+              </button>
+            </form>
+          </td>
           <td class="actions-col">
+            <a class="bt-link" href={`/admin/profiles/${p.id}/edit`}>Edit</a>
             <form
               method="POST"
               action="?/sendEditLink"
@@ -348,12 +375,15 @@
     font-family: var(--font-body);
     font-size: 13px;
     color: var(--ink-soft);
+    text-decoration: none;
+    display: inline-block;
   }
   .bt-link.warn {
     color: var(--warn);
   }
   .bt-link:hover {
     text-decoration: underline;
+    color: var(--ink);
   }
 
   .sort-row {

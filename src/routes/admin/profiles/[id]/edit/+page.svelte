@@ -1,0 +1,526 @@
+<script lang="ts">
+  import { enhance } from "$app/forms";
+  import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
+  import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
+
+  let { data, form } = $props();
+  // svelte-ignore state_referenced_locally
+  const p = data.profile;
+
+  let fullName = $state(p.full_name);
+  let slug = $state(p.slug);
+  let email = $state(p.email);
+  let pronouns = $state(p.pronouns ?? "");
+  let bio = $state(p.bio ?? "");
+  let headshotUrl = $state(p.headshot_url ?? "");
+  // svelte-ignore state_referenced_locally
+  let area = $state(data.areas.includes(p.geographic_area) ? p.geographic_area : "Other");
+  // svelte-ignore state_referenced_locally
+  let areaOther = $state(data.areas.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
+  let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
+  let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
+  let languages = $state((p.languages ?? []).join(", "));
+  let instagram = $state(p.instagram_handle ?? "");
+  let facebook = $state(p.facebook_url ?? "");
+  let tiktok = $state(p.tiktok_handle ?? "");
+  let linkedin = $state(p.linkedin_url ?? "");
+  let twitter = $state(p.twitter_handle ?? "");
+  let youtube = $state(p.youtube_url ?? "");
+  let website = $state(p.website_url ?? "");
+
+  const canonicalDisc = $derived(new Set(data.disciplines.map((d) => d.name)));
+  let selectedDisciplines = $state<Set<string>>(new Set());
+  let disciplineOther = $state("");
+  $effect(() => {
+    const set = new Set<string>();
+    let other = "";
+    for (const d of p.disciplines ?? []) {
+      if (canonicalDisc.has(d)) set.add(d);
+      else {
+        set.add("Other");
+        other = d;
+      }
+    }
+    selectedDisciplines = set;
+    disciplineOther = other;
+  });
+
+  const canonicalUnions = $derived(new Set(data.unions.map((u) => u.name)));
+  let selectedUnions = $state<Set<string>>(new Set());
+  let unionOther = $state("");
+  $effect(() => {
+    const set = new Set<string>();
+    let other = "";
+    for (const u of p.unions ?? []) {
+      if (canonicalUnions.has(u)) set.add(u);
+      else {
+        set.add("Other");
+        other = u;
+      }
+    }
+    selectedUnions = set;
+    unionOther = other;
+  });
+
+  const canonicalEth = new Set([
+    "African American / Black",
+    "Asian",
+    "Hispanic / Latino",
+    "Indigenous / Native American",
+    "Middle Eastern / North African",
+    "Pacific Islander",
+    "White / European",
+    "Multiracial / Mixed",
+    "Prefer not to say",
+  ]);
+  let selectedEthnicities = $state<Set<string>>(new Set());
+  let ethnicityOther = $state("");
+  $effect(() => {
+    const set = new Set<string>();
+    let other = "";
+    for (const e of p.ethnicities ?? []) {
+      if (canonicalEth.has(e)) set.add(e);
+      else other = e;
+    }
+    selectedEthnicities = set;
+    ethnicityOther = other;
+  });
+
+  function toggleSet(set: Set<string>, value: string): Set<string> {
+    if (set.has(value)) set.delete(value);
+    else set.add(value);
+    return new Set(set);
+  }
+
+  let saving = $state(false);
+  const errors = $derived((form?.errors ?? {}) as Record<string, string>);
+</script>
+
+<svelte:head>
+  <title>Edit {p.full_name} - SSTA admin</title>
+  <meta name="robots" content="noindex" />
+</svelte:head>
+
+<header class="hd">
+  <span class="eyebrow"><span class="num">·</span>Admin · profiles · edit</span>
+  <h1 class="h1-display">Edit profile.</h1>
+  <p class="lede">
+    Direct edit, no flagged-edit queue. Saves apply immediately to the
+    public profile.
+  </p>
+  <p class="quick-links">
+    <a class="bt bt-ghost" href="/admin/profiles">← All profiles</a>
+    <a class="bt bt-ghost" href={`/artists/${p.slug}`} target="_blank" rel="noopener">View public ↗</a>
+  </p>
+  {#if form?.saved}<div class="form-ok" role="status">Saved.</div>{/if}
+  {#if errors._form}<div class="form-error" role="alert">{errors._form}</div>{/if}
+</header>
+
+<form
+  method="POST"
+  class="ed"
+  use:enhance={() => {
+    saving = true;
+    return async ({ update }) => {
+      await update({ reset: false });
+      saving = false;
+    };
+  }}
+>
+  <section class="row">
+    <h2 class="block-h">Identity</h2>
+    <label class="field">
+      <span>Full name</span>
+      <input name="full_name" type="text" bind:value={fullName} required aria-invalid={!!errors.full_name} />
+      {#if errors.full_name}<span class="error">{errors.full_name}</span>{/if}
+    </label>
+    <div class="grid-2">
+      <label class="field">
+        <span>Slug</span>
+        <input name="slug" type="text" bind:value={slug} required aria-invalid={!!errors.slug} />
+        {#if errors.slug}<span class="error">{errors.slug}</span>{/if}
+      </label>
+      <label class="field">
+        <span>Email (private)</span>
+        <input name="email" type="email" bind:value={email} required aria-invalid={!!errors.email} />
+        {#if errors.email}<span class="error">{errors.email}</span>{/if}
+      </label>
+    </div>
+    <div class="grid-2">
+      <label class="field">
+        <span>Pronouns</span>
+        <input name="pronouns" type="text" bind:value={pronouns} placeholder="she/her" />
+      </label>
+      <label class="field">
+        <span>Languages (comma-separated)</span>
+        <input name="languages" type="text" bind:value={languages} placeholder="English, Spanish" />
+      </label>
+    </div>
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Headshot</h2>
+    <HeadshotUpload bind:value={headshotUrl} />
+    <input type="hidden" name="headshot_url" value={headshotUrl} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Bio</h2>
+    <label class="field">
+      <span class="visually-hidden">Bio</span>
+      <textarea name="bio" rows="6" bind:value={bio} placeholder="A short professional bio."></textarea>
+    </label>
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Disciplines</h2>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={selectedDisciplines}
+      onToggle={(name) => (selectedDisciplines = toggleSet(selectedDisciplines, name))}
+      otherValue={disciplineOther}
+      onOtherChange={(v) => (disciplineOther = v)}
+      inputName="disciplines"
+      error={errors.disciplines}
+    />
+    <input type="hidden" name="discipline_other" value={disciplineOther} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Area</h2>
+    <div class="chip-row">
+      {#each data.areas as a (a)}
+        <label class="chip-label">
+          <input
+            type="radio"
+            name="area"
+            value={a}
+            checked={area === a}
+            onchange={() => (area = a)}
+          />
+          <span class="chip" class:on={area === a}>{a}</span>
+        </label>
+      {/each}
+      <label class="chip-label">
+        <input
+          type="radio"
+          name="area"
+          value="Other"
+          checked={area === "Other"}
+          onchange={() => (area = "Other")}
+        />
+        <span class="chip" class:on={area === "Other"}>Other</span>
+      </label>
+    </div>
+    {#if errors.area}<span class="error">{errors.area}</span>{/if}
+    {#if area === "Other"}
+      <label class="field">
+        <span>Specify area</span>
+        <input name="area_other" type="text" bind:value={areaOther} aria-invalid={!!errors.area_other} />
+        {#if errors.area_other}<span class="error">{errors.area_other}</span>{/if}
+      </label>
+    {/if}
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Playable age</h2>
+    <div class="age-row">
+      <input name="playable_age_min" type="number" min="0" max="120" bind:value={playableAgeMin} placeholder="from" />
+      <span class="dash" aria-hidden="true">to</span>
+      <input name="playable_age_max" type="number" min="0" max="120" bind:value={playableAgeMax} placeholder="to" />
+    </div>
+    {#if errors.playable_age}<span class="error">{errors.playable_age}</span>{/if}
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Unions</h2>
+    <div class="chip-row">
+      {#each data.unions as u (u.name)}
+        <label class="chip-label">
+          <input
+            type="checkbox"
+            name="unions"
+            value={u.name}
+            checked={selectedUnions.has(u.name)}
+            onchange={() => (selectedUnions = toggleSet(selectedUnions, u.name))}
+          />
+          <span class="chip" class:on={selectedUnions.has(u.name)}>{u.name}</span>
+        </label>
+      {/each}
+    </div>
+    {#if selectedUnions.has("Other")}
+      <label class="field">
+        <span>Specify union</span>
+        <input name="union_other" type="text" bind:value={unionOther} />
+      </label>
+    {/if}
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Ethnicities</h2>
+    <div class="chip-row">
+      {#each data.options.ethnicity as e (e)}
+        <label class="chip-label">
+          <input
+            type="checkbox"
+            name="ethnicities"
+            value={e}
+            checked={selectedEthnicities.has(e)}
+            onchange={() => (selectedEthnicities = toggleSet(selectedEthnicities, e))}
+          />
+          <span class="chip" class:on={selectedEthnicities.has(e)}>{e}</span>
+        </label>
+      {/each}
+    </div>
+    <label class="field">
+      <span>Other ethnicity (optional)</span>
+      <input name="ethnicity_other" type="text" bind:value={ethnicityOther} />
+    </label>
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Links</h2>
+    <div class="grid-2">
+      <label class="field">
+        <span>Website</span>
+        <input name="website" type="text" bind:value={website} placeholder="https://example.com" />
+      </label>
+      <label class="field">
+        <span>Instagram</span>
+        <input name="instagram" type="text" bind:value={instagram} placeholder="@handle" />
+      </label>
+      <label class="field">
+        <span>TikTok</span>
+        <input name="tiktok" type="text" bind:value={tiktok} placeholder="@handle" />
+      </label>
+      <label class="field">
+        <span>X / Twitter</span>
+        <input name="twitter" type="text" bind:value={twitter} placeholder="@handle" />
+      </label>
+      <label class="field">
+        <span>Facebook URL</span>
+        <input name="facebook" type="text" bind:value={facebook} placeholder="https://facebook.com/..." />
+      </label>
+      <label class="field">
+        <span>LinkedIn URL</span>
+        <input name="linkedin" type="text" bind:value={linkedin} placeholder="https://linkedin.com/in/..." />
+      </label>
+      <label class="field">
+        <span>YouTube URL</span>
+        <input name="youtube" type="text" bind:value={youtube} placeholder="https://youtube.com/..." />
+      </label>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="submit" class="bt bt-pri" disabled={saving}>
+      {saving ? "Saving..." : "Save changes"}
+    </button>
+  </div>
+</form>
+
+<style>
+  .hd {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 800px;
+    margin-bottom: 2rem;
+  }
+  .h1-display { margin: 0.5rem 0 0.25rem; }
+  .lede {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+  }
+  .quick-links {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 0.75rem;
+    flex-wrap: wrap;
+  }
+  .bt {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+  }
+  .bt-pri { background: var(--ink); color: var(--bg); }
+  .bt-pri:hover:not(:disabled) { background: var(--accent); }
+  .bt-pri:disabled { opacity: 0.5; cursor: progress; }
+  .bt-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--rule);
+  }
+  .bt-ghost:hover { border-color: var(--ink); text-decoration: none; }
+
+  .form-ok {
+    background: color-mix(in oklch, var(--accent), var(--bg) 85%);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
+  .form-error {
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
+
+  .ed {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    max-width: 800px;
+  }
+  .row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .block-h {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0;
+    font-weight: 500;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .field input,
+  .field textarea {
+    padding: 9px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--font-body);
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+  .field input:focus,
+  .field textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .field textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip-label input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 11px;
+    border-radius: 100px;
+    border: 1px solid var(--rule);
+    font-family: var(--font-body);
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1.2;
+    user-select: none;
+    color: var(--ink-soft);
+    background: transparent;
+  }
+  .chip:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .chip.on {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+
+  .age-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .age-row input {
+    flex: 0 1 110px;
+    padding: 9px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--font-body);
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+  .age-row input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .age-row .dash {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .error {
+    color: var(--error);
+    font-size: 13px;
+    font-family: var(--font-body);
+    margin-top: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+</style>

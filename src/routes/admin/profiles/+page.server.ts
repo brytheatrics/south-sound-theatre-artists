@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
   let query = supabaseAdmin
     .from("profiles")
     .select(
-      "id, slug, full_name, email, geographic_area, disciplines, published, created_at, updated_at, member_since",
+      "id, slug, full_name, email, geographic_area, disciplines, published, trusted, created_at, updated_at, member_since",
       { count: "exact" },
     )
     .is("deleted_at", null);
@@ -63,6 +63,19 @@ export const actions: Actions = {
       .update({ published: publish })
       .eq("id", id);
     if (error) return fail(500, { error: "Could not update visibility." });
+    return { ok: true };
+  },
+
+  toggleTrust: async ({ request }) => {
+    const data = await request.formData();
+    const id = (data.get("id") as string) ?? "";
+    const trust = data.get("trust") === "true";
+    if (!id) return fail(400, { error: "Missing id." });
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ trusted: trust })
+      .eq("id", id);
+    if (error) return fail(500, { error: "Could not update trust." });
     return { ok: true };
   },
 
