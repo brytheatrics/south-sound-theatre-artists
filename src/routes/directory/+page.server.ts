@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ url }) => {
   const unions = params.getAll("u").filter(Boolean);
   const areas = params.getAll("area").filter(Boolean);
   const language = (params.get("lang") ?? "").trim();
+  const hasHeadshot = params.get("headshot") === "1";
   const ageMinStr = params.get("ageMin") ?? "";
   const ageMaxStr = params.get("ageMax") ?? "";
   const ageMin = ageMinStr && /^\d+$/.test(ageMinStr) ? Number(ageMinStr) : null;
@@ -45,6 +46,9 @@ export const load: PageServerLoad = async ({ url }) => {
     }
     if (language) {
       q2 = q2.contains("languages", [language]);
+    }
+    if (hasHeadshot) {
+      q2 = q2.not("headshot_url", "is", null);
     }
     return q2;
   };
@@ -102,6 +106,7 @@ export const load: PageServerLoad = async ({ url }) => {
       unions,
       areas,
       language,
+      hasHeadshot,
       ageMin: ageMinStr,
       ageMax: ageMaxStr,
     },

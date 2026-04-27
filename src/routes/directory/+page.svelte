@@ -15,6 +15,8 @@
   /* svelte-ignore state_referenced_locally */
   let language = $state(data.filters.language);
   /* svelte-ignore state_referenced_locally */
+  let hasHeadshot = $state(data.filters.hasHeadshot);
+  /* svelte-ignore state_referenced_locally */
   let ageMin = $state(data.filters.ageMin);
   /* svelte-ignore state_referenced_locally */
   let ageMax = $state(data.filters.ageMax);
@@ -44,6 +46,10 @@
     selectedUnions = toggleSet(selectedUnions, name);
     submitNow();
   }
+  function toggleHeadshot() {
+    hasHeadshot = !hasHeadshot;
+    submitNow();
+  }
 
   function clearFilters() {
     q = "";
@@ -51,6 +57,7 @@
     selectedUnions = new Set();
     selectedAreas = new Set();
     language = "";
+    hasHeadshot = false;
     ageMin = "";
     ageMax = "";
     setTimeout(submitNow, 0);
@@ -61,6 +68,7 @@
       selectedUnions.size +
       selectedAreas.size +
       (language ? 1 : 0) +
+      (hasHeadshot ? 1 : 0) +
       (ageMin || ageMax ? 1 : 0) +
       (q ? 1 : 0),
   );
@@ -144,6 +152,22 @@
           <span class="chip" class:on={selectedUnions.has(u)}>{u}</span>
         </label>
       {/each}
+    </div>
+  </div>
+
+  <div class="filter-block">
+    <span class="block-label">Show only</span>
+    <div class="chip-row">
+      <label class="chip-label">
+        <input
+          type="checkbox"
+          name="headshot"
+          value="1"
+          checked={hasHeadshot}
+          onchange={toggleHeadshot}
+        />
+        <span class="chip" class:on={hasHeadshot}>Has headshot</span>
+      </label>
     </div>
   </div>
 
