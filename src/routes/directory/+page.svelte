@@ -216,6 +216,9 @@
               {p.disciplines.slice(0, 2).join(" · ")}
               {#if p.geographic_area}<span> · {p.geographic_area}</span>{/if}
             </span>
+            {#if p.playable_age_min != null && p.playable_age_max != null}
+              <span class="age">Plays {p.playable_age_min}-{p.playable_age_max}</span>
+            {/if}
           </div>
         </a>
       </li>
@@ -464,6 +467,14 @@
     font-size: 13px;
     color: var(--muted);
     line-height: 1.3;
+  }
+  .age {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-top: 0.1rem;
   }
 
   .more-note {
