@@ -1,10 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="10" fill="#3c704b"/>
-  <g fill="none" stroke="#faf7ee" stroke-linejoin="round">
-    <path d="M22 13 H10 V51 H22" stroke-width="5" stroke-linecap="square"/>
-    <path d="M11 35 Q16 41 21 35" stroke-width="3.5" stroke-linecap="round"/>
-    <path d="M42 13 H54 V51 H42" stroke-width="5" stroke-linecap="square"/>
-    <path d="M43 35 Q48 29 53 35" stroke-width="3.5" stroke-linecap="round"/>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #3c704b;
+      }
+
+      .cls-2 {
+        fill: none;
+        stroke: #faf7ee;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 3.5px;
+      }
+    </style>
+  </defs>
+  <rect class="cls-1" width="64" height="64" rx="10" ry="10"/>
+  <g>
+    <path class="cls-2" d="M23.51,13h-13.06v38h13.06"/>
+    <path class="cls-2" d="M17.81,34.58c3.03,2.45,6.06,2.45,9.09,0"/>
+    <path class="cls-2" d="M40.67,13h13.06v38h-13.06"/>
+    <path class="cls-2" d="M37.1,36.42c3.03-2.45,6.06-2.45,9.09,0"/>
   </g>
 </svg>
