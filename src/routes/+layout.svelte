@@ -11,7 +11,7 @@
   {#if data?.banner}
     <AnnouncementBanner body={data.banner} />
   {/if}
-  <Nav />
+  <Nav isAdmin={data?.isAdmin ?? false} />
   <main class="content">
     {@render children()}
   </main>

@@ -6,10 +6,13 @@
 import type { LayoutServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
-export const load: LayoutServerLoad = async ({ url }) => {
-  // Don't load on admin routes - they use their own layout chrome.
+export const load: LayoutServerLoad = async ({ url, locals }) => {
+  const isAdmin = !!locals.admin;
+
+  // Don't load banner / footer on admin routes - they use their own layout
+  // chrome. Still expose isAdmin so the nav shortcut renders everywhere.
   if (url.pathname.startsWith("/admin")) {
-    return { banner: null, footer: null };
+    return { banner: null, footer: null, isAdmin };
   }
 
   const now = new Date().toISOString();
@@ -33,5 +36,6 @@ export const load: LayoutServerLoad = async ({ url }) => {
   return {
     banner: bannerRes.data?.body_markdown ?? null,
     footer: footerRes.data?.body_markdown ?? null,
+    isAdmin,
   };
 };

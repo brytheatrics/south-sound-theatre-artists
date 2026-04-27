@@ -1,6 +1,9 @@
 <script lang="ts">
   import { page } from "$app/state";
 
+  type Props = { isAdmin?: boolean };
+  let { isAdmin = false }: Props = $props();
+
   type Link = { href: string; label: string };
   const links: Link[] = [
     { href: "/directory", label: "Directory" },
@@ -27,6 +30,11 @@
       </a>
     {/each}
   </div>
+  {#if isAdmin}
+    <a class="nv-admin" href="/admin" aria-label="Go to admin panel">
+      Admin
+    </a>
+  {/if}
   <a class="nv-cta" href="/submit">
     Submit <span aria-hidden="true">↗</span>
   </a>
@@ -86,6 +94,22 @@
   .nv-cta:hover {
     text-decoration: none;
     color: var(--ink);
+  }
+  .nv-admin {
+    color: var(--ink);
+    background: var(--paper);
+    padding: 5px 11px;
+    border-radius: 100px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid var(--rule);
+  }
+  .nv-admin:hover {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+    text-decoration: none;
   }
 
   @media (max-width: 640px) {
