@@ -1,14 +1,30 @@
+<script lang="ts">
+  import { page } from "$app/state";
+  const queued = $derived(page.url.searchParams.get("queued") === "1");
+</script>
+
 <svelte:head>
   <title>Saved - SSTA</title>
 </svelte:head>
 
 <main>
   <span class="eyebrow"><span class="num">✓</span>Saved</span>
-  <h1 class="h1-display">Changes <span class="serif-it">saved</span>.</h1>
+  {#if queued}
+    <h1 class="h1-display">Most changes <span class="serif-it">saved</span>.</h1>
+    <p class="lede">
+      Some of your edits (your name, bio, headshot, or disciplines) need a
+      quick admin review before they go live. The rest are already updated
+      on your profile. We'll email you if anything is rejected.
+    </p>
+  {:else}
+    <h1 class="h1-display">Changes <span class="serif-it">saved</span>.</h1>
+    <p class="lede">
+      Your profile is updated.
+    </p>
+  {/if}
   <p class="lede">
-    Your profile is updated. The edit link you used has been retired -
-    request a fresh one from <a href="/edit-link">edit-link</a> next time
-    you want to make changes.
+    The edit link you used has been retired - request a fresh one from
+    <a href="/edit-link">edit-link</a> next time you want to make changes.
   </p>
 </main>
 

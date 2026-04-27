@@ -2,9 +2,14 @@
 // editable profile, accept changes, invalidate the token after a
 // successful edit (single-use per BUILD_PLAN architecture commitment #7).
 //
-// All edits apply directly to the live profile in v1. The flagged_edits
-// pipeline for major changes (headshot / disciplines) ships in step 12
-// alongside admin profile management.
+// Trust gate (step 12 phase B):
+//   - profile.trusted = true → all edits apply directly.
+//   - profile.trusted = false → minor fields (pronouns, area, age,
+//     languages, unions, ethnicities, social links) apply directly;
+//     major fields (full_name, bio, headshot_url, disciplines) get
+//     queued in flagged_edits as one row per submission, jsonb-keyed
+//     by field. Admin reviews + approves/rejects the bundle from
+//     /admin/flagged-edits.
 
 import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
@@ -162,29 +167,77 @@ export const actions: Actions = {
       ),
     );
 
+    // Pull current row to compare for the trust gate. Couldn't do this in
+    // load() because we need the freshest version at submit time.
+    const { data: current } = await supabaseAdmin
+      .from("profiles")
+      .select(
+        "trusted, full_name, bio, headshot_url, disciplines",
+      )
+      .eq("id", token.target_id)
+      .maybeSingle();
+    if (!current) {
+      return fail(500, {
+        errors: { _form: "Profile not found." },
+      });
+    }
+
+    // Major fields gated by trust. Minor fields apply directly either way.
+    const proposedMajor: Record<string, unknown> = {};
+    if (!current.trusted) {
+      if (fullName !== current.full_name) {
+        proposedMajor.full_name = fullName;
+      }
+      const newBio = bio || null;
+      if (newBio !== (current.bio ?? null)) {
+        proposedMajor.bio = newBio;
+      }
+      const newHeadshot = headshotUrl || null;
+      if (newHeadshot !== (current.headshot_url ?? null)) {
+        proposedMajor.headshot_url = newHeadshot;
+      }
+      const sameDisc =
+        Array.isArray(current.disciplines) &&
+        current.disciplines.length === finalDisciplines.length &&
+        current.disciplines.every((d: string, i: number) => d === finalDisciplines[i]);
+      if (!sameDisc) {
+        proposedMajor.disciplines = finalDisciplines;
+      }
+    }
+
+    const minorUpdate: Record<string, unknown> = {
+      pronouns: pronouns || null,
+      headshot_consent: headshotConsent,
+      geographic_area: finalArea,
+      playable_age_min: ageMin,
+      playable_age_max: ageMax,
+      languages,
+      unions: finalUnions,
+      ethnicities: finalEthnicities,
+      instagram_handle: instagram || null,
+      facebook_url: facebook || null,
+      tiktok_handle: tiktok || null,
+      linkedin_url: linkedin || null,
+      twitter_handle: twitter || null,
+      youtube_url: youtube || null,
+      website_url: website || null,
+    };
+
+    // Trusted: every change applies. Untrusted: only minor fields apply
+    // directly; major changes (if any) get queued for admin review.
+    const fullUpdate = current.trusted
+      ? {
+          ...minorUpdate,
+          full_name: fullName,
+          bio: bio || null,
+          headshot_url: headshotUrl || null,
+          disciplines: finalDisciplines,
+        }
+      : minorUpdate;
+
     const { error: updateErr } = await supabaseAdmin
       .from("profiles")
-      .update({
-        full_name: fullName,
-        pronouns: pronouns || null,
-        bio: bio || null,
-        headshot_url: headshotUrl || null,
-        headshot_consent: headshotConsent,
-        disciplines: finalDisciplines,
-        geographic_area: finalArea,
-        playable_age_min: ageMin,
-        playable_age_max: ageMax,
-        languages,
-        unions: finalUnions,
-        ethnicities: finalEthnicities,
-        instagram_handle: instagram || null,
-        facebook_url: facebook || null,
-        tiktok_handle: tiktok || null,
-        linkedin_url: linkedin || null,
-        twitter_handle: twitter || null,
-        youtube_url: youtube || null,
-        website_url: website || null,
-      })
+      .update(fullUpdate)
       .eq("id", token.target_id);
 
     if (updateErr) {
@@ -194,12 +247,29 @@ export const actions: Actions = {
       });
     }
 
+    let queued = false;
+    if (!current.trusted && Object.keys(proposedMajor).length > 0) {
+      const { error: flagErr } = await supabaseAdmin
+        .from("flagged_edits")
+        .insert({
+          profile_id: token.target_id,
+          proposed_changes: proposedMajor,
+          status: "pending",
+        });
+      if (flagErr) {
+        console.error("flagged_edits insert failed", flagErr);
+        // Surface a non-fatal warning. Minor changes already saved.
+      } else {
+        queued = true;
+      }
+    }
+
     // Burn the token now that the edit is in.
     await supabaseAdmin
       .from("magic_link_tokens")
       .update({ used_at: new Date().toISOString() })
       .eq("id", token.id);
 
-    throw redirect(303, "/edit/done");
+    throw redirect(303, queued ? "/edit/done?queued=1" : "/edit/done");
   },
 };

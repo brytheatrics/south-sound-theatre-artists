@@ -9,6 +9,7 @@
   const sections: Section[] = [
     { href: "/admin", label: "Pending queue" },
     { href: "/admin/profiles", label: "All profiles" },
+    { href: "/admin/flagged-edits", label: "Edit review" },
     { href: "/admin/reports", label: "Reports" },
     { href: "/admin/featured", label: "Featured" },
     { href: "/admin/content", label: "Site content" },
