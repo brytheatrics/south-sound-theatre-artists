@@ -54,7 +54,7 @@
               <form method="POST" action="?/resolve" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
                 <input type="hidden" name="id" value={r.id} />
                 {#if openNote === r.id}<input type="hidden" name="note" value={(document.getElementById(`note-${r.id}`) as HTMLTextAreaElement)?.value ?? ""} />{/if}
-                <button type="submit" class="bt-link" disabled={busyId === r.id}>Resolve</button>
+                <button type="submit" class="bt-link" disabled={busyId === r.id}>Resolved</button>
               </form>
               <form method="POST" action="?/dismiss" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
                 <input type="hidden" name="id" value={r.id} />
