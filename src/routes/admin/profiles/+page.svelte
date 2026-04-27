@@ -47,7 +47,7 @@
     {#each [
       { value: "updated", label: "Recently updated" },
       { value: "newest", label: "Newest members" },
-      { value: "name", label: "Name A-Z" },
+      { value: "name", label: "Last name A-Z" },
     ] as opt (opt.value)}
       <a
         class="chip"

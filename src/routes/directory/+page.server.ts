@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ url }) => {
   }
 
   if (sort === "name") {
-    query = query.order("full_name", { ascending: true });
+    query = query.order("last_name", { ascending: true });
   } else if (sort === "updated") {
     query = query.order("updated_at", { ascending: false });
   } else {

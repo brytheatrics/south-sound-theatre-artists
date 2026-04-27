@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .is("deleted_at", null);
   if (q) query = query.or(`full_name.ilike.%${q}%,slug.ilike.%${q}%,email.ilike.%${q}%`);
   if (sort === "name") {
-    query = query.order("full_name", { ascending: true });
+    query = query.order("last_name", { ascending: true });
   } else if (sort === "newest") {
     query = query.order("member_since", { ascending: false });
   } else {

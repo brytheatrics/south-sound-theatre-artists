@@ -26,7 +26,7 @@
   const sortOptions = [
     { value: "newest", label: "Newest members" },
     { value: "updated", label: "Recently updated" },
-    { value: "name", label: "Name A-Z" },
+    { value: "name", label: "Last name A-Z" },
   ] as const;
 
   let formEl: HTMLFormElement | undefined = $state();
