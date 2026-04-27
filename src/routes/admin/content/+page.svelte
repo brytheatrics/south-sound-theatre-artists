@@ -1,5 +1,8 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import MarkdownToolbar from "$lib/components/MarkdownToolbar.svelte";
+  import { renderMarkdown } from "$lib/util/markdown";
+
   let { data, form } = $props();
   /* svelte-ignore state_referenced_locally */
   let activeSlug = $state(data.rows[0]?.slug ?? "");
@@ -13,52 +16,6 @@
     bodyValue = active?.body_markdown ?? "";
     titleValue = active?.title ?? "";
   });
-
-  function renderMarkdown(md: string): string {
-    // Tiny markdown subset: paragraphs, **bold**, *italic*, # heading,
-    // - lists, [link](url). Good enough for a live preview pane.
-    const escape = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const lines = escape(md).split(/\r?\n/);
-    let html = "";
-    let inList = false;
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line) {
-        if (inList) {
-          html += "</ul>";
-          inList = false;
-        }
-        html += "";
-        continue;
-      }
-      if (line.startsWith("# ")) {
-        if (inList) { html += "</ul>"; inList = false; }
-        html += `<h1>${line.slice(2)}</h1>`;
-        continue;
-      }
-      if (line.startsWith("## ")) {
-        if (inList) { html += "</ul>"; inList = false; }
-        html += `<h2>${line.slice(3)}</h2>`;
-        continue;
-      }
-      if (line.startsWith("- ")) {
-        if (!inList) { html += "<ul>"; inList = true; }
-        html += `<li>${inline(line.slice(2))}</li>`;
-        continue;
-      }
-      if (inList) { html += "</ul>"; inList = false; }
-      html += `<p>${inline(line)}</p>`;
-    }
-    if (inList) html += "</ul>";
-    return html;
-  }
-  function inline(s: string): string {
-    return s
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-  }
 </script>
 
 <svelte:head><title>Site content - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
@@ -90,10 +47,16 @@
       <input type="text" name="title" bind:value={titleValue} />
     </label>
     <div class="split">
-      <label class="field">
+      <div class="field">
         <span>Body (markdown)</span>
-        <textarea name="body" bind:value={bodyValue} rows="20"></textarea>
-      </label>
+        <MarkdownToolbar textareaId={`body-${active.slug}`} />
+        <textarea
+          id={`body-${active.slug}`}
+          name="body"
+          bind:value={bodyValue}
+          rows="20"
+        ></textarea>
+      </div>
       <div class="preview">
         <span class="preview-label">Preview</span>
         <div class="preview-body">{@html renderMarkdown(bodyValue)}</div>
@@ -137,7 +100,7 @@
     font-size: 14px;
     background: var(--bg-raised);
   }
-  .field textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.55; resize: vertical; }
+  .field textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.55; resize: vertical; border-radius: 0 0 var(--radius) var(--radius); border-top-color: var(--rule); }
   .field input:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .preview {

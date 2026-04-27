@@ -28,19 +28,32 @@ export type SignedUpload = {
  * 20MB camera dump.
  */
 export function signHeadshotUpload(): SignedUpload {
+  return signFolder("headshots", "c_limit,w_1200,h_1200,q_auto,f_auto");
+}
+
+/**
+ * Signed upload for admin-content images (banners, inline images in
+ * site_content / email_templates markdown). Wider max-edge since these
+ * may be hero images, not headshots.
+ */
+export function signContentUpload(): SignedUpload {
+  return signFolder("content", "c_limit,w_1600,h_1600,q_auto,f_auto");
+}
+
+function signFolder(folder: string, transformation: string): SignedUpload {
   const timestamp = Math.floor(Date.now() / 1000);
   const params = {
-    folder: "headshots",
+    folder,
     timestamp: String(timestamp),
-    transformation: "c_limit,w_1200,h_1200,q_auto,f_auto",
+    transformation,
   };
   return {
     cloud_name: PUBLIC_CLOUDINARY_CLOUD_NAME,
     api_key: CLOUDINARY_API_KEY,
     timestamp,
     signature: signParams(params, CLOUDINARY_API_SECRET),
-    folder: params.folder,
-    transformation: params.transformation,
+    folder,
+    transformation,
   };
 }
 
