@@ -59,7 +59,7 @@
       </div>
       <div class="preview">
         <span class="preview-label">Preview</span>
-        <div class="preview-body">{@html renderMarkdown(bodyValue)}</div>
+        <div class="prose prose-compact">{@html renderMarkdown(bodyValue)}</div>
       </div>
     </div>
     <button type="submit" class="bt bt-pri" disabled={busy}>
@@ -111,12 +111,7 @@
     overflow-y: auto;
     max-height: 600px;
   }
-  .preview-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-  .preview-body :global(h1) { font-family: var(--font-display); font-weight: 600; font-size: 28px; margin: 8px 0; }
-  .preview-body :global(h2) { font-family: var(--font-display); font-weight: 600; font-size: 20px; margin: 16px 0 6px; }
-  .preview-body :global(p) { margin: 8px 0; line-height: 1.55; color: var(--ink-soft); }
-  .preview-body :global(ul) { margin: 8px 0; padding-left: 20px; color: var(--ink-soft); }
-  .preview-body :global(a) { color: var(--accent); }
+  .preview-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); display: block; margin-bottom: 0.5rem; }
   .bt { font-family: var(--font-body); font-size: 14px; padding: 10px 18px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; align-self: flex-start; }
   .bt-pri { background: var(--ink); color: var(--bg); }
   .bt-pri:hover:not(:disabled) { background: var(--accent); }
