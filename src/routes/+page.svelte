@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { renderMarkdownInline } from "$lib/util/markdown";
+
   let { data } = $props();
 
   let idx = $state(0);
@@ -55,11 +57,7 @@
 </svelte:head>
 
 <section class="hero">
-  <p class="lede">
-    A free, community-run directory of theatre artists from the South Puget
-    Sound. No accounts to browse. Five-minute submission to be listed.
-    <span class="lede-cta">You belong here.</span>
-  </p>
+  <p class="lede">{@html renderMarkdownInline(data.homeBody)}</p>
   <div class="stats">
     <span>{data.artistCount} artists listed</span>
     <span>14 open calls</span>
@@ -175,13 +173,18 @@
     color: var(--muted);
     margin: 0;
   }
-  .lede-cta {
-    font-family: var(--font-body);
+  /* Italic markup inside the lede picks up the moss accent. Admins can
+     write *You belong here.* (or any phrase) to flag a CTA / emphasis. */
+  .lede :global(em) {
+    color: var(--accent);
+  }
+  .lede :global(strong) {
+    color: var(--accent);
     font-style: normal;
     font-weight: 500;
-    font-size: 16px;
+  }
+  .lede :global(a) {
     color: var(--accent);
-    margin-left: 4px;
   }
   .stats {
     display: flex;

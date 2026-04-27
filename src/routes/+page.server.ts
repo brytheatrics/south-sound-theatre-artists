@@ -16,7 +16,7 @@ type ProfileRow = {
 };
 
 export const load: PageServerLoad = async () => {
-  const [countRes, curatedRes, fallbackRes, recentRes] = await Promise.all([
+  const [countRes, curatedRes, fallbackRes, recentRes, homeRes] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select("*", { count: "exact", head: true })
@@ -46,6 +46,11 @@ export const load: PageServerLoad = async () => {
       .is("deleted_at", null)
       .order("member_since", { ascending: false })
       .limit(4),
+    supabaseAdmin
+      .from("site_content")
+      .select("body_markdown")
+      .eq("slug", "home")
+      .maybeSingle(),
   ]);
 
   if (curatedRes.error) throw curatedRes.error;
@@ -79,6 +84,7 @@ export const load: PageServerLoad = async () => {
     artistCount: countRes.count ?? 0,
     featured,
     recent: (recentRes.data ?? []) as ProfileRow[],
+    homeBody: homeRes.data?.body_markdown ?? "",
   };
 };
 

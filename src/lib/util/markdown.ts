@@ -57,3 +57,15 @@ function inline(s: string): string {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
+
+/**
+ * Render inline markdown only (no block wrappers like <p>). Use when
+ * the host element already provides the surrounding tag and you just
+ * want **bold**, *italic*, and [link]() applied to the text.
+ */
+export function renderMarkdownInline(md: string): string {
+  if (!md) return "";
+  const escape = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return inline(escape(md.trim()));
+}
