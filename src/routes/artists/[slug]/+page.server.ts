@@ -79,6 +79,7 @@ export const actions: Actions = {
 
     const result = await sendEmail({
       to: profile.email,
+      replyTo: senderEmail,
       templateSlug: "contact_routed",
       vars: {
         recipient_name: profile.full_name,

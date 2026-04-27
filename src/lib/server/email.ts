@@ -13,6 +13,10 @@ type SendArgs = {
   to: string;
   templateSlug: string;
   vars: Record<string, string>;
+  /** When set, hitting Reply in the recipient's mail client targets this
+   * address instead of RESEND_FROM_EMAIL. Used by the contact-routing flow
+   * so artists reply directly to the sender. */
+  replyTo?: string;
 };
 
 type SendResult = { ok: true } | { ok: false; reason: string };
@@ -21,6 +25,7 @@ export async function sendEmail({
   to,
   templateSlug,
   vars,
+  replyTo,
 }: SendArgs): Promise<SendResult> {
   const recipient = to.trim().toLowerCase();
 
@@ -72,6 +77,7 @@ export async function sendEmail({
         to: recipient,
         subject,
         text: body,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
 
