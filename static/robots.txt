@@ -1,3 +1,9 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin/
+Disallow: /admin
+Disallow: /edit/
+Disallow: /verify/
+Disallow: /report
+
+Sitemap: https://southsoundtheatreartists.netlify.app/sitemap.xml

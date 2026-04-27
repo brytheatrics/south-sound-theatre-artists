@@ -16,12 +16,20 @@ type ProfileRow = {
 };
 
 export const load: PageServerLoad = async () => {
-  const [countRes, featuredPoolRes, recentRes] = await Promise.all([
+  const [countRes, curatedRes, fallbackRes, recentRes] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("published", true)
       .is("deleted_at", null),
+    // Admin-curated featured pool. Active rows only.
+    supabaseAdmin
+      .from("featured_profiles")
+      .select(
+        "profiles(slug, full_name, pronouns, disciplines, geographic_area, member_since, headshot_url)",
+      )
+      .eq("active", true)
+      .order("sort_order"),
     supabaseAdmin
       .from("profiles")
       .select(
@@ -40,14 +48,32 @@ export const load: PageServerLoad = async () => {
       .limit(4),
   ]);
 
-  if (featuredPoolRes.error) throw featuredPoolRes.error;
+  if (curatedRes.error) throw curatedRes.error;
+  if (fallbackRes.error) throw fallbackRes.error;
   if (recentRes.error) throw recentRes.error;
 
-  const all = (featuredPoolRes.data ?? []) as ProfileRow[];
+  // Curated rotation has priority. Fall back to a date-seeded shuffle of
+  // all published profiles.
+  const curated = (curatedRes.data ?? [])
+    .map((r: { profiles: ProfileRow | ProfileRow[] | null }) => {
+      // Supabase returns an array for many-relation joins; we want a
+      // singleton row per featured entry.
+      if (Array.isArray(r.profiles)) return r.profiles[0] ?? null;
+      return r.profiles;
+    })
+    .filter((p): p is ProfileRow => !!p);
 
-  // Date-seeded shuffle so the day's pool stays stable across reloads.
-  const today = new Date().toISOString().slice(0, 10);
-  const featured = pickDailyFeatured(all, today, 4);
+  let featured: ProfileRow[];
+  if (curated.length >= 4) {
+    const today = new Date().toISOString().slice(0, 10);
+    featured = pickDailyFeatured(curated, today, 4);
+  } else if (curated.length > 0) {
+    featured = curated;
+  } else {
+    const all = (fallbackRes.data ?? []) as ProfileRow[];
+    const today = new Date().toISOString().slice(0, 10);
+    featured = pickDailyFeatured(all, today, 4);
+  }
 
   return {
     artistCount: countRes.count ?? 0,

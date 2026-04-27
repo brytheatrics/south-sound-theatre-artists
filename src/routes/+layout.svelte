@@ -1,10 +1,11 @@
 <script lang="ts">
   import "../app.css";
   import favicon from "$lib/assets/favicon.svg";
+  import AnnouncementBanner from "$lib/components/AnnouncementBanner.svelte";
   import Nav from "$lib/components/Nav.svelte";
   import Footer from "$lib/components/Footer.svelte";
 
-  let { children } = $props();
+  let { data, children } = $props();
 </script>
 
 <svelte:head>
@@ -12,6 +13,9 @@
 </svelte:head>
 
 <div class="page">
+  {#if data?.banner}
+    <AnnouncementBanner body={data.banner} />
+  {/if}
   <Nav />
   <main class="content">
     {@render children()}
