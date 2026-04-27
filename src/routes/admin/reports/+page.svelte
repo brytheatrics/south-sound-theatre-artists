@@ -3,6 +3,7 @@
   let { data, form } = $props();
   let busyId = $state<string | null>(null);
   let openNote = $state<string | null>(null);
+  let notes = $state<Record<string, string>>({});
 
   function timeAgo(iso: string): string {
     const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -53,12 +54,12 @@
               </button>
               <form method="POST" action="?/resolve" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
                 <input type="hidden" name="id" value={r.id} />
-                {#if openNote === r.id}<input type="hidden" name="note" value={(document.getElementById(`note-${r.id}`) as HTMLTextAreaElement)?.value ?? ""} />{/if}
+                <input type="hidden" name="note" value={notes[r.id] ?? ""} />
                 <button type="submit" class="bt-link" disabled={busyId === r.id}>Resolved</button>
               </form>
               <form method="POST" action="?/dismiss" use:enhance={() => { busyId = r.id; return async ({ update }) => { await update(); busyId = null; }; }}>
                 <input type="hidden" name="id" value={r.id} />
-                {#if openNote === r.id}<input type="hidden" name="note" value={(document.getElementById(`note-${r.id}`) as HTMLTextAreaElement)?.value ?? ""} />{/if}
+                <input type="hidden" name="note" value={notes[r.id] ?? ""} />
                 <button type="submit" class="bt-link warn" disabled={busyId === r.id}>Dismiss</button>
               </form>
             </div>
@@ -66,7 +67,11 @@
         </div>
         <p class="reason">{r.reason}</p>
         {#if openNote === r.id}
-          <textarea id={`note-${r.id}`} placeholder="Internal note (optional)" rows="2"></textarea>
+          <textarea
+            bind:value={notes[r.id]}
+            placeholder="Internal note (optional). Saved with the report."
+            rows="2"
+          ></textarea>
         {/if}
         {#if r.admin_notes}
           <p class="note"><strong>Note:</strong> {r.admin_notes}</p>
