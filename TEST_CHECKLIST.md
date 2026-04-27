@@ -170,10 +170,12 @@ Quick map of what shipped:
   `/admin/profiles/trash`, `/admin/disciplines`). Project rule says no
   native browser dialogs. Should swap for the themed `ConfirmModal`
   pattern.
-- **No admin-side profile editor.** Lexi can use the user edit-link
-  flow (request a link to her own admin email if she needs to test) or
-  the Supabase Table Editor. A proper /admin/profiles/[id]/edit page is
-  a follow-up.
+- **No admin-side profile *editor*** for existing profiles. Lexi can
+  click "Send edit link" on /admin/profiles to email the artist a fresh
+  magic link, or use the Supabase Table Editor. A proper
+  /admin/profiles/[id]/edit page is a follow-up.
+  /admin/profiles/new exists for *creating* starter profiles on behalf
+  of artists with whatever info Lexi has on file.
 - **No flagged_edits split** in the magic-link edit flow. Per the spec
   major changes (headshot, disciplines) should queue in `flagged_edits`
   for admin re-approval; v1 step 9 applies all edits directly.
