@@ -33,7 +33,8 @@
 
   function toggleDiscipline(name: string) {
     selectedDisciplines = toggleSet(selectedDisciplines, name);
-    submitNow();
+    // Defer so Svelte renders the new hidden <input name="d"> before submit.
+    setTimeout(submitNow, 0);
   }
   function toggleArea(name: string) {
     selectedAreas = toggleSet(selectedAreas, name);
