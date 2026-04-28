@@ -104,32 +104,11 @@
   {/each}
 </div>
 
-<!-- SECONDARY ROW: verified, sort, view -->
+<!-- SECONDARY ROW: view, sort, verified - all left-aligned to match the
+     /directory sort-row pattern. -->
 <div class="secondary-row" data-sveltekit-noscroll data-sveltekit-replacestate>
-  <a
-    class="verified-toggle"
-    class:on={data.verifiedOnly}
-    href={buildUrl({ verified: data.verifiedOnly ? null : "1", page: null })}
-    aria-pressed={data.verifiedOnly}
-  >
-    <span class="toggle-box" aria-hidden="true"></span>
-    Verified companies only
-  </a>
-
-  <div class="sort-group">
-    <span class="secondary-label">Sort</span>
-    {#each SORT_OPTS as opt (opt.value)}
-      <a
-        class="chip chip-sm"
-        class:on={data.sort === opt.value}
-        href={buildUrl({ sort: opt.value === "deadline" ? null : opt.value, page: null })}
-      >
-        {opt.label}
-      </a>
-    {/each}
-  </div>
-
   <div class="view-group">
+    <span class="secondary-label">View</span>
     <a
       class="view-btn"
       class:on={data.view === "list"}
@@ -147,6 +126,29 @@
       ▦ Cards
     </a>
   </div>
+
+  <div class="sort-group">
+    <span class="secondary-label">Sort</span>
+    {#each SORT_OPTS as opt (opt.value)}
+      <a
+        class="chip chip-sm"
+        class:on={data.sort === opt.value}
+        href={buildUrl({ sort: opt.value === "deadline" ? null : opt.value, page: null })}
+      >
+        {opt.label}
+      </a>
+    {/each}
+  </div>
+
+  <a
+    class="verified-toggle"
+    class:on={data.verifiedOnly}
+    href={buildUrl({ verified: data.verifiedOnly ? null : "1", page: null })}
+    aria-pressed={data.verifiedOnly}
+  >
+    <span class="toggle-box" aria-hidden="true"></span>
+    Verified companies only
+  </a>
 </div>
 
 <!-- CLOSING-SOON STRIP -->
@@ -426,7 +428,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: auto;
   }
   .secondary-label {
     font-family: var(--font-mono);
@@ -439,8 +440,6 @@
     display: flex;
     gap: 10px;
     align-items: center;
-    border-left: 1px solid var(--rule);
-    padding-left: 1.25rem;
   }
   .view-btn {
     font-family: var(--font-mono);
@@ -827,7 +826,6 @@
     }
     .view-group { display: none; }
     .secondary-row { gap: 0.75rem; }
-    .sort-group { margin-left: 0; }
     .masthead-meta { display: none; }
     .cards-grid { grid-template-columns: 1fr; }
   }
