@@ -73,7 +73,7 @@
     <h1 class="h1-display">
       <span class="serif-it">{data.totalActive}</span> open
       {data.totalActive === 1 ? "call" : "calls"},<br />
-      from Tacoma to Gig Harbor.
+      across the South Sound.
     </h1>
     <p class="lede">
       Auditions, designer and crew calls, and production announcements. Posting
