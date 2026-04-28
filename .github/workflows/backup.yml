@@ -1,0 +1,84 @@
+name: Weekly DB backup
+
+# Dumps every public Supabase table to JSON and commits the result to a
+# separate private GitHub repo. Runs once a week.
+#
+# Required secrets:
+#   SUPABASE_DB_URL    - same one the migrate / keepalive crons use
+#   BACKUP_REPO        - "owner/repo" of the private backup target
+#                        (e.g. "blake/ssta-backups"). Must be a separate
+#                        repo so a leak of THIS repo doesn't expose
+#                        backups, and vice versa.
+#   BACKUP_REPO_TOKEN  - a fine-grained PAT with contents:write on the
+#                        backup repo. Used to push the dump.
+#   BACKUP_AUTHOR_EMAIL (optional, default "ssta-bot@users.noreply.github.com")
+#   BACKUP_AUTHOR_NAME  (optional, default "ssta-bot")
+#
+# If BACKUP_REPO or BACKUP_REPO_TOKEN are missing, the workflow no-ops
+# with a notice instead of failing - lets the cron live in the repo
+# before you've stood up the backup target.
+
+on:
+  schedule:
+    - cron: "0 18 * * 0" # Sundays 18:00 UTC (~10/11am PT)
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip if backup repo not configured
+        id: gate
+        run: |
+          if [ -z "${{ secrets.BACKUP_REPO }}" ] || [ -z "${{ secrets.BACKUP_REPO_TOKEN }}" ]; then
+            echo "::notice::BACKUP_REPO or BACKUP_REPO_TOKEN not set - skipping."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.go == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - if: steps.gate.outputs.go == 'true'
+        name: Install deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - if: steps.gate.outputs.go == 'true'
+        name: Dump tables to JSON
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/backup-tables.mjs
+
+      - if: steps.gate.outputs.go == 'true'
+        name: Push to backup repo
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_AUTHOR_EMAIL: ${{ secrets.BACKUP_AUTHOR_EMAIL }}
+          BACKUP_AUTHOR_NAME: ${{ secrets.BACKUP_AUTHOR_NAME }}
+        run: |
+          set -e
+          STAMP=$(date -u +"%Y-%m-%d")
+          DEST="$RUNNER_TEMP/backup-target"
+          git clone --depth 1 "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPO}.git" "$DEST"
+          mkdir -p "$DEST/snapshots/$STAMP"
+          cp backup-out/*.json "$DEST/snapshots/$STAMP/"
+          cd "$DEST"
+          git config user.email "${BACKUP_AUTHOR_EMAIL:-ssta-bot@users.noreply.github.com}"
+          git config user.name "${BACKUP_AUTHOR_NAME:-ssta-bot}"
+          git add "snapshots/$STAMP"
+          if git diff --cached --quiet; then
+            echo "::notice::No changes to commit (snapshot for $STAMP already exists?)"
+            exit 0
+          fi
+          git commit -m "Backup snapshot: $STAMP"
+          git push origin HEAD
+          echo "::notice::Pushed snapshot for $STAMP"
