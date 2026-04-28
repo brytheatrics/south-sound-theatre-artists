@@ -1,0 +1,41 @@
+name: Supabase keepalive
+
+# Free-tier Supabase pauses the database after 7 days of inactivity.
+# Pinging the REST API every 3 days keeps it warm. The query is a
+# trivial select against the `areas` reference table; it touches
+# Postgres just enough to count as activity.
+
+on:
+  schedule:
+    - cron: "0 12 */3 * *" # every 3 days at 12:00 UTC
+  workflow_dispatch: # also allow a manual run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret is missing"
+            exit 1
+          fi
+
+          response=$(curl -s -o /tmp/body -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/areas?select=name&limit=1")
+
+          echo "HTTP $response"
+          body=$(cat /tmp/body)
+          # Truncate body to one line so logs stay clean.
+          echo "Body: ${body:0:200}"
+
+          if [ "$response" != "200" ]; then
+            echo "::error::Keepalive request failed"
+            exit 1
+          fi
+          echo "::notice::Supabase keepalive ping OK"
