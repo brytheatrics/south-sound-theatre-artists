@@ -3,6 +3,13 @@
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
+  import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
+
+  type ResumeData = {
+    credits: Array<{ show: string; role: string; company: string; director?: string; year?: string; notes?: string }>;
+    training: Array<{ title: string; institution: string; year?: string; notes?: string }>;
+    skills: Array<{ category: string; items: string }>;
+  };
   import SlugCollisionModal from "$lib/components/SlugCollisionModal.svelte";
   import { slugify } from "$lib/util/slug";
 
@@ -36,6 +43,7 @@
     ethnicities?: string[];
     ethnicityOther?: string;
     resumes?: Array<{ label: string; url: string }>;
+    resumeData?: ResumeData;
   };
   // svelte-ignore state_referenced_locally
   const v: FormValues = (form?.values ?? {}) as FormValues;
@@ -68,6 +76,9 @@
   let selectedEthnicities = $state<Set<string>>(new Set(v.ethnicities ?? []));
   let ethnicityOther = $state(v.ethnicityOther ?? "");
   let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
+  let resumeData = $state<ResumeData>(
+    v.resumeData ?? { credits: [], training: [], skills: [] },
+  );
 
   $effect(() => {
     if (!slugTouched && fullName) slug = slugify(fullName);
@@ -222,10 +233,19 @@
     </fieldset>
 
     <fieldset>
-      <legend>Resumes</legend>
+      <legend>Resume builder</legend>
       <p class="hint">
-        Optional. Add one or more PDF resumes - label each so casting can
-        pick the right one (e.g. Acting, Directing, Design).
+        Optional. Fill in any sections that apply - credits, training,
+        skills. Sections you skip don't render on your profile.
+      </p>
+      <ResumeBuilder bind:value={resumeData} />
+    </fieldset>
+
+    <fieldset>
+      <legend>Resume PDFs</legend>
+      <p class="hint">
+        Optional. If you'd rather attach an existing PDF (or several -
+        acting, directing, design), upload here.
       </p>
       <ResumesEditor bind:value={resumes} />
     </fieldset>

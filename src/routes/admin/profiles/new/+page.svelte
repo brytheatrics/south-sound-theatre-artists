@@ -3,6 +3,13 @@
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
+  import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
+
+  type ResumeData = {
+    credits: Array<{ show: string; role: string; company: string; director?: string; year?: string; notes?: string }>;
+    training: Array<{ title: string; institution: string; year?: string; notes?: string }>;
+    skills: Array<{ category: string; items: string }>;
+  };
   import SlugCollisionModal from "$lib/components/SlugCollisionModal.svelte";
   import { slugify } from "$lib/util/slug";
 
@@ -21,6 +28,7 @@
     areaOther?: string;
     city?: string;
     resumes?: Array<{ label: string; url: string }>;
+    resumeData?: ResumeData;
     disciplines?: string[];
     disciplineOther?: string;
     publish?: boolean;
@@ -39,6 +47,9 @@
   let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
   let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
+  let resumeData = $state<ResumeData>(
+    v.resumeData ?? { credits: [], training: [], skills: [] },
+  );
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
@@ -137,7 +148,12 @@
   </fieldset>
 
   <fieldset>
-    <legend>Resumes</legend>
+    <legend>Resume builder</legend>
+    <ResumeBuilder bind:value={resumeData} />
+  </fieldset>
+
+  <fieldset>
+    <legend>Resume PDFs</legend>
     <ResumesEditor bind:value={resumes} />
   </fieldset>
 

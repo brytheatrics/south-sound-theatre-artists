@@ -15,6 +15,7 @@ import { error, fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { hashToken } from "$lib/server/tokens";
+import { parseResumeData, resumeDataEquals } from "$lib/server/resume";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -138,6 +139,7 @@ export const actions: Actions = {
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
+    const resumeData = parseResumeData(data.get("resume_data"));
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
@@ -196,7 +198,7 @@ export const actions: Actions = {
     const { data: current } = await supabaseAdmin
       .from("profiles")
       .select(
-        "trusted, full_name, bio, headshot_url, disciplines, resumes",
+        "trusted, full_name, bio, headshot_url, disciplines, resumes, resume_data",
       )
       .eq("id", token.target_id)
       .maybeSingle();
@@ -237,6 +239,9 @@ export const actions: Actions = {
       if (!sameResumes) {
         proposedMajor.resumes = resumes;
       }
+      if (!resumeDataEquals(current.resume_data, resumeData)) {
+        proposedMajor.resume_data = resumeData;
+      }
     }
 
     const minorUpdate: Record<string, unknown> = {
@@ -268,6 +273,7 @@ export const actions: Actions = {
           headshot_url: headshotUrl || null,
           disciplines: finalDisciplines,
           resumes,
+          resume_data: resumeData,
         }
       : minorUpdate;
 

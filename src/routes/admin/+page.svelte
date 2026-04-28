@@ -101,7 +101,7 @@
             {/if}
 
             {#if Array.isArray(s.resumes) && s.resumes.length > 0}
-              <h3 class="block-h">Resumes</h3>
+              <h3 class="block-h">Resume PDFs</h3>
               <ul class="links">
                 {#each s.resumes as r}
                   <li>
@@ -111,6 +111,23 @@
                   </li>
                 {/each}
               </ul>
+            {/if}
+
+            {#if s.resume_data && (
+              (s.resume_data.credits?.length ?? 0) +
+              (s.resume_data.training?.length ?? 0) +
+              (s.resume_data.skills?.length ?? 0)
+            ) > 0}
+              <h3 class="block-h">Resume builder</h3>
+              <p class="block-bio">
+                {s.resume_data.credits?.length ?? 0} credit{(s.resume_data.credits?.length ?? 0) === 1 ? "" : "s"},
+                {s.resume_data.training?.length ?? 0} training,
+                {s.resume_data.skills?.length ?? 0} skill group{(s.resume_data.skills?.length ?? 0) === 1 ? "" : "s"}
+                <br>
+                <a href={`/artists/${s.desired_slug}`} target="_blank" rel="noopener" class="link-soft">
+                  Preview profile (after approval) ↗
+                </a>
+              </p>
             {/if}
 
             {#if s.instagram_handle || s.facebook_url || s.tiktok_handle || s.linkedin_url || s.twitter_handle || s.youtube_url || s.website_url}

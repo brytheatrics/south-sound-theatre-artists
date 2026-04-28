@@ -31,6 +31,15 @@
       }
       return v.join(", ");
     }
+    // resume_data: summarise rather than dump the JSON.
+    if (typeof v === "object") {
+      const o = v as { credits?: unknown[]; training?: unknown[]; skills?: unknown[] };
+      const parts: string[] = [];
+      if (o.credits?.length) parts.push(`${o.credits.length} credit${o.credits.length === 1 ? "" : "s"}`);
+      if (o.training?.length) parts.push(`${o.training.length} training`);
+      if (o.skills?.length) parts.push(`${o.skills.length} skill group${o.skills.length === 1 ? "" : "s"}`);
+      return parts.length > 0 ? parts.join(", ") : "(empty)";
+    }
     return String(v);
   }
 </script>

@@ -110,8 +110,59 @@
         <p class="bio">{p.bio}</p>
       {/if}
 
+      {#if p.resume_data?.credits?.length > 0}
+        <span class="eyebrow"><span class="num">02</span>Credits</span>
+        <ul class="rd-list">
+          {#each p.resume_data.credits as c}
+            <li class="rd-row">
+              <span class="rd-primary">
+                <strong>{c.show || "Untitled"}</strong>
+                {#if c.role}<span class="rd-role"> - {c.role}</span>{/if}
+              </span>
+              <span class="rd-secondary">
+                {#if c.company}{c.company}{/if}{#if c.company && c.director} · {/if}{#if c.director}dir. {c.director}{/if}{#if (c.company || c.director) && c.year} · {/if}{#if c.year}{c.year}{/if}
+              </span>
+              {#if c.notes}<span class="rd-notes">{c.notes}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if p.resume_data?.training?.length > 0}
+        <span class="eyebrow"><span class="num">03</span>Training</span>
+        <ul class="rd-list">
+          {#each p.resume_data.training as t}
+            <li class="rd-row">
+              <span class="rd-primary">
+                <strong>{t.title || "Training"}</strong>
+                {#if t.institution}<span class="rd-role"> - {t.institution}</span>{/if}
+              </span>
+              {#if t.year || t.notes}
+                <span class="rd-secondary">
+                  {#if t.year}{t.year}{/if}{#if t.year && t.notes} · {/if}{#if t.notes}{t.notes}{/if}
+                </span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if p.resume_data?.skills?.length > 0}
+        <span class="eyebrow"><span class="num">04</span>Skills</span>
+        <ul class="rd-list compact">
+          {#each p.resume_data.skills as s}
+            <li class="rd-row">
+              <span class="rd-primary">
+                <strong>{s.category}</strong>
+                {#if s.items}<span class="rd-role"> - {s.items}</span>{/if}
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
       {#if Array.isArray(p.resumes) && p.resumes.length > 0}
-        <span class="eyebrow"><span class="num">02</span>Resumes</span>
+        <span class="eyebrow"><span class="num">05</span>Resume PDFs</span>
         <ul class="resumes">
           {#each p.resumes as r}
             <li>
@@ -126,7 +177,7 @@
       {/if}
 
       {#if p.instagram_handle || p.facebook_url || p.tiktok_handle || p.linkedin_url || p.twitter_handle || p.youtube_url}
-        <span class="eyebrow"><span class="num">03</span>Find them online</span>
+        <span class="eyebrow"><span class="num">06</span>Find them online</span>
         <ul class="socials">
           {#if p.instagram_handle}
             <li><a href={handleUrl("instagram", p.instagram_handle)} target="_blank" rel="noopener">
@@ -447,6 +498,50 @@
     color: var(--muted);
     font-size: 12px;
   }
+  .rd-list {
+    list-style: none;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .rd-list.compact {
+    gap: 8px;
+  }
+  .rd-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .rd-primary {
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+  .rd-primary strong {
+    font-weight: 600;
+  }
+  .rd-role {
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+  .rd-secondary {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .rd-notes {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+    margin-top: 2px;
+  }
+
   .resumes {
     list-style: none;
     margin: 0;

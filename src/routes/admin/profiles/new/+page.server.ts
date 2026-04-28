@@ -8,6 +8,7 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { parseResumeData } from "$lib/server/resume";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -88,6 +89,7 @@ export const actions: Actions = {
     const city = ((data.get("city") as string) ?? "").trim();
     const resumesRaw = (data.get("resumes") as string) ?? "";
     const resumes = parseResumesJson(resumesRaw);
+    const resumeData = parseResumeData(data.get("resume_data"));
     const disciplines = data.getAll("disciplines").map(String).filter(Boolean);
     const disciplineOther = ((data.get("discipline_other") as string) ?? "").trim();
     const publish = data.get("publish") !== "off";
@@ -156,6 +158,7 @@ export const actions: Actions = {
         geographic_area: finalArea,
         city: city || null,
         resumes,
+        resume_data: resumeData,
         published: publish,
       })
       .select("id, slug, full_name, email")

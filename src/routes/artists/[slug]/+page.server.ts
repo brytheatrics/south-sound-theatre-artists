@@ -15,8 +15,8 @@ export const load: PageServerLoad = async ({ params }) => {
     .from("profiles")
     .select(
       `slug, full_name, pronouns, bio, disciplines, geographic_area, city,
-       resumes, playable_age_min, playable_age_max, languages, unions,
-       ethnicities, headshot_url, instagram_handle, facebook_url,
+       resumes, resume_data, playable_age_min, playable_age_max, languages,
+       unions, ethnicities, headshot_url, instagram_handle, facebook_url,
        tiktok_handle, linkedin_url, twitter_handle, youtube_url,
        website_url, member_since, updated_at`,
     )

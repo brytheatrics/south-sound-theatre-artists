@@ -7,6 +7,7 @@
 import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { parseResumeData } from "$lib/server/resume";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -106,6 +107,7 @@ export const actions: Actions = {
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
+    const resumeData = parseResumeData(data.get("resume_data"));
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
@@ -186,6 +188,7 @@ export const actions: Actions = {
         geographic_area: finalArea,
         city: city || null,
         resumes,
+        resume_data: resumeData,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

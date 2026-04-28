@@ -12,6 +12,7 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { parseResumeData, type ResumeData } from "$lib/server/resume";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -94,6 +95,7 @@ type Values = {
   ethnicities: string[];
   ethnicityOther: string;
   resumes: Array<{ label: string; url: string }>;
+  resumeData: ResumeData;
 };
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
@@ -158,6 +160,7 @@ export const actions: Actions = {
       ethnicities: data.getAll("ethnicities").map(String).filter(Boolean),
       ethnicityOther: ((data.get("ethnicity_other") as string) ?? "").trim(),
       resumes: parseResumes(data.get("resumes")),
+      resumeData: parseResumeData(data.get("resume_data")),
     };
 
     const errors: Record<string, string> = {};
@@ -287,6 +290,7 @@ export const actions: Actions = {
         geographic_area: area,
         city: values.city || null,
         resumes: values.resumes,
+        resume_data: values.resumeData,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

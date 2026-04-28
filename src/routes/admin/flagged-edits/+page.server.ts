@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       `id, profile_id, proposed_changes, status, rejection_reason,
        reviewed_at, created_at,
        profile:profiles ( slug, full_name, email, headshot_url,
-                          bio, disciplines, resumes, trusted )`,
+                          bio, disciplines, resumes, resume_data, trusted )`,
     )
     .order("created_at", { ascending: false });
 
@@ -62,7 +62,14 @@ export const actions: Actions = {
     }
 
     const proposed = (row.proposed_changes ?? {}) as ProposedChanges;
-    const allowed = ["full_name", "bio", "headshot_url", "disciplines", "resumes"];
+    const allowed = [
+      "full_name",
+      "bio",
+      "headshot_url",
+      "disciplines",
+      "resumes",
+      "resume_data",
+    ];
     const update: Record<string, unknown> = {};
     for (const k of allowed) {
       if (k in proposed) update[k] = proposed[k];
