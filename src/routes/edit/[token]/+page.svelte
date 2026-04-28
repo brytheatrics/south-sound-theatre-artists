@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
+  import ResumesEditor from "$lib/components/ResumesEditor.svelte";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -19,6 +20,9 @@
   // svelte-ignore state_referenced_locally
   let areaOther = $state(areaNames.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
   let city = $state(p.city ?? "");
+  let resumes = $state<Array<{ label: string; url: string }>>(
+    Array.isArray(p.resumes) ? p.resumes : [],
+  );
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
   let languages = $state((p.languages ?? []).join(", "));
@@ -163,6 +167,15 @@
         onOtherChange={(v) => (disciplineOther = v)}
         error={errors.disciplines}
       />
+    </fieldset>
+
+    <fieldset>
+      <legend>Resumes</legend>
+      <p class="hint">
+        Optional. Add one or more PDF resumes - label each so casting
+        can pick the right one.
+      </p>
+      <ResumesEditor bind:value={resumes} />
     </fieldset>
 
     <fieldset>

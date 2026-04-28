@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
+  import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import SlugCollisionModal from "$lib/components/SlugCollisionModal.svelte";
   import { slugify } from "$lib/util/slug";
 
@@ -34,6 +35,7 @@
     unionOther?: string;
     ethnicities?: string[];
     ethnicityOther?: string;
+    resumes?: Array<{ label: string; url: string }>;
   };
   // svelte-ignore state_referenced_locally
   const v: FormValues = (form?.values ?? {}) as FormValues;
@@ -65,6 +67,7 @@
   let unionOther = $state(v.unionOther ?? "");
   let selectedEthnicities = $state<Set<string>>(new Set(v.ethnicities ?? []));
   let ethnicityOther = $state(v.ethnicityOther ?? "");
+  let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
 
   $effect(() => {
     if (!slugTouched && fullName) slug = slugify(fullName);
@@ -216,6 +219,15 @@
           <span class="error">{errors.headshot_consent}</span>
         {/if}
       {/if}
+    </fieldset>
+
+    <fieldset>
+      <legend>Resumes</legend>
+      <p class="hint">
+        Optional. Add one or more PDF resumes - label each so casting can
+        pick the right one (e.g. Acting, Directing, Design).
+      </p>
+      <ResumesEditor bind:value={resumes} />
     </fieldset>
 
     <fieldset>

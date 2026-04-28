@@ -93,7 +93,33 @@ type Values = {
   unionOther: string;
   ethnicities: string[];
   ethnicityOther: string;
+  resumes: Array<{ label: string; url: string }>;
 };
+
+function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (r): r is { label: string; url: string } =>
+          r &&
+          typeof r === "object" &&
+          typeof r.label === "string" &&
+          typeof r.url === "string" &&
+          r.url.startsWith("https://"),
+      )
+      .map((r) => ({
+        label: r.label.trim().slice(0, 80),
+        url: r.url,
+      }))
+      .filter((r) => r.label.length > 0)
+      .slice(0, 20); // hard cap so a malicious client can't store thousands
+  } catch {
+    return [];
+  }
+}
 
 export const actions: Actions = {
   default: async ({ request }) => {
@@ -131,6 +157,7 @@ export const actions: Actions = {
       unionOther: ((data.get("union_other") as string) ?? "").trim(),
       ethnicities: data.getAll("ethnicities").map(String).filter(Boolean),
       ethnicityOther: ((data.get("ethnicity_other") as string) ?? "").trim(),
+      resumes: parseResumes(data.get("resumes")),
     };
 
     const errors: Record<string, string> = {};
@@ -259,6 +286,7 @@ export const actions: Actions = {
         headshot_consent: values.headshotConsent,
         geographic_area: area,
         city: values.city || null,
+        resumes: values.resumes,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

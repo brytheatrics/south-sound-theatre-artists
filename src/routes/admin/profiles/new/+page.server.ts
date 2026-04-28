@@ -12,6 +12,26 @@ import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
+function parseResumesJson(raw: string): Array<{ label: string; url: string }> {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (r): r is { label: string; url: string } =>
+          r && typeof r === "object" &&
+          typeof r.label === "string" && typeof r.url === "string" &&
+          r.url.startsWith("https://"),
+      )
+      .map((r) => ({ label: r.label.trim().slice(0, 80), url: r.url }))
+      .filter((r) => r.label.length > 0)
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
 const ETHNICITY_OPTIONS = [
   "African American / Black",
   "Asian",
@@ -66,6 +86,8 @@ export const actions: Actions = {
     const area = ((data.get("area") as string) ?? "").trim();
     const areaOther = ((data.get("area_other") as string) ?? "").trim();
     const city = ((data.get("city") as string) ?? "").trim();
+    const resumesRaw = (data.get("resumes") as string) ?? "";
+    const resumes = parseResumesJson(resumesRaw);
     const disciplines = data.getAll("disciplines").map(String).filter(Boolean);
     const disciplineOther = ((data.get("discipline_other") as string) ?? "").trim();
     const publish = data.get("publish") !== "off";
@@ -133,6 +155,7 @@ export const actions: Actions = {
         headshot_consent: !!headshotUrl && headshotConsent,
         geographic_area: finalArea,
         city: city || null,
+        resumes,
         published: publish,
       })
       .select("id, slug, full_name, email")

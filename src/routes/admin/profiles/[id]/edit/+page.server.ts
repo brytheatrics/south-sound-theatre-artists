@@ -8,6 +8,26 @@ import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
+function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (r): r is { label: string; url: string } =>
+          r && typeof r === "object" &&
+          typeof r.label === "string" && typeof r.url === "string" &&
+          r.url.startsWith("https://"),
+      )
+      .map((r) => ({ label: r.label.trim().slice(0, 80), url: r.url }))
+      .filter((r) => r.label.length > 0)
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
 const ETHNICITY_OPTIONS = [
   "African American / Black",
   "Asian",
@@ -85,6 +105,7 @@ export const actions: Actions = {
     const unionOther = ((data.get("union_other") as string) ?? "").trim();
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
+    const resumes = parseResumes(data.get("resumes"));
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
@@ -164,6 +185,7 @@ export const actions: Actions = {
         disciplines: finalDisciplines,
         geographic_area: finalArea,
         city: city || null,
+        resumes,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

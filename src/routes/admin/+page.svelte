@@ -100,6 +100,19 @@
               <p class="block-bio">{s.bio}</p>
             {/if}
 
+            {#if Array.isArray(s.resumes) && s.resumes.length > 0}
+              <h3 class="block-h">Resumes</h3>
+              <ul class="links">
+                {#each s.resumes as r}
+                  <li>
+                    <a href={r.url} target="_blank" rel="noopener">
+                      {r.label}: {r.url.split("/").pop()}
+                    </a>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+
             {#if s.instagram_handle || s.facebook_url || s.tiktok_handle || s.linkedin_url || s.twitter_handle || s.youtube_url || s.website_url}
               <h3 class="block-h">Links</h3>
               <ul class="links">

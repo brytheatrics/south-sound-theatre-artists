@@ -110,8 +110,23 @@
         <p class="bio">{p.bio}</p>
       {/if}
 
+      {#if Array.isArray(p.resumes) && p.resumes.length > 0}
+        <span class="eyebrow"><span class="num">02</span>Resumes</span>
+        <ul class="resumes">
+          {#each p.resumes as r}
+            <li>
+              <a href={r.url} target="_blank" rel="noopener">
+                <span class="r-icon" aria-hidden="true">📄</span>
+                <span class="r-label">{r.label}</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
       {#if p.instagram_handle || p.facebook_url || p.tiktok_handle || p.linkedin_url || p.twitter_handle || p.youtube_url}
-        <span class="eyebrow"><span class="num">02</span>Find them online</span>
+        <span class="eyebrow"><span class="num">03</span>Find them online</span>
         <ul class="socials">
           {#if p.instagram_handle}
             <li><a href={handleUrl("instagram", p.instagram_handle)} target="_blank" rel="noopener">
@@ -431,6 +446,38 @@
   .socials .handle {
     color: var(--muted);
     font-size: 12px;
+  }
+  .resumes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .resumes a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
+    background: var(--bg-raised);
+    color: var(--ink);
+    text-decoration: none;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  .resumes a:hover {
+    border-color: var(--ink);
+    background: var(--paper);
+  }
+  .r-icon {
+    font-size: 16px;
+  }
+  .r-label {
+    flex: 1;
   }
 
   .side {

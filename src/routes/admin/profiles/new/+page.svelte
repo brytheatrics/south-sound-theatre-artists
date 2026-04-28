@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
+  import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import SlugCollisionModal from "$lib/components/SlugCollisionModal.svelte";
   import { slugify } from "$lib/util/slug";
 
@@ -19,6 +20,7 @@
     area?: string;
     areaOther?: string;
     city?: string;
+    resumes?: Array<{ label: string; url: string }>;
     disciplines?: string[];
     disciplineOther?: string;
     publish?: boolean;
@@ -36,6 +38,7 @@
   let area = $state(v.area ?? "");
   let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
+  let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
@@ -131,6 +134,11 @@
         <span>The artist has confirmed rights to use this image.</span>
       </label>
     {/if}
+  </fieldset>
+
+  <fieldset>
+    <legend>Resumes</legend>
+    <ResumesEditor bind:value={resumes} />
   </fieldset>
 
   <fieldset>

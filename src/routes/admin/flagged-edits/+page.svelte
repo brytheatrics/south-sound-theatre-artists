@@ -18,7 +18,19 @@
 
   function fmtValue(v: unknown): string {
     if (v == null) return "(cleared)";
-    if (Array.isArray(v)) return v.join(", ");
+    if (Array.isArray(v)) {
+      // Array of objects (e.g. resumes [{label, url}]) renders as
+      // "Acting (file.pdf)"; plain string arrays just join with comma.
+      if (v.length > 0 && typeof v[0] === "object") {
+        return v
+          .map((r: { label?: string; url?: string }) => {
+            const file = r.url ? r.url.split("/").pop() : "";
+            return r.label ? `${r.label}${file ? ` (${file})` : ""}` : (file ?? "");
+          })
+          .join(", ");
+      }
+      return v.join(", ");
+    }
     return String(v);
   }
 </script>

@@ -17,7 +17,7 @@ export const load: PageServerLoad = async () => {
     .from("pending_submissions")
     .select(
       `id, email, full_name, pronouns, bio, disciplines, headshot_url,
-       headshot_consent, geographic_area, city, playable_age_min,
+       headshot_consent, geographic_area, city, resumes, playable_age_min,
        playable_age_max, languages, unions, instagram_handle, facebook_url,
        tiktok_handle, linkedin_url, twitter_handle, youtube_url,
        website_url, desired_slug, ethnicities, created_at`,
@@ -101,6 +101,7 @@ async function approveOne(
       headshot_consent: sub.headshot_consent,
       geographic_area: sub.geographic_area,
       city: sub.city,
+      resumes: sub.resumes ?? [],
       playable_age_min: sub.playable_age_min,
       playable_age_max: sub.playable_age_max,
       languages: sub.languages,

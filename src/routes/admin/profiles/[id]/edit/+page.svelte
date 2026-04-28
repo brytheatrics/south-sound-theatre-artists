@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
+  import ResumesEditor from "$lib/components/ResumesEditor.svelte";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -20,6 +21,9 @@
   // svelte-ignore state_referenced_locally
   let areaOther = $state(areaNames.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
   let city = $state(p.city ?? "");
+  let resumes = $state<Array<{ label: string; url: string }>>(
+    Array.isArray(p.resumes) ? p.resumes : [],
+  );
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
   let languages = $state((p.languages ?? []).join(", "));
@@ -165,6 +169,11 @@
     <h2 class="block-h">Headshot</h2>
     <HeadshotUpload bind:value={headshotUrl} />
     <input type="hidden" name="headshot_url" value={headshotUrl} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Resumes</h2>
+    <ResumesEditor bind:value={resumes} />
   </section>
 
   <section class="row">

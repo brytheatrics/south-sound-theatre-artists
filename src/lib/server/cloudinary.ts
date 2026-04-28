@@ -21,6 +21,15 @@ export type SignedUpload = {
   transformation: string;
 };
 
+export type SignedRawUpload = {
+  cloud_name: string;
+  api_key: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  resource_type: "raw";
+};
+
 /**
  * Returns the params a browser needs to POST a headshot directly to
  * Cloudinary. The eager-style `transformation` rewrites the original to a
@@ -38,6 +47,28 @@ export function signHeadshotUpload(): SignedUpload {
  */
 export function signContentUpload(): SignedUpload {
   return signFolder("content", "c_limit,w_1600,h_1600,q_auto,f_auto");
+}
+
+/**
+ * Signed upload for resume PDFs. PDFs are not images, so they go in as
+ * Cloudinary's `raw` resource type (no image transformations). The
+ * client posts to `/raw/upload` instead of `/image/upload`.
+ */
+export function signResumeUpload(): SignedRawUpload {
+  const folder = "resumes";
+  const timestamp = Math.floor(Date.now() / 1000);
+  const params = {
+    folder,
+    timestamp: String(timestamp),
+  };
+  return {
+    cloud_name: PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    timestamp,
+    signature: signParams(params, CLOUDINARY_API_SECRET),
+    folder,
+    resource_type: "raw",
+  };
 }
 
 function signFolder(folder: string, transformation: string): SignedUpload {
