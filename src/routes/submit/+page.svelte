@@ -241,6 +241,22 @@
     </fieldset>
 
     <fieldset>
+      <legend>Bio</legend>
+      <p class="hint">
+        Optional. What collaborators should know - training, recent work,
+        what you're looking for. A few sentences is plenty.
+      </p>
+      <label class="field">
+        <textarea
+          name="bio"
+          rows="5"
+          bind:value={bio}
+          placeholder="Tell directors and collaborators about your work, training, and what you're looking for."
+        ></textarea>
+      </label>
+    </fieldset>
+
+    <fieldset>
       <legend>Resume builder</legend>
       <p class="hint">
         Optional. Fill in any sections that apply - credits, training,
@@ -301,22 +317,6 @@
         inputName="mentorship_seeking"
         showOtherInput={false}
       />
-    </fieldset>
-
-    <fieldset>
-      <legend>Bio</legend>
-      <p class="hint">
-        Optional. What collaborators should know - training, recent work,
-        what you're looking for. A few sentences is plenty.
-      </p>
-      <label class="field">
-        <textarea
-          name="bio"
-          rows="5"
-          bind:value={bio}
-          placeholder="Tell directors and collaborators about your work, training, and what you're looking for."
-        ></textarea>
-      </label>
     </fieldset>
 
     <fieldset>

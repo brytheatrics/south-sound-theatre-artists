@@ -194,6 +194,39 @@
   </section>
 
   <section class="row">
+    <h2 class="block-h">Bio</h2>
+    <label class="field">
+      <span class="visually-hidden">Bio</span>
+      <textarea name="bio" rows="6" bind:value={bio} placeholder="A short professional bio."></textarea>
+    </label>
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Resume builder</h2>
+    <ResumeBuilder bind:value={resumeData} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Resume PDFs</h2>
+    <ResumesEditor bind:value={resumes} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Disciplines</h2>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={selectedDisciplines}
+      onToggle={(name) => (selectedDisciplines = toggleSet(selectedDisciplines, name))}
+      otherValue={disciplineOther}
+      onOtherChange={(v) => (disciplineOther = v)}
+      inputName="disciplines"
+      error={errors.disciplines}
+    />
+    <input type="hidden" name="discipline_other" value={disciplineOther} />
+  </section>
+
+  <section class="row">
     <h2 class="block-h">Mentorship</h2>
     <p style="margin: 0; font-family: var(--font-body); font-size: 13px; color: var(--muted);">
       Open to mentoring in
@@ -217,39 +250,6 @@
       inputName="mentorship_seeking"
       showOtherInput={false}
     />
-  </section>
-
-  <section class="row">
-    <h2 class="block-h">Resume builder</h2>
-    <ResumeBuilder bind:value={resumeData} />
-  </section>
-
-  <section class="row">
-    <h2 class="block-h">Resume PDFs</h2>
-    <ResumesEditor bind:value={resumes} />
-  </section>
-
-  <section class="row">
-    <h2 class="block-h">Bio</h2>
-    <label class="field">
-      <span class="visually-hidden">Bio</span>
-      <textarea name="bio" rows="6" bind:value={bio} placeholder="A short professional bio."></textarea>
-    </label>
-  </section>
-
-  <section class="row">
-    <h2 class="block-h">Disciplines</h2>
-    <DisciplinePicker
-      items={data.disciplines}
-      categoryOrder={data.disciplineCategories}
-      selected={selectedDisciplines}
-      onToggle={(name) => (selectedDisciplines = toggleSet(selectedDisciplines, name))}
-      otherValue={disciplineOther}
-      onOtherChange={(v) => (disciplineOther = v)}
-      inputName="disciplines"
-      error={errors.disciplines}
-    />
-    <input type="hidden" name="discipline_other" value={disciplineOther} />
   </section>
 
   <section class="row">

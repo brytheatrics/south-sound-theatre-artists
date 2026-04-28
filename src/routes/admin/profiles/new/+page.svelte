@@ -156,6 +156,33 @@
   </fieldset>
 
   <fieldset>
+    <legend>Bio</legend>
+    <textarea name="bio" rows="5" bind:value={bio} placeholder="What Lexi has on file."></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Resume builder</legend>
+    <ResumeBuilder bind:value={resumeData} />
+  </fieldset>
+
+  <fieldset>
+    <legend>Resume PDFs</legend>
+    <ResumesEditor bind:value={resumes} />
+  </fieldset>
+
+  <fieldset>
+    <legend>Disciplines</legend>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={selectedDisciplines}
+      onToggle={toggleDiscipline}
+      otherValue={disciplineOther}
+      onOtherChange={(s) => (disciplineOther = s)}
+    />
+  </fieldset>
+
+  <fieldset>
     <legend>Mentorship</legend>
     <p class="hint">Optional. Mentoring offered + sought.</p>
     <h3 class="field-label">Open to mentoring in</h3>
@@ -175,33 +202,6 @@
       onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
       inputName="mentorship_seeking"
       showOtherInput={false}
-    />
-  </fieldset>
-
-  <fieldset>
-    <legend>Resume builder</legend>
-    <ResumeBuilder bind:value={resumeData} />
-  </fieldset>
-
-  <fieldset>
-    <legend>Resume PDFs</legend>
-    <ResumesEditor bind:value={resumes} />
-  </fieldset>
-
-  <fieldset>
-    <legend>Bio</legend>
-    <textarea name="bio" rows="5" bind:value={bio} placeholder="What Lexi has on file."></textarea>
-  </fieldset>
-
-  <fieldset>
-    <legend>Disciplines</legend>
-    <DisciplinePicker
-      items={data.disciplines}
-      categoryOrder={data.disciplineCategories}
-      selected={selectedDisciplines}
-      onToggle={toggleDiscipline}
-      otherValue={disciplineOther}
-      onOtherChange={(s) => (disciplineOther = s)}
     />
   </fieldset>
 

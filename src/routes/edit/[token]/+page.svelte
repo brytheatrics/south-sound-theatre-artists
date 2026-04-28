@@ -179,6 +179,32 @@
     </fieldset>
 
     <fieldset>
+      <legend>Bio</legend>
+      <p class="hint">
+        Optional. What collaborators should know - training, recent work,
+        what you're looking for. A few sentences is plenty.
+      </p>
+      <textarea name="bio" rows="5" bind:value={bio}></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Resume builder</legend>
+      <p class="hint">
+        Optional. Fill in any sections that apply.
+      </p>
+      <ResumeBuilder bind:value={resumeData} />
+    </fieldset>
+
+    <fieldset>
+      <legend>Resume PDFs</legend>
+      <p class="hint">
+        Optional. Add one or more PDF resumes - label each so casting
+        can pick the right one.
+      </p>
+      <ResumesEditor bind:value={resumes} />
+    </fieldset>
+
+    <fieldset>
       <legend>Disciplines</legend>
       <DisciplinePicker
         items={data.disciplines}
@@ -214,32 +240,6 @@
         inputName="mentorship_seeking"
         showOtherInput={false}
       />
-    </fieldset>
-
-    <fieldset>
-      <legend>Resume builder</legend>
-      <p class="hint">
-        Optional. Fill in any sections that apply.
-      </p>
-      <ResumeBuilder bind:value={resumeData} />
-    </fieldset>
-
-    <fieldset>
-      <legend>Resume PDFs</legend>
-      <p class="hint">
-        Optional. Add one or more PDF resumes - label each so casting
-        can pick the right one.
-      </p>
-      <ResumesEditor bind:value={resumes} />
-    </fieldset>
-
-    <fieldset>
-      <legend>Bio</legend>
-      <p class="hint">
-        Optional. What collaborators should know - training, recent work,
-        what you're looking for. A few sentences is plenty.
-      </p>
-      <textarea name="bio" rows="5" bind:value={bio}></textarea>
     </fieldset>
 
     <fieldset>
