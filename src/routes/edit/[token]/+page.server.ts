@@ -82,8 +82,20 @@ export const load: PageServerLoad = async ({ params }) => {
 
   if (!profileRes.data) error(404, "Profile not found.");
 
+  // Current callboard-digest subscription state, keyed by the profile's
+  // email. Drives the opt-in toggle on the form.
+  const subRes = profileRes.data.email
+    ? await supabaseAdmin
+        .from("callboard_subscriptions")
+        .select("subscriber_email, unsubscribed_at")
+        .eq("subscriber_email", profileRes.data.email.toLowerCase())
+        .maybeSingle()
+    : { data: null };
+  const digestSubscribed = !!subRes.data && !subRes.data.unsubscribed_at;
+
   return {
     profile: profileRes.data,
+    digestSubscribed,
     areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     disciplines: disciplinesRes.data ?? [],
     disciplineCategories: (categoriesRes.data ?? []).map(
@@ -148,6 +160,7 @@ export const actions: Actions = {
       .getAll("mentorship_seeking")
       .map(String)
       .filter(Boolean);
+    const subscribeDigest = data.get("subscribe_digest") === "on";
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
@@ -313,6 +326,40 @@ export const actions: Actions = {
         // Surface a non-fatal warning. Minor changes already saved.
       } else {
         queued = true;
+      }
+    }
+
+    // Sync the callboard-digest subscription to match the toggle. Uses
+    // the profile's email + (final, possibly major-edit-pending)
+    // disciplines. Stamps unsubscribed_at when toggling off so we keep
+    // history; clears it on re-opt-in.
+    if (token.email) {
+      const subEmail = token.email.toLowerCase();
+      const { data: existing } = await supabaseAdmin
+        .from("callboard_subscriptions")
+        .select("id, unsubscribed_at")
+        .eq("subscriber_email", subEmail)
+        .maybeSingle();
+      if (subscribeDigest) {
+        if (!existing) {
+          await supabaseAdmin.from("callboard_subscriptions").insert({
+            subscriber_email: subEmail,
+            disciplines: finalDisciplines,
+          });
+        } else {
+          await supabaseAdmin
+            .from("callboard_subscriptions")
+            .update({
+              disciplines: finalDisciplines,
+              unsubscribed_at: null,
+            })
+            .eq("id", existing.id);
+        }
+      } else if (existing && !existing.unsubscribed_at) {
+        await supabaseAdmin
+          .from("callboard_subscriptions")
+          .update({ unsubscribed_at: new Date().toISOString() })
+          .eq("id", existing.id);
       }
     }
 

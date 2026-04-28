@@ -55,6 +55,8 @@
   let twitter = $state(p.twitter_handle ?? "");
   let youtube = $state(p.youtube_url ?? "");
   let website = $state(p.website_url ?? "");
+  // svelte-ignore state_referenced_locally
+  let subscribeDigest = $state(data.digestSubscribed);
 
   // Disciplines: walk the array. Anything not in the canonical list becomes
   // the "Other" + custom-text combo so the picker handles it.
@@ -352,6 +354,25 @@
       <label class="field"><span>YouTube URL</span><input name="youtube" type="url" bind:value={youtube} /></label>
     </fieldset>
 
+    <fieldset>
+      <legend>Email preferences</legend>
+      <label class="check-row">
+        <input
+          type="checkbox"
+          name="subscribe_digest"
+          bind:checked={subscribeDigest}
+        />
+        <span class="check-text">
+          <strong>Send me a weekly callboard digest</strong>
+          <span class="check-hint">
+            Sunday evening email of new callboard posts matching the
+            disciplines on your profile. Skips weeks with nothing new.
+            Unsubscribe any time from a one-click link in the email.
+          </span>
+        </span>
+      </label>
+    </fieldset>
+
     <button type="submit" class="submit" disabled={submitting}>
       {submitting ? "Saving..." : "Save changes"}
     </button>
@@ -417,6 +438,33 @@
     flex-direction: column;
     gap: 6px;
     margin-bottom: 1.25rem;
+  }
+  .check-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    cursor: pointer;
+  }
+  .check-row input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .check-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .check-hint {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
   }
   .field > span:first-child,
   .field-label {
