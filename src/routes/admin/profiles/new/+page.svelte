@@ -153,7 +153,7 @@
     <label class="field">
       <select name="area" bind:value={area}>
         <option value="">Choose (optional)</option>
-        {#each data.areas as a}<option value={a}>{a}</option>{/each}
+        {#each data.areas as a}<option value={a.name}>{a.name}{a.description ? ` - ${a.description}` : ""}</option>{/each}
       </select>
     </label>
     {#if area === "Other"}

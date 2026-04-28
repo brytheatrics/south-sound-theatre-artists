@@ -14,9 +14,11 @@
   let bio = $state(p.bio ?? "");
   let headshotUrl = $state(p.headshot_url ?? "");
   // svelte-ignore state_referenced_locally
-  let area = $state(data.areas.includes(p.geographic_area) ? p.geographic_area : "Other");
+  const areaNames = data.areas.map((a) => a.name);
   // svelte-ignore state_referenced_locally
-  let areaOther = $state(data.areas.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
+  let area = $state(areaNames.includes(p.geographic_area) ? p.geographic_area : "Other");
+  // svelte-ignore state_referenced_locally
+  let areaOther = $state(areaNames.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
   let languages = $state((p.languages ?? []).join(", "));
@@ -190,16 +192,16 @@
   <section class="row">
     <h2 class="block-h">Area</h2>
     <div class="chip-row">
-      {#each data.areas as a (a)}
-        <label class="chip-label">
+      {#each data.areas as a (a.name)}
+        <label class="chip-label" title={a.description ?? ""}>
           <input
             type="radio"
             name="area"
-            value={a}
-            checked={area === a}
-            onchange={() => (area = a)}
+            value={a.name}
+            checked={area === a.name}
+            onchange={() => (area = a.name)}
           />
-          <span class="chip" class:on={area === a}>{a}</span>
+          <span class="chip" class:on={area === a.name}>{a.name}</span>
         </label>
       {/each}
       <label class="chip-label">

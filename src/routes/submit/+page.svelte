@@ -256,7 +256,9 @@
         >
           <option value="">Choose your primary area</option>
           {#each data.areas as opt}
-            <option value={opt}>{opt}</option>
+            <option value={opt.name}>
+              {opt.name}{opt.description ? ` - ${opt.description}` : ""}
+            </option>
           {/each}
         </select>
         {#if errors.area}<span class="error">{errors.area}</span>{/if}

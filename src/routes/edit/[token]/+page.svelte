@@ -13,9 +13,11 @@
   let headshotUrl = $state(p.headshot_url ?? "");
   let headshotConsent = $state(p.headshot_consent ?? false);
   // svelte-ignore state_referenced_locally
-  let area = $state(data.areas.includes(p.geographic_area) ? p.geographic_area : "Other");
+  const areaNames = data.areas.map((a) => a.name);
   // svelte-ignore state_referenced_locally
-  let areaOther = $state(data.areas.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
+  let area = $state(areaNames.includes(p.geographic_area) ? p.geographic_area : "Other");
+  // svelte-ignore state_referenced_locally
+  let areaOther = $state(areaNames.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
   let languages = $state((p.languages ?? []).join(", "));
@@ -173,7 +175,7 @@
         <span>Area</span>
         <select name="area" bind:value={area} required>
           <option value="">Choose</option>
-          {#each data.areas as opt}<option value={opt}>{opt}</option>{/each}
+          {#each data.areas as opt}<option value={opt.name}>{opt.name}{opt.description ? ` - ${opt.description}` : ""}</option>{/each}
         </select>
         {#if errors.area}<span class="error">{errors.area}</span>{/if}
       </label>

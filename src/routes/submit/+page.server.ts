@@ -38,7 +38,7 @@ export const load: PageServerLoad = async () => {
       .from("discipline_categories")
       .select("name")
       .order("sort_order"),
-    supabaseAdmin.from("areas").select("name").order("sort_order"),
+    supabaseAdmin.from("areas").select("name, description").order("sort_order"),
     supabaseAdmin
       .from("unions")
       .select("name, description")
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async () => {
     disciplineCategories: (categoriesRes.data ?? []).map(
       (c: { name: string }) => c.name,
     ),
-    areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
+    areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     unions: (unionsRes.data ?? []) as Array<{
       name: string;
       description: string | null;

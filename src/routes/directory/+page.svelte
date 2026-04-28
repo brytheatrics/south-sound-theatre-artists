@@ -142,16 +142,16 @@
   <div class="filter-block">
     <span class="block-label">Area</span>
     <div class="chip-row">
-      {#each data.options.areas as a (a)}
-        <label class="chip-label">
+      {#each data.options.areas as a (a.name)}
+        <label class="chip-label" title={a.description ?? ""}>
           <input
             type="checkbox"
             name="area"
-            value={a}
-            checked={selectedAreas.has(a)}
-            onchange={() => toggleArea(a)}
+            value={a.name}
+            checked={selectedAreas.has(a.name)}
+            onchange={() => toggleArea(a.name)}
           />
-          <span class="chip" class:on={selectedAreas.has(a)}>{a}</span>
+          <span class="chip" class:on={selectedAreas.has(a.name)}>{a.name}</span>
         </label>
       {/each}
     </div>

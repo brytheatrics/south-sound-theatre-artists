@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ params }) => {
         .select("*")
         .eq("id", token.target_id)
         .maybeSingle(),
-      supabaseAdmin.from("areas").select("name").order("sort_order"),
+      supabaseAdmin.from("areas").select("name, description").order("sort_order"),
       supabaseAdmin
         .from("disciplines")
         .select("name, category")
@@ -61,7 +61,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
   return {
     profile: profileRes.data,
-    areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
+    areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     disciplines: disciplinesRes.data ?? [],
     disciplineCategories: (categoriesRes.data ?? []).map(
       (c: { name: string }) => c.name,
