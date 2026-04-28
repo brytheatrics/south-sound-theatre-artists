@@ -23,15 +23,26 @@
     href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"),
   );
 
-  // Remember the last admin sub-page so the public-nav "Admin" pill can
-  // bounce Lexi back where she was instead of always landing on
-  // /admin (Pending queue). Skips auth routes so we never persist
-  // /admin/login or /admin/verify.
+  // Remember the last admin TAB so the public-nav "Admin" pill bounces
+  // Lexi back to the section she was in (Pending queue / All profiles /
+  // Reports etc.) rather than a deep page like /admin/profiles/abc/edit.
+  // Skips auth routes so we never persist /admin/login or /admin/verify.
+  function sectionFor(p: string): string {
+    // Sort longest-first so /admin/profiles wins over /admin.
+    const sorted = [...sections].sort(
+      (a, b) => b.href.length - a.href.length,
+    );
+    for (const s of sorted) {
+      if (p === s.href || p.startsWith(s.href + "/")) return s.href;
+    }
+    return "/admin";
+  }
+
   $effect(() => {
     if (typeof window === "undefined") return;
     if (isAuthRoute) return;
     try {
-      window.localStorage.setItem("ssta_last_admin_path", path);
+      window.localStorage.setItem("ssta_last_admin_path", sectionFor(path));
     } catch {
       // localStorage can fail in private mode / iOS edge cases - silent.
     }
