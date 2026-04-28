@@ -194,36 +194,190 @@ Quick map of what shipped:
 
 ## Known shortcuts to clean up later
 
-- **No admin-side profile editor** for existing profiles. Lexi can
-  click "Send edit link" on /admin/profiles to email the artist a
-  fresh magic link, or use the Supabase Table Editor.
-  /admin/profiles/new exists for *creating* starter profiles on behalf
-  of artists with whatever info Lexi has on file.
-- **No `flagged_edits` split** in the magic-link edit flow. Per the
-  spec, major changes (headshot, disciplines) should queue in
-  `flagged_edits` for admin re-approval; v1 step 9 applies all edits
-  directly.
-- **Directory pagination**: capped at 48 results. Add cursor
-  pagination when the directory grows past that.
-- **Mobile admin sidebar** wraps but isn't a hamburger - works but
-  not ideal on phones.
+- **Mobile admin sidebar** wraps as a chip row at <720px but isn't a
+  hamburger. Functional but not ideal.
 - **Markdown preview in /admin/content** is a tiny in-house parser
   (headings, paragraphs, **bold**, *italic*, lists, links). Not full
   CommonMark. Good enough for the editable copy.
+- **Pagination** ships at PAGE_SIZE=24. Tested by temporarily lowering
+  to 4 in dev.
+
+Resolved since the last run-through:
+- ✅ Admin-side profile editor at `/admin/profiles/[id]/edit`
+- ✅ `flagged_edits` split via the trust gate (Phase B)
+- ✅ Directory pagination
+- ✅ `window.confirm()` calls replaced with themed `ConfirmModal`
+
+---
+
+## v1.1 manual checks (done 2026-04-28)
+
+### Mentorship + directory lens
+
+- [x] `/submit`, `/edit/[token]`, admin editor, `/admin/profiles/new`
+      all expose Mentorship fieldset with both DisciplinePickers.
+- [x] Profile sidebar shows "Mentoring in: ..." and "Looking to learn:
+      ..." when set.
+- [x] Directory chips: "Open to mentoring" + "Looking to learn"
+      narrow the grid.
+- [x] Discipline picker doubles as a lens: with mentoring chip on +
+      Lighting Designer selected, grid narrows to mentors offering
+      lighting; with learning chip on + Director, narrows to people
+      seeking directing knowledge.
+- [x] Hint copy under DISCIPLINE label updates to reflect the active
+      lens.
+- [x] Trust gate treats mentorship as a minor field (applies directly
+      even when `trusted=false`).
+
+### Resume builder
+
+- [x] Three sections (Credits / Training / Skills), Add / Up / Down /
+      Remove per row.
+- [x] Empty rows dropped on save.
+- [x] Trust-gated as a major field: untrusted artists' changes queue
+      in `flagged_edits` with a count summary in the diff view.
+- [x] Public profile renders sections under "About," skipping any
+      that are empty.
+
+### PDF resume upload
+
+- [x] Multiple resumes per profile, each with a label.
+- [x] Cloudinary raw uploads via `/api/cloudinary/sign-resume` with
+      8 MB cap and `application/pdf` validation.
+- [x] **Pre-upload `ConfirmModal`** warns about contact info on
+      public-directory PDFs before the upload starts.
+- [x] Profile renders a pill-button row with the labels.
+- [x] Trust gate as a major field; flagged_edits diff shows
+      "Acting (file.pdf), Directing (file.pdf)" per resume.
+- [x] **Cloudinary delivery requires** the "Allow PDF and ZIP files
+      delivery" toggle in Cloudinary console → Settings → Security.
+      Without it, GETs to the resume URL return 401.
+
+### Trust system (Phase A + B)
+
+- [x] `profiles.trusted` column. Default `false` for new approvals;
+      existing profiles seeded `true` via migration backfill.
+- [x] "Trusted" / "Not trusted" pill on `/admin/profiles` row.
+- [x] Magic-link edit (trusted): all edits apply directly.
+- [x] Magic-link edit (untrusted): minor fields apply, major fields
+      (`full_name`, `bio`, `headshot_url`, `disciplines`, `resumes`,
+      `resume_data`) queue in `flagged_edits`.
+- [x] `/admin/flagged-edits` Open / History tabs; diff view shows
+      FIELD / CURRENT / PROPOSED. Approve copies values onto profile,
+      Reject takes optional reason.
+
+### City field
+
+- [x] Optional `profiles.city` column. Submit / edit / admin editor
+      all expose City input.
+- [x] Hero subtitle prefers city over `geographic_area` when set
+      ("...lakewood" instead of "tacoma area"). Sidebar shows both.
+- [x] Directory area filter still keys on `geographic_area` only -
+      city is purely a display refinement.
+
+### Areas refactor
+
+- [x] Migration 017: regions with anchor cities ("Tacoma area",
+      "Olympia area", "Gig Harbor / Kitsap", added "South King
+      County"). Existing profiles remapped.
+- [x] Migration 018: `areas.description` column. Hover tooltip shows
+      ("Tacoma, Lakewood, Puyallup, ...") on chips, inlined into the
+      option text on selects.
+
+### Disciplines bulk-add + category admin
+
+- [x] Migration 019: ~140 disciplines across 13 categories. "Actor"
+      renamed to "Actor (Stage)" with profile arrays remapped in
+      lockstep.
+- [x] `/admin/disciplines` adds Categories management: add / rename
+      (cascades to disciplines.category) / reorder / remove (blocked
+      when in use).
+
+### Sort + filter polish
+
+- [x] Sort chips on `/directory` and `/admin/profiles`: Newest /
+      Recently updated / Last name A-Z. Last name uses generated
+      `profiles.last_name` column (lowercased, indexed).
+- [x] Filter / sort changes preserve scroll and don't pollute
+      browser history (`data-sveltekit-noscroll` +
+      `data-sveltekit-replacestate`).
+- [x] Strict age filter excludes profiles with no `playable_age_*`
+      set; below-grid note tells the searcher how many were
+      excluded by other-filter context.
+- [x] "Has headshot" filter chip.
+
+### Profile page polish
+
+- [x] Material Symbols person icon for missing-headshot placeholder
+      cards.
+- [x] Sidebar disciplines / unions / ethnicities / languages render
+      as small chips, not comma lists.
+- [x] Social handles all clickable (Instagram / TikTok / Twitter
+      handles linked via `handleUrl()`).
+- [x] **Share button** (`navigator.share` on mobile, clipboard
+      fallback on desktop).
+- [x] City + area shown together in sidebar "Based in" row.
+
+### Mobile admin
+
+- [x] All admin pages fit at 375px viewport with no horizontal
+      overflow.
+- [x] `/admin/profiles` table collapses to stacked cards under 720px.
+- [x] `/admin/featured` artist-picker SELECT no longer blows out the
+      grid column.
+
+### Branding + logos
+
+- [x] Lexi-supplied logo assets in `/static/`: `favicon.svg` (moss
+      tile + cream brackets), `logo-short.svg` (used in nav +
+      footer), `logo-long.svg` (reserved).
+- [x] Pre-launch privacy + terms polish: last-updated date, contact
+      email, cookies note, minors clause, governing law, change
+      notice, contact section. All editable from `/admin/content`.
+
+### Analytics
+
+- [x] GoatCounter integration. Public routes only, gated on
+      `PUBLIC_GOATCOUNTER_CODE`. "View analytics" pill in the public
+      nav opens the dashboard in a new tab.
+- [x] **Localhost is intentionally skipped** by GoatCounter's
+      `count.js`. Real numbers start once the site is pushed and
+      visited via the live URL.
+
+### Admin nav memory
+
+- [x] Admin layout writes the current section path to localStorage
+      (truncated to the parent tab, never a deep edit page) so the
+      "Admin" pill in the public nav bounces back to the section
+      Lexi was last on.
+- [x] Read happens at click time, not via $effect, to avoid
+      stale-on-render due to effect ordering.
+
+### Form ordering
+
+- [x] All four forms (submit / edit / admin editor / admin/new) use
+      the same section order: Identity, Headshot, Bio, Resume
+      builder, Resume PDFs, Disciplines, Mentorship, then casting /
+      unions / ethnicity / links.
 
 ---
 
 ## What I didn't build
 
-- **Step 23-27 crons**: daily admin digest, email volume alert,
-  Supabase keepalive, weekly backup, stale profile cleanup. All are
-  GitHub Actions cron jobs that need a workflow file + secrets.
-  Defer to a cron-setup session.
-- **Step 28 ADMIN_GUIDE.md**: separate doc-writing session.
-- **Step 29 Cloudflare Email Routing setup doc**: separate
-  doc-writing session.
-- **Profile QR code, on-site resume builder, callboard**: v1.1 / v1.2
-  per BUILD_PLAN.
+- **Step 23-27 crons** except Supabase keepalive (which ships in
+  `.github/workflows/keepalive.yml` and just needs `SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` GitHub Actions secrets to start
+  running). Daily admin digest, email volume alert, weekly backup,
+  stale profile cleanup all still pending.
+- **Step 28 ADMIN_GUIDE.md** - deferred until closer to launch so
+  Lexi can drive notes from real use.
+- **Step 29 Cloudflare Email Routing setup doc** - blocked on domain
+  access.
+- **PDF parsing / column mapper** (was in v1.1 spec) - cut. Folded
+  into the redaction tooling discussion (BUILD_PLAN "Maybe later").
+- **PDF redaction tooling** - parked in BUILD_PLAN "Maybe later"
+  with mockup notes.
+- **Profile QR code** - skipped in favour of the Share button.
 
 ---
 

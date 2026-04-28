@@ -4,6 +4,18 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 
 ---
 
+## Status (as of 2026-04-28)
+
+**v1: feature-complete.** All 22 build steps shipped end-to-end (steps 1-22 below). Trust system upgraded mid-stream so untrusted profiles' major edits queue in `flagged_edits` for admin review. Cron jobs (steps 23-27) deferred to launch prep; **only the Supabase keepalive cron has shipped** (`.github/workflows/keepalive.yml`) — needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` GitHub secrets.
+
+**v1.1: complete.** Structured resume builder, multi-PDF upload (with pre-upload contact-info warning modal), mentorship offering + seeking with directory-lens filter, analytics (GoatCounter, gated on `PUBLIC_GOATCOUNTER_CODE`), Share-profile button. **QR codes intentionally skipped** in favour of Web Share API. **PDF parsing/column-mapper not built** — folded into the redaction tooling discussion (see "Maybe later").
+
+**Active: v1.2 callboard.** No code yet, but data model placeholders exist on this page below.
+
+**Blocked on real-world info:** domain access (needed for Resend domain verification, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing). Cron jobs except keepalive still pending. ADMIN_GUIDE.md deferred until closer to launch so Lexi can drive notes from real use.
+
+---
+
 ## Tech Stack (settled)
 
 | Layer | Choice |
@@ -39,18 +51,23 @@ Rate limiting: 5 password attempts per IP per 15 minutes on the admin login endp
 
 | Table | Purpose |
 |---|---|
-| `profiles` | Live artist profiles |
-| `pending_submissions` | New profiles awaiting email verify + admin approval |
-| `flagged_edits` | Major edits (headshot, disciplines) requiring re-approval |
-| `magic_link_tokens` | Single-use edit tokens with expiry |
-| `email_log` | Every Resend send, hashed recipient + type + sent_at; pruned at 35 days |
+| `profiles` | Live artist profiles. v1.1 added `last_name` (generated, indexed), `trusted` (bool), `city` (text), `resumes` (jsonb array of `{label, url}`), `resume_data` (jsonb of credits/training/skills), `mentorship_offering` + `mentorship_seeking` (text arrays) |
+| `pending_submissions` | New profiles awaiting email verify + admin approval. Mirrors v1.1 columns above |
+| `flagged_edits` | **Active.** Untrusted artists' major edits (full_name, bio, headshot_url, disciplines, resumes, resume_data) queue here as one row per submission with `proposed_changes jsonb`. Admin reviews at `/admin/flagged-edits` |
+| `magic_link_tokens` | Single-use edit tokens with expiry. Also stores admin 2FA codes (purpose=`admin_2fa`) |
+| `email_log` | Every Resend send, hashed recipient + type + sent_at |
 | `email_blocklist` | Admin-curated abusive sender emails |
 | `reports` | User-submitted reports on profiles / posts |
 | `featured_profiles` | Spotlight rotation selection |
 | `site_content` | Editable copy keyed by slug (homepage, about, etc.) |
 | `email_templates` | Editable email body templates with variable placeholders |
 | `announcement_banner` | Optional site-wide banner with date range |
-| `disciplines` | Editable list of discipline tags |
+| `disciplines` | Editable list of discipline tags. ~140 entries across 13 categories |
+| `discipline_categories` | Categories that group disciplines. Admin-managed at `/admin/disciplines` |
+| `areas` | Region chips (`Tacoma area`, `Olympia area`, etc.) with `description` for hover tooltips |
+| `unions` | Reference list with descriptions |
+| `admin_sessions` | Admin login sessions (token_hash, expires_at, last_used_at) |
+| `admin_login_attempts` | Rate-limit tracking (5 fails / 15 min / IP) |
 | `productions` | Shows extracted from approved callboard posts (v1.2+) |
 | `callboard_posts` | Audition notices, etc. (v1.2+) |
 | `verified_orgs` | Approved theatre organizations (v1.2+) |
@@ -91,17 +108,16 @@ The minimum viable site: artists submit, get approved, edit, get contacted. Laun
 - ADMIN_GUIDE.md + inline admin-panel help
 - Smart empty states throughout admin
 
-### v1.1 - Resume features + Mentorship + QR codes
-Profile-level polish that doesn't change the core data flow.
+### v1.1 - Resume features + Mentorship (shipped)
 
-- On-site structured resume builder (theatre credits, training, skills sections per discipline)
-- PDF resume upload via Cloudinary
-- PDF parsing + column mapper (bounded scope: tabular layouts only, raw-text fallback for everything else)
-- Mentorship opt-in: checkbox on Veteran-tier profiles + a "Find a mentor" filter view
-- Profile QR code (client-side library, links to public URL)
-- Analytics (Plausible or GoatCounter free tier)
+- ✅ **Structured resume builder.** `resume_data` jsonb on profiles. Three sections (credits / training / skills), each a list of typed entries with Up / Down / Remove controls. Generic field set across disciplines. Server-side parser (`lib/server/resume.ts`) trims, validates, drops empty rows. Renders inline on the public profile.
+- ✅ **PDF resume upload (multiple per profile).** `resumes` jsonb array of `{label, url}`. Cloudinary raw uploads. Pre-upload `ConfirmModal` warns artists about contact-info on public-directory PDFs.
+- ❌ **PDF parsing / column mapper.** Cut. Folded into the redaction tooling discussion (see "Maybe later") - the structured builder sidesteps the use case.
+- ✅ **Mentorship opt-in.** `mentorship_offering` + `mentorship_seeking` text-array columns. Surfaced in profile sidebar, filterable on the directory via "Open to mentoring" + "Looking to learn" chips. The Discipline picker doubles as a lens: when a mentorship chip is on, the picker narrows by the matching mentorship array instead of the artist's own disciplines.
+- ❌ **Profile QR code.** Skipped. Replaced with a Share button (`navigator.share` on mobile, clipboard fallback on desktop).
+- ✅ **Analytics: GoatCounter.** Drop-in script, gated on `PUBLIC_GOATCOUNTER_CODE`. Public routes only - skips `/admin/*` and `/edit/*`. "View analytics" pill in the public nav opens the GoatCounter dashboard in a new tab when an admin session is active.
 
-### v1.2 - Callboard + Notification opt-ins + Productions data
+### v1.2 - Callboard + Notification opt-ins + Productions data (active)
 Adds the second product surface and the data foundation for v1.3.
 
 - Callboard public page (filterable by post type)
@@ -113,6 +129,16 @@ Adds the second product surface and the data foundation for v1.3.
 - Opt-in weekly digest of matching callboard posts (Sunday evening, skip empty weeks)
 - `productions` table populated from approved callboard posts as a side effect
 - Resource library (curated links, content-managed by admin)
+
+**Patterns to mirror from v1:**
+- Submit flow: same email-verification gate as `pending_submissions` (see `src/routes/submit/`)
+- Trust gate: re-use `profiles.trusted` for verified orgs (no per-post approval if trusted)
+- Soft-delete + 30-day trash: same as profile management
+- All emails go through `lib/server/email.ts` wrapper (logs to `email_log`, blocklist check)
+- ConfirmModal for any destructive action - never `window.confirm()`
+- Mobile-first table → card collapse for any admin list (see `/admin/profiles`)
+- URL-state filters with `data-sveltekit-noscroll` + `data-sveltekit-replacestate` (see `/directory`)
+- Pagination uses `?page=N` with the same Prev/Next + page-list + ellipsis pattern
 
 ### v1.3 - Discovery layer
 Three features sharing the productions data, ship together.
@@ -248,6 +274,17 @@ These came up in planning and were explicitly cut. Do not add without revisiting
 - Traditional account system (magic-link + admin password is the entire identity model)
 - One-click email-based admin approval links (more attack surface than benefit)
 - WYSIWYG editor in v1 (markdown + toolbar covers 99% of needs; migration path exists if Lexi struggles)
+
+## Maybe later (revisit if it comes up in real use)
+
+Discussed and parked. None are committed; if usage patterns or user requests surface them, they're cheap to revisit.
+
+- **Profile QR code.** Cut for v1.1 in favour of the Share button (Web Share API). Revisit if artists ask for printable QR for headshot/business-card use. ~1 hr to add a client-side generator.
+- **Better admin empty states.** "Nothing in the queue", "No reports yet" copy across admin sections. Functional today, just utilitarian. Revisit if Lexi's onboarding (or future admins') feels barren.
+- **PDF redaction tooling.** A draw-rectangles-on-canvas → flatten-to-image-PDF workflow for artists who upload PDFs with contact info. The pre-upload warning modal already covers the educational part. The structured resume builder sidesteps the use case for artists who use it. Revisit if PDFs with exposed contact info show up in real submissions. Mockup notes are in chat history (`PDF rasterize redaction mockup` task). Approach: PDF.js renders pages to canvas, user draws white rectangles, pdf-lib assembles a new PDF from the rasterised pages so text-layer is gone.
+- **Discipline-specific resume sections.** v1.1 ships a generic credits/training/skills builder. The product spec mentioned per-discipline section variations - revisit if specific disciplines (designers? technicians?) struggle with the generic shape.
+- **Multi-category disciplines.** Sound Designer plausibly belongs in both Music & Sound and Design; we left it single-category and lean on the picker's search. Revisit if multiple ambiguous-home disciplines surface.
+- **Embedded analytics summary on /admin home.** Right now the View Analytics pill links out to GoatCounter. Could pull top numbers via API and render summary cards on /admin once we know which metrics matter.
 
 ---
 

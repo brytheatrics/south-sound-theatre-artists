@@ -1,6 +1,26 @@
-# South Sound Theatre Artists Directory — CLAUDE.md
+# South Sound Theatre Artists Directory — Product Spec
 
-This document describes the full scope of a community website for South Sound theatre artists. Use it to create a detailed build plan before writing any code. Ask clarifying questions if anything is ambiguous before proceeding.
+This document describes the full scope of a community website for South Sound theatre artists. It captures the original product vision; for current implementation state see the **Implementation status** block immediately below, plus `BUILD_PLAN.md` and `TEST_CHECKLIST.md`.
+
+---
+
+## Implementation status (as of 2026-04-28)
+
+**v1: shipped.** Directory, profiles, contact, admin queue, magic-link edit, reports, blocklist, content/template/discipline editors, featured rotation, banner, sitemap, error page, all the static pages. Trust system added mid-stream so untrusted artists' major edits queue in `flagged_edits`.
+
+**v1.1: shipped.** Structured resume builder (`resume_data` jsonb, three sections), multi-PDF resume upload (`resumes` jsonb array with pre-upload contact-info warning), mentorship offering + seeking with directory-lens filter, GoatCounter analytics gated on `PUBLIC_GOATCOUNTER_CODE`, Share-profile button. **PDF parsing / column-mapper cut.** **QR code skipped** in favour of Share button.
+
+**v1.2 callboard: not started.** Active phase. Patterns to mirror are documented in BUILD_PLAN.
+
+**Launch ops outstanding:**
+- Cron jobs except keepalive (digest, volume alert, backup, stale-cleanup)
+- `ADMIN_GUIDE.md` (deferred until close to launch so Lexi can drive notes)
+- Domain-blocked items: Resend domain verify, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing, Gmail Send-As
+
+**See also:**
+- `BUILD_PLAN.md` for phased roadmap, current schema additions, and the "Maybe later" parking lot.
+- `TEST_CHECKLIST.md` for what's been verified and how.
+- `CLAUDE.md` for the canonical codebase conventions.
 
 ---
 
