@@ -72,9 +72,9 @@
   .h1-display { margin: 0.5rem 0 0.25rem; }
   .lede { font-family: var(--font-accent); font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 1rem; }
   .add-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; padding: 1rem; background: var(--paper); border-radius: var(--radius-lg); margin-bottom: 1rem; }
-  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .field span { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-  .field select { padding: 8px 12px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg-raised); }
+  .field select { padding: 8px 12px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg-raised); width: 100%; max-width: 100%; }
   .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
   .bt { font-family: var(--font-body); font-size: 14px; padding: 9px 16px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; }
   .bt-pri { background: var(--ink); color: var(--bg); }
@@ -96,7 +96,7 @@
   .bt-link.warn { color: var(--warn); }
   .bt-link:hover { text-decoration: underline; }
 
-  @media (max-width: 640px) {
+  @media (max-width: 720px) {
     .add-form { grid-template-columns: 1fr; }
   }
 </style>
