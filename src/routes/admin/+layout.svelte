@@ -5,24 +5,37 @@
   const path = $derived(page.url.pathname);
   const isAuthRoute = $derived(path === "/admin/login" || path === "/admin/verify");
 
-  // Per-section count keys map to data.queueCounts. Sections without a key
-  // never show a badge. Counts come from the admin layout server load so
-  // every page gets fresh numbers without each page having to opt in.
+  // Sidebar grouping. The order works through the day: review queues
+  // first (where the badges live), then the directory, then homepage
+  // curation, then site copy, then config. A `group: true` flag draws a
+  // separator above an item to break the flow visually.
+  //
+  // Per-section count keys map to data.queueCounts. Sections without a
+  // key never show a badge.
   type CountKey = "pending" | "flaggedEdits" | "reports" | "callboard" | "orgs";
-  type Section = { href: string; label: string; countKey?: CountKey };
+  type Section = { href: string; label: string; countKey?: CountKey; group?: true };
   const sections: Section[] = [
+    // Review (top - daily queue work, badges land here)
     { href: "/admin", label: "Pending queue", countKey: "pending" },
-    { href: "/admin/profiles", label: "All profiles" },
     { href: "/admin/flagged-edits", label: "Edit review", countKey: "flaggedEdits" },
     { href: "/admin/reports", label: "Reports", countKey: "reports" },
     { href: "/admin/callboard", label: "Callboard", countKey: "callboard" },
     { href: "/admin/orgs", label: "Organizations", countKey: "orgs" },
-    { href: "/admin/featured", label: "Featured" },
+
+    // Directory
+    { href: "/admin/profiles", label: "All profiles", group: true },
+
+    // Homepage curation
+    { href: "/admin/featured", label: "Featured", group: true },
     { href: "/admin/marquee", label: "Homepage marquee" },
-    { href: "/admin/content", label: "Site content" },
     { href: "/admin/banner", label: "Announcement" },
+
+    // Site copy
+    { href: "/admin/content", label: "Site content", group: true },
     { href: "/admin/templates", label: "Email templates" },
-    { href: "/admin/disciplines", label: "Disciplines" },
+
+    // Config / reference data
+    { href: "/admin/disciplines", label: "Disciplines", group: true },
     { href: "/admin/blocklist", label: "Blocklist" },
   ];
 
@@ -77,6 +90,7 @@
             href={s.href}
             class:on={isOn(s.href)}
             class:has-attn={count > 0}
+            class:group-start={s.group}
             aria-current={isOn(s.href) ? "page" : undefined}
           >
             <span class="nav-label">{s.label}</span>
@@ -163,6 +177,14 @@
     color: var(--ink);
     font-weight: 500;
   }
+  /* Group separator: a thin rule above the first item of each section
+     (Directory / Homepage / Copy / Config) to break the sidebar into
+     scannable chunks without spending a row on labels. */
+  .admin-nav a.group-start {
+    margin-top: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-soft);
+  }
   .nav-label {
     flex: 1;
     min-width: 0;
@@ -213,6 +235,13 @@
     .admin-nav {
       flex-direction: row;
       flex-wrap: wrap;
+    }
+    /* Group separators don't translate to a horizontal row; suppress so
+       the mobile nav doesn't get random gaps. */
+    .admin-nav a.group-start {
+      margin-top: 0;
+      padding-top: 8px;
+      border-top: 0;
     }
   }
 </style>
