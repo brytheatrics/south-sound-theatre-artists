@@ -16,6 +16,7 @@
   const links: Link[] = [
     { href: "/directory", label: "Directory" },
     { href: "/callboard", label: "Callboard" },
+    { href: "/resources", label: "Resources" },
     { href: "/about", label: "About" },
   ];
 

@@ -34,6 +34,7 @@
 
     // Site copy
     { href: "/admin/content", label: "Site content", group: true },
+    { href: "/admin/resources", label: "Resources" },
     { href: "/admin/templates", label: "Email templates" },
 
     // Config / reference data
