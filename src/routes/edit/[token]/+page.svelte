@@ -139,6 +139,7 @@
 
     <fieldset>
       <legend>Headshot</legend>
+      <p class="hint">Optional. Helps casting directors put a face to a name.</p>
       <HeadshotUpload bind:value={headshotUrl} />
       <input type="hidden" name="headshot_url" value={headshotUrl} />
       {#if headshotUrl}
@@ -165,6 +166,10 @@
 
     <fieldset>
       <legend>Bio</legend>
+      <p class="hint">
+        Optional. What collaborators should know - training, recent work,
+        what you're looking for. A few sentences is plenty.
+      </p>
       <textarea name="bio" rows="5" bind:value={bio}></textarea>
     </fieldset>
 
@@ -196,6 +201,7 @@
           <span>to</span>
           <input name="playable_age_max" type="number" min="0" max="120" bind:value={playableAgeMax} />
         </div>
+        <span class="hint">Optional. The range of ages you can convincingly play.</span>
         {#if errors.playable_age}<span class="error">{errors.playable_age}</span>{/if}
       </div>
 
@@ -208,6 +214,7 @@
 
     <fieldset>
       <legend>Unions</legend>
+      <p class="hint">Optional. Pick all that apply.</p>
       <div class="checkbox-grid">
         {#each data.unions as u}
           <label class="checkbox">
@@ -235,6 +242,10 @@
 
     <fieldset>
       <legend>Ethnicity</legend>
+      <p class="hint">
+        Optional. Used for casting that calls for specific representation.
+        Pick all that apply.
+      </p>
       <div class="checkbox-grid">
         {#each data.options.ethnicity as opt}
           <label class="checkbox">

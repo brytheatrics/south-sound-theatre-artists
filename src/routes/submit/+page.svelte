@@ -233,6 +233,10 @@
 
     <fieldset>
       <legend>Bio</legend>
+      <p class="hint">
+        Optional. What collaborators should know - training, recent work,
+        what you're looking for. A few sentences is plenty.
+      </p>
       <label class="field">
         <textarea
           name="bio"
