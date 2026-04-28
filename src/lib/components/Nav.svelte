@@ -1,9 +1,16 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
+  import { env } from "$env/dynamic/public";
 
   type Props = { isAdmin?: boolean };
   let { isAdmin = false }: Props = $props();
+
+  // Build the GoatCounter dashboard URL when the analytics code is set.
+  // Empty string = no analytics integration yet, hide the pill.
+  const analyticsUrl = env.PUBLIC_GOATCOUNTER_CODE
+    ? `https://${env.PUBLIC_GOATCOUNTER_CODE}.goatcounter.com`
+    : "";
 
   type Link = { href: string; label: string };
   const links: Link[] = [
@@ -63,6 +70,17 @@
     >
       Admin
     </a>
+    {#if analyticsUrl}
+      <a
+        class="nv-admin nv-analytics"
+        href={analyticsUrl}
+        target="_blank"
+        rel="noopener"
+        aria-label="View analytics dashboard (opens in new tab)"
+      >
+        View analytics <span aria-hidden="true">↗</span>
+      </a>
+    {/if}
   {/if}
   <a class="nv-cta" href="/submit">
     Submit <span aria-hidden="true">↗</span>
