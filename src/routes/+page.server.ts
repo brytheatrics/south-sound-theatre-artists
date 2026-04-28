@@ -11,6 +11,7 @@ type ProfileRow = {
   pronouns: string | null;
   disciplines: string[];
   geographic_area: string | null;
+  city: string | null;
   member_since: string;
   headshot_url: string | null;
 };
@@ -26,21 +27,21 @@ export const load: PageServerLoad = async () => {
     supabaseAdmin
       .from("featured_profiles")
       .select(
-        "profiles(slug, full_name, pronouns, disciplines, geographic_area, member_since, headshot_url)",
+        "profiles(slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url)",
       )
       .eq("active", true)
       .order("sort_order"),
     supabaseAdmin
       .from("profiles")
       .select(
-        "slug, full_name, pronouns, disciplines, geographic_area, member_since, headshot_url",
+        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url",
       )
       .eq("published", true)
       .is("deleted_at", null),
     supabaseAdmin
       .from("profiles")
       .select(
-        "slug, full_name, pronouns, disciplines, geographic_area, member_since, headshot_url",
+        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url",
       )
       .eq("published", true)
       .is("deleted_at", null)

@@ -101,7 +101,7 @@
     </button>
 
     <p class="featured-disc">
-      {formatDisciplines(cur.disciplines, cur.geographic_area)}.
+      {formatDisciplines(cur.disciplines, cur.city || cur.geographic_area)}.
     </p>
 
     <div class="featured-foot">
