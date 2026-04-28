@@ -179,12 +179,15 @@
     color: var(--ink);
     font-weight: 500;
   }
-  /* Group separator: a hairline above the first item of each section.
-     No extra spacing - just a faint rule sitting in the natural gap
-     between items, so the chunks scan cleanly without the sidebar
-     feeling sparse. */
+  /* Group separator: a visible rule above the first item of each
+     section with a small amount of breathing room so the chunks read
+     as distinct without the sidebar feeling stretched. Uses --rule
+     (the standard divider tone) rather than --rule-soft so the line
+     is actually legible. */
   .admin-nav a.group-start {
-    border-top: 1px solid var(--rule-soft);
+    margin-top: 5px;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
   }
   .nav-label {
     flex: 1;
@@ -240,6 +243,8 @@
     /* Group separators don't translate to a horizontal row; suppress so
        the mobile nav doesn't get random gaps. */
     .admin-nav a.group-start {
+      margin-top: 0;
+      padding-top: 8px;
       border-top: 0;
     }
   }
