@@ -330,7 +330,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 2rem;
-    padding: clamp(2.5rem, 6vw, 3.5rem) 0 2rem;
+    padding: clamp(2.5rem, 6vw, 3.5rem) var(--page-pad-x) 2rem;
     border-bottom: 1px solid var(--rule);
     flex-wrap: wrap;
   }
@@ -380,7 +380,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 1.25rem 0 0.875rem;
+    padding: 1.25rem var(--page-pad-x) 0.875rem;
     border-bottom: 1px solid var(--rule-soft);
     flex-wrap: wrap;
   }
@@ -393,7 +393,7 @@
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    padding: 0.75rem 0;
+    padding: 0.75rem var(--page-pad-x);
     border-bottom: 1px solid var(--rule-soft);
     font-family: var(--font-body);
     font-size: 13px;
@@ -458,12 +458,9 @@
     display: flex;
     align-items: baseline;
     gap: 1rem;
-    padding: 0.875rem 0;
+    padding: 0.875rem var(--page-pad-x);
     border-bottom: 1px solid var(--rule);
     background: var(--paper);
-    margin: 0 calc(-1 * var(--page-pad-x));
-    padding-left: var(--page-pad-x);
-    padding-right: var(--page-pad-x);
     flex-wrap: wrap;
   }
   .warn-text { color: var(--warn) !important; }
@@ -486,7 +483,7 @@
 
   /* === EMPTY === */
   .empty {
-    padding: 4rem 0;
+    padding: 4rem var(--page-pad-x);
     text-align: center;
     color: var(--muted);
     font-family: var(--font-accent);
@@ -536,6 +533,7 @@
   /* === LIST VIEW === */
   .posts-list {
     margin-top: 0.5rem;
+    padding: 0 var(--page-pad-x);
   }
   .post-row {
     display: grid;
@@ -654,6 +652,7 @@
     gap: 1rem;
     margin-top: 1.25rem;
     margin-bottom: 1rem;
+    padding: 0 var(--page-pad-x);
   }
   .card {
     background: var(--bg-raised);
@@ -723,7 +722,7 @@
     display: flex;
     justify-content: center;
     gap: 6px;
-    padding: 2rem 0;
+    padding: 2rem var(--page-pad-x);
     flex-wrap: wrap;
     align-items: center;
   }
@@ -740,13 +739,9 @@
     gap: 3rem;
     align-items: center;
     border-top: 1px solid var(--rule);
-    padding: 2.5rem 0 3.5rem;
+    padding: 2.5rem var(--page-pad-x) 3.5rem;
     margin-top: 1rem;
     background: var(--bg-raised);
-    margin-left: calc(-1 * var(--page-pad-x));
-    margin-right: calc(-1 * var(--page-pad-x));
-    padding-left: var(--page-pad-x);
-    padding-right: var(--page-pad-x);
   }
   .footer-heading {
     font-family: var(--font-display);

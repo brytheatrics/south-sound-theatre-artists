@@ -386,9 +386,9 @@
 
 <style>
   .submit-wrap {
-    max-width: 760px;
+    max-width: calc(760px + var(--page-pad-x) * 2);
     margin: 0 auto;
-    padding: clamp(2.5rem, 6vw, 3.5rem) 0 4rem;
+    padding: clamp(2.5rem, 6vw, 3.5rem) var(--page-pad-x) 4rem;
   }
   .submit-hd {
     display: flex;
@@ -474,27 +474,32 @@
   }
 
   .field { display: flex; flex-direction: column; gap: 5px; }
+  /* align-items: end so inputs in a 2-up row line up even when one field has
+     a label-hint and the other doesn't (different label heights otherwise
+     push the inputs to different y-positions). */
   .field-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+    align-items: end;
   }
+  /* Plain block so the inline req asterisk sits next to the label text;
+     label-hint is forced to its own line below via display: block. */
   .label {
     font-family: var(--font-body);
     font-size: 13px;
     font-weight: 500;
     color: var(--ink);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
   }
   .label-hint {
+    display: block;
+    margin-top: 2px;
     font-size: 12px;
     font-weight: 400;
     color: var(--muted);
     line-height: 1.4;
   }
-  .req { color: var(--accent); }
+  .req { color: var(--accent); margin-left: 2px; }
   .input, .textarea, .select {
     font-family: var(--font-body);
     font-size: 14px;
