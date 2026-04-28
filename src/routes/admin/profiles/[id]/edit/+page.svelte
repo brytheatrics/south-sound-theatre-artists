@@ -19,6 +19,7 @@
   let area = $state(areaNames.includes(p.geographic_area) ? p.geographic_area : "Other");
   // svelte-ignore state_referenced_locally
   let areaOther = $state(areaNames.includes(p.geographic_area) ? "" : (p.geographic_area ?? ""));
+  let city = $state(p.city ?? "");
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
   let languages = $state((p.languages ?? []).join(", "));
@@ -223,6 +224,11 @@
         {#if errors.area_other}<span class="error">{errors.area_other}</span>{/if}
       </label>
     {/if}
+
+    <label class="field">
+      <span>City</span>
+      <input name="city" type="text" bind:value={city} placeholder="Lakewood" />
+    </label>
   </section>
 
   <section class="row">

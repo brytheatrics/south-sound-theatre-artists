@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ url }) => {
     let q2 = supabaseAdmin
       .from("profiles")
       .select(
-        `slug, full_name, pronouns, disciplines, geographic_area,
+        `slug, full_name, pronouns, disciplines, geographic_area, city,
          playable_age_min, playable_age_max, headshot_url, member_since`,
         { count: "exact" },
       )

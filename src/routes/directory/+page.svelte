@@ -301,7 +301,9 @@
             <span class="name">{p.full_name}</span>
             <span class="disc">
               {p.disciplines.slice(0, 2).join(" · ")}
-              {#if p.geographic_area}<span> · {p.geographic_area}</span>{/if}
+              {#if p.city || p.geographic_area}
+                <span> · {p.city || p.geographic_area}</span>
+              {/if}
             </span>
             {#if p.playable_age_min != null && p.playable_age_max != null}
               <span class="age">Plays {p.playable_age_min}-{p.playable_age_max}</span>

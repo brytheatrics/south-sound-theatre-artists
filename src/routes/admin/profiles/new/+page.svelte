@@ -18,6 +18,7 @@
     headshotConsent?: boolean;
     area?: string;
     areaOther?: string;
+    city?: string;
     disciplines?: string[];
     disciplineOther?: string;
     publish?: boolean;
@@ -34,6 +35,7 @@
   let headshotConsent = $state(v.headshotConsent ?? false);
   let area = $state(v.area ?? "");
   let areaOther = $state(v.areaOther ?? "");
+  let city = $state(v.city ?? "");
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
@@ -162,6 +164,10 @@
         <input name="area_other" type="text" bind:value={areaOther} />
       </label>
     {/if}
+    <label class="field">
+      <span>City (optional)</span>
+      <input name="city" type="text" bind:value={city} placeholder="Lakewood" />
+    </label>
   </fieldset>
 
   <fieldset>

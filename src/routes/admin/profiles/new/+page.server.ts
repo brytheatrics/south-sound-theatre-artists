@@ -65,6 +65,7 @@ export const actions: Actions = {
     const headshotConsent = data.get("headshot_consent") === "on";
     const area = ((data.get("area") as string) ?? "").trim();
     const areaOther = ((data.get("area_other") as string) ?? "").trim();
+    const city = ((data.get("city") as string) ?? "").trim();
     const disciplines = data.getAll("disciplines").map(String).filter(Boolean);
     const disciplineOther = ((data.get("discipline_other") as string) ?? "").trim();
     const publish = data.get("publish") !== "off";
@@ -83,7 +84,7 @@ export const actions: Actions = {
         errors,
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, disciplines, disciplineOther, publish, sendLink,
+          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }
@@ -107,7 +108,7 @@ export const actions: Actions = {
         slugCollision: { requested: slug, suggestions },
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, disciplines, disciplineOther, publish, sendLink,
+          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }
@@ -131,6 +132,7 @@ export const actions: Actions = {
         headshot_url: headshotUrl || null,
         headshot_consent: !!headshotUrl && headshotConsent,
         geographic_area: finalArea,
+        city: city || null,
         published: publish,
       })
       .select("id, slug, full_name, email")
@@ -142,7 +144,7 @@ export const actions: Actions = {
         errors: { _form: "Could not create profile." },
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, disciplines, disciplineOther, publish, sendLink,
+          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }

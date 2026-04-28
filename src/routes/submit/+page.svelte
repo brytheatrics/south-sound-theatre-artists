@@ -17,6 +17,7 @@
     headshotConsent?: boolean;
     area?: string;
     areaOther?: string;
+    city?: string;
     playableAgeMin?: string;
     playableAgeMax?: string;
     languages?: string;
@@ -47,6 +48,7 @@
   let headshotConsent = $state(v.headshotConsent ?? false);
   let area = $state(v.area ?? "");
   let areaOther = $state(v.areaOther ?? "");
+  let city = $state(v.city ?? "");
   let playableAgeMin = $state(v.playableAgeMin ?? "");
   let playableAgeMax = $state(v.playableAgeMax ?? "");
   let languages = $state(v.languages ?? "");
@@ -281,6 +283,21 @@
           {#if errors.area_other}<span class="error">{errors.area_other}</span>{/if}
         </label>
       {/if}
+
+      <label class="field">
+        <span>City</span>
+        <input
+          name="city"
+          type="text"
+          bind:value={city}
+          placeholder="Lakewood"
+          autocomplete="address-level2"
+        />
+        <span class="hint">
+          Optional. Shown on your profile so people know your specific
+          town. The region above is what powers the directory filter.
+        </span>
+      </label>
 
       <div class="field">
         <span class="field-label">Playable age range</span>

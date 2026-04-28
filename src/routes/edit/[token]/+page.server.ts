@@ -98,6 +98,7 @@ export const actions: Actions = {
     const headshotConsent = data.get("headshot_consent") === "on";
     const area = ((data.get("area") as string) ?? "").trim();
     const areaOther = ((data.get("area_other") as string) ?? "").trim();
+    const city = ((data.get("city") as string) ?? "").trim();
     const playableAgeMin = ((data.get("playable_age_min") as string) ?? "").trim();
     const playableAgeMax = ((data.get("playable_age_max") as string) ?? "").trim();
     const languagesStr = ((data.get("languages") as string) ?? "").trim();
@@ -209,6 +210,7 @@ export const actions: Actions = {
       pronouns: pronouns || null,
       headshot_consent: headshotConsent,
       geographic_area: finalArea,
+      city: city || null,
       playable_age_min: ageMin,
       playable_age_max: ageMax,
       languages,

@@ -66,7 +66,9 @@
 
       <p class="disc">
         {p.disciplines.join(" · ")}
-        {#if p.geographic_area}<span class="area"> · {p.geographic_area}</span>{/if}
+        {#if p.city || p.geographic_area}
+          <span class="area"> · {p.city || p.geographic_area}</span>
+        {/if}
       </p>
 
       {#if p.unions.length > 0}
@@ -147,8 +149,11 @@
           {#each p.disciplines as d}<span class="kv-chip">{d}</span>{/each}
         </dd>
 
-        {#if p.geographic_area}
-          <dt>Area</dt><dd>{p.geographic_area}</dd>
+        {#if p.city || p.geographic_area}
+          <dt>Based in</dt>
+          <dd>
+            {#if p.city}{p.city}{/if}{#if p.city && p.geographic_area} · {/if}{#if p.geographic_area}<span class="area-soft">{p.geographic_area}</span>{/if}
+          </dd>
         {/if}
         {#if playable}
           <dt>Playable age</dt><dd>{playable}</dd>
@@ -476,6 +481,10 @@
     background: transparent;
     color: var(--ink-soft);
     border-style: dashed;
+  }
+  .area-soft {
+    color: var(--muted);
+    font-size: 13px;
   }
   .report-note {
     margin: 1rem 0 0;

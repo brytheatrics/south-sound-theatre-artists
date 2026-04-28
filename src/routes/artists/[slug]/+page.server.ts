@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const { data, error: err } = await supabaseAdmin
     .from("profiles")
     .select(
-      `slug, full_name, pronouns, bio, disciplines, geographic_area,
+      `slug, full_name, pronouns, bio, disciplines, geographic_area, city,
        playable_age_min, playable_age_max, languages, unions, ethnicities,
        headshot_url, instagram_handle, facebook_url, tiktok_handle,
        linkedin_url, twitter_handle, youtube_url, website_url, member_since,

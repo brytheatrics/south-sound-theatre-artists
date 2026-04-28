@@ -76,6 +76,7 @@ type Values = {
   headshotConsent: boolean;
   area: string;
   areaOther: string;
+  city: string;
   playableAgeMin: string;
   playableAgeMax: string;
   languages: string;
@@ -113,6 +114,7 @@ export const actions: Actions = {
       headshotConsent: data.get("headshot_consent") === "on",
       area: ((data.get("area") as string) ?? "").trim(),
       areaOther: ((data.get("area_other") as string) ?? "").trim(),
+      city: ((data.get("city") as string) ?? "").trim(),
       playableAgeMin: ((data.get("playable_age_min") as string) ?? "").trim(),
       playableAgeMax: ((data.get("playable_age_max") as string) ?? "").trim(),
       languages: ((data.get("languages") as string) ?? "").trim(),
@@ -256,6 +258,7 @@ export const actions: Actions = {
         headshot_url: values.headshotUrl || null,
         headshot_consent: values.headshotConsent,
         geographic_area: area,
+        city: values.city || null,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,
