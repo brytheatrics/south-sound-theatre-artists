@@ -1,8 +1,33 @@
 <script lang="ts">
+  import { page as pageState } from "$app/state";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
 
   let { data } = $props();
+
+  // Build a URL that preserves every active filter / sort param but
+  // sets ?page= to a target value. Used by the pagination links.
+  function pageHref(target: number): string {
+    const sp = new URLSearchParams(pageState.url.searchParams);
+    sp.delete("page");
+    if (target > 1) sp.set("page", String(target));
+    const qs = sp.toString();
+    return qs ? `?${qs}` : "/directory";
+  }
+
+  // Compact page list: always show first, last, current ± 1, plus "..."
+  // gaps. Keeps the bar reasonable at 100+ pages.
+  function pageList(current: number, total: number): Array<number | "gap"> {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const out: Array<number | "gap"> = [1];
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    if (start > 2) out.push("gap");
+    for (let i = start; i <= end; i++) out.push(i);
+    if (end < total - 1) out.push("gap");
+    out.push(total);
+    return out;
+  }
 
   /* svelte-ignore state_referenced_locally */
   let q = $state(data.filters.q);
@@ -286,10 +311,52 @@
       </li>
     {/each}
   </ul>
-  {#if data.total > data.profiles.length}
-    <p class="more-note">
-      Showing {data.profiles.length} of {data.total}. Pagination ships in a
-      future update.
+  {#if data.totalPages > 1}
+    <nav class="pagination" aria-label="Pagination">
+      <a
+        class="pg-arrow"
+        class:disabled={data.page <= 1}
+        href={data.page > 1 ? pageHref(data.page - 1) : undefined}
+        aria-disabled={data.page <= 1}
+        rel="prev"
+      >
+        ← Prev
+      </a>
+
+      <ul class="pg-list">
+        {#each pageList(data.page, data.totalPages) as item}
+          {#if item === "gap"}
+            <li class="pg-gap" aria-hidden="true">…</li>
+          {:else}
+            <li>
+              <a
+                href={pageHref(item)}
+                class="pg-num"
+                class:on={item === data.page}
+                aria-current={item === data.page ? "page" : undefined}
+              >
+                {item}
+              </a>
+            </li>
+          {/if}
+        {/each}
+      </ul>
+
+      <a
+        class="pg-arrow"
+        class:disabled={data.page >= data.totalPages}
+        href={data.page < data.totalPages ? pageHref(data.page + 1) : undefined}
+        aria-disabled={data.page >= data.totalPages}
+        rel="next"
+      >
+        Next →
+      </a>
+    </nav>
+    <p class="pg-count">
+      Showing {(data.page - 1) * data.pageSize + 1}-{Math.min(
+        data.page * data.pageSize,
+        data.total,
+      )} of {data.total}
     </p>
   {/if}
 {/if}
@@ -584,8 +651,61 @@
     margin-top: 0.1rem;
   }
 
-  .more-note {
-    margin: 2rem var(--page-pad-x);
+  .pagination {
+    margin: 2.5rem var(--page-pad-x) 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pg-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .pg-num,
+  .pg-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
+    background: var(--bg-raised);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+  .pg-num:hover,
+  .pg-arrow:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .pg-num.on {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .pg-arrow.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+  }
+  .pg-gap {
+    color: var(--muted);
+    padding: 0 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .pg-count {
+    margin: 0.5rem var(--page-pad-x) 1rem;
     text-align: center;
     color: var(--muted);
     font-family: var(--font-mono);

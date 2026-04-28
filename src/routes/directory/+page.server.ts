@@ -4,7 +4,7 @@
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
-const PAGE_SIZE = 48;
+const PAGE_SIZE = 24;
 
 export const load: PageServerLoad = async ({ url }) => {
   const params = url.searchParams;
@@ -21,6 +21,8 @@ export const load: PageServerLoad = async ({ url }) => {
     sortParam === "name" || sortParam === "updated" ? sortParam : "newest";
   const ageMin = ageMinStr && /^\d+$/.test(ageMinStr) ? Number(ageMinStr) : null;
   const ageMax = ageMaxStr && /^\d+$/.test(ageMaxStr) ? Number(ageMaxStr) : null;
+  const pageParam = params.get("page") ?? "";
+  const page = /^\d+$/.test(pageParam) && Number(pageParam) > 0 ? Number(pageParam) : 1;
 
   // Build a base query with every filter EXCEPT age - shared between the
   // main grid query and the "no-age-set" count below the grid.
@@ -74,10 +76,13 @@ export const load: PageServerLoad = async ({ url }) => {
   } else {
     query = query.order("member_since", { ascending: false });
   }
-  query = query.limit(PAGE_SIZE);
+  const offset = (page - 1) * PAGE_SIZE;
+  query = query.range(offset, offset + PAGE_SIZE - 1);
 
   const { data, count, error } = await query;
   if (error) throw error;
+  const total = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Count "no age set" profiles that match every other active filter, so the
   // UI can tell the searcher how many artists were excluded by their age
@@ -107,7 +112,9 @@ export const load: PageServerLoad = async ({ url }) => {
 
   return {
     profiles: data ?? [],
-    total: count ?? 0,
+    total,
+    page,
+    totalPages,
     noAgeCount,
     pageSize: PAGE_SIZE,
     filters: {
