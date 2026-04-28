@@ -82,16 +82,16 @@
     <tbody>
       {#each data.profiles as p (p.id)}
         <tr>
-          <td>
+          <td data-label="Name">
             <a href={`/artists/${p.slug}`} target="_blank" rel="noopener">
               {p.full_name}
             </a>
             <div class="email">{p.email}</div>
           </td>
-          <td><code>/{p.slug}</code></td>
-          <td class="disc">{p.disciplines.slice(0, 3).join(", ")}{p.disciplines.length > 3 ? " +" + (p.disciplines.length - 3) : ""}</td>
-          <td>{p.geographic_area ?? "—"}</td>
-          <td>
+          <td data-label="Slug"><code>/{p.slug}</code></td>
+          <td data-label="Disciplines" class="disc">{p.disciplines.slice(0, 3).join(", ")}{p.disciplines.length > 3 ? " +" + (p.disciplines.length - 3) : ""}</td>
+          <td data-label="Area">{p.geographic_area ?? "—"}</td>
+          <td data-label="Status">
             <form
               method="POST"
               action="?/togglePublish"
@@ -110,7 +110,7 @@
               </button>
             </form>
           </td>
-          <td>
+          <td data-label="Trust">
             <form
               method="POST"
               action="?/toggleTrust"
@@ -135,7 +135,7 @@
               </button>
             </form>
           </td>
-          <td class="actions-col">
+          <td data-label="Actions" class="actions-col">
             <a class="bt-link" href={`/admin/profiles/${p.id}/edit`}>Edit</a>
             <form
               method="POST"
@@ -422,5 +422,73 @@
     background: var(--ink);
     color: var(--bg);
     border-color: var(--ink);
+  }
+
+  /* Mobile: collapse the 7-column table into stacked cards. Each row
+     becomes a self-contained card with labels rendered inline next to
+     each value via data-label attributes (set in the markup). */
+  @media (max-width: 720px) {
+    .rows, .rows thead, .rows tbody, .rows tr, .rows td, .rows th {
+      display: block;
+    }
+    .rows thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+    .rows tr {
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      background: var(--bg-raised);
+    }
+    .rows td {
+      padding: 6px 0;
+      border-bottom: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .rows td::before {
+      content: attr(data-label);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+    .rows td:first-child {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding-top: 0;
+      padding-bottom: 10px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--rule-soft);
+      font-size: 16px;
+    }
+    .rows td:first-child::before {
+      display: none;
+    }
+    .rows td:first-child a {
+      font-size: 16px;
+    }
+    .actions-col {
+      text-align: left !important;
+      width: auto !important;
+      white-space: normal !important;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .disc {
+      max-width: none !important;
+      text-align: right;
+    }
   }
 </style>
