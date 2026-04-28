@@ -608,8 +608,8 @@
     margin: 0;
     padding: 0 var(--page-pad-x);
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.25rem;
   }
   .card {
     text-decoration: none;
@@ -725,7 +725,17 @@
     line-height: 1.5;
   }
 
-  @media (max-width: 1100px) {
+  @media (max-width: 1400px) {
+    .grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+  }
+  @media (max-width: 1180px) {
+    .grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  @media (max-width: 960px) {
     .grid {
       grid-template-columns: repeat(3, 1fr);
     }
