@@ -5,7 +5,6 @@
 
   let idx = $state(0);
   let paused = $state(false);
-  let marqueePaused = $state(false);
 
   // Marquee items come from /admin/marquee - either every open callboard
   // post or the admin-picked subset. Empty array hides the bar entirely.
@@ -110,15 +109,12 @@
 {/if}
 
 <!-- Marquee: scrolling callboard ticker. Items + cycle-all toggle live in
-     /admin/marquee. Hidden when there's nothing approved to show. -->
+     /admin/marquee. Hidden when there's nothing approved to show. Pause
+     on hover is CSS-only - no Svelte state churn while the animation
+     runs, which keeps motion buttery. -->
 {#if marqueeItems.length > 0}
-  <div
-    class="marquee"
-    onmouseenter={() => (marqueePaused = true)}
-    onmouseleave={() => (marqueePaused = false)}
-    role="presentation"
-  >
-    <div class="marquee-track" class:paused={marqueePaused}>
+  <div class="marquee" role="presentation">
+    <div class="marquee-track">
       {#each [...marqueeItems, ...marqueeItems] as item, i (i)}
         <a class="m-item" href={item.href}>
           <span class="m-glyph" aria-hidden="true">{item.glyph}</span>
@@ -312,7 +308,16 @@
     color: var(--muted);
   }
 
-  /* marquee - full bleed, edge to edge */
+  /* marquee - full bleed, edge to edge.
+     Smoothness recipe:
+     - translate3d() instead of translateX() forces a compositor layer
+       so the browser scrolls a pre-rendered bitmap rather than re-painting
+       text every frame (kills the per-character subpixel jitter).
+     - backface-visibility: hidden + transform: translateZ(0) on parents
+       lock the layer flat to avoid stacking-context surprises.
+     - :hover pause lives in CSS so there's zero JS / Svelte state churn
+       while the animation runs.
+     - Slower duration (90s) reads as a calm crawl rather than a march. */
   .marquee {
     margin: clamp(2rem, 4vw, 3rem) 0 0;
     overflow: hidden;
@@ -321,22 +326,32 @@
     padding: 16px 0;
     white-space: nowrap;
     background: var(--paper);
+    transform: translateZ(0);
   }
   .marquee-track {
     display: inline-flex;
     gap: 2.5rem;
-    animation: marquee 60s linear infinite;
+    animation: marquee 90s linear infinite;
     will-change: transform;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  .marquee-track.paused {
+  .marquee:hover .marquee-track {
     animation-play-state: paused;
   }
   @keyframes marquee {
     from {
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
     }
     to {
-      transform: translateX(-50%);
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+  /* Respect prefers-reduced-motion: hold the track still. */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none;
     }
   }
   .m-item {
@@ -348,6 +363,7 @@
     color: var(--ink-soft);
     letter-spacing: -0.005em;
     text-decoration: none;
+    backface-visibility: hidden;
   }
   .m-item:hover {
     color: var(--accent);
