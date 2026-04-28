@@ -1,0 +1,35 @@
+name: Admin daily digest
+
+# Counts open items in the admin queues and emails Lexi a digest if
+# anything's outstanding. Stays silent on empty days. Same counts the
+# sidebar badges use, just delivered to her inbox at 8am Pacific.
+
+on:
+  schedule:
+    # 15:00 UTC = 8:00 PT during DST, 7:00 PT during standard time. Close
+    # enough; nothing here is sensitive to wall-clock minute precision.
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Send digest
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
+        run: node scripts/admin-daily-digest.mjs

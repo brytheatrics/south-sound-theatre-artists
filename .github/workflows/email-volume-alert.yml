@@ -1,0 +1,32 @@
+name: Email volume alert
+
+# Watches Resend usage against the 3000/mo free-tier cap. Pings Lexi
+# once at 70% and again at 90% so she can intervene before sends start
+# failing. Daily run is plenty of resolution.
+
+on:
+  schedule:
+    - cron: "0 16 * * *" # 16:00 UTC daily, after the digest
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check volume
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+        run: node scripts/email-volume-alert.mjs

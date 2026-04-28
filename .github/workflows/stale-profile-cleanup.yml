@@ -1,0 +1,37 @@
+name: Stale profile cleanup
+
+# Three-stage stale-profile pipeline:
+#   1. Profile not edited in 18 months -> "still in the area?" email +
+#      fresh edit token
+#   2. No update 30 days after the ping -> soft-delete
+#   3. Soft-deleted for 30 days -> hard delete
+# Same hard-delete sweep also clears 30-day-old soft-deleted callboard
+# posts and verified-org applications. Weekly cadence is plenty of
+# resolution and keeps email volume low.
+
+on:
+  schedule:
+    - cron: "0 17 * * 1" # Mondays at 17:00 UTC (~9am PT)
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run cleanup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
+        run: node scripts/stale-profile-cleanup.mjs
