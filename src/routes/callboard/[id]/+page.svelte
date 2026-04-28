@@ -141,7 +141,7 @@
 
 <style>
   .back-row {
-    padding: 1.25rem 0 0;
+    padding: 1.25rem var(--page-pad-x) 0;
   }
   .back-link {
     font-family: var(--font-mono);
@@ -157,7 +157,7 @@
     display: grid;
     grid-template-columns: 1fr 280px;
     gap: 3rem;
-    padding: 2rem 0 4rem;
+    padding: 2rem var(--page-pad-x) 4rem;
     align-items: start;
   }
 
