@@ -1,18 +1,22 @@
 <script lang="ts">
   import { page } from "$app/state";
-  let { children } = $props();
+  let { data, children } = $props();
 
   const path = $derived(page.url.pathname);
   const isAuthRoute = $derived(path === "/admin/login" || path === "/admin/verify");
 
-  type Section = { href: string; label: string };
+  // Per-section count keys map to data.queueCounts. Sections without a key
+  // never show a badge. Counts come from the admin layout server load so
+  // every page gets fresh numbers without each page having to opt in.
+  type CountKey = "pending" | "flaggedEdits" | "reports" | "callboard" | "orgs";
+  type Section = { href: string; label: string; countKey?: CountKey };
   const sections: Section[] = [
-    { href: "/admin", label: "Pending queue" },
+    { href: "/admin", label: "Pending queue", countKey: "pending" },
     { href: "/admin/profiles", label: "All profiles" },
-    { href: "/admin/flagged-edits", label: "Edit review" },
-    { href: "/admin/reports", label: "Reports" },
-    { href: "/admin/callboard", label: "Callboard" },
-    { href: "/admin/orgs", label: "Organizations" },
+    { href: "/admin/flagged-edits", label: "Edit review", countKey: "flaggedEdits" },
+    { href: "/admin/reports", label: "Reports", countKey: "reports" },
+    { href: "/admin/callboard", label: "Callboard", countKey: "callboard" },
+    { href: "/admin/orgs", label: "Organizations", countKey: "orgs" },
     { href: "/admin/featured", label: "Featured" },
     { href: "/admin/content", label: "Site content" },
     { href: "/admin/banner", label: "Announcement" },
@@ -20,6 +24,11 @@
     { href: "/admin/disciplines", label: "Disciplines" },
     { href: "/admin/blocklist", label: "Blocklist" },
   ];
+
+  function countFor(key: CountKey | undefined): number {
+    if (!key) return 0;
+    return data?.queueCounts?.[key] ?? 0;
+  }
 
   const isOn = $derived((href: string) =>
     href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"),
@@ -62,8 +71,19 @@
       </div>
       <nav class="admin-nav" aria-label="Admin">
         {#each sections as s (s.href)}
-          <a href={s.href} class:on={isOn(s.href)} aria-current={isOn(s.href) ? "page" : undefined}>
-            {s.label}
+          {@const count = countFor(s.countKey)}
+          <a
+            href={s.href}
+            class:on={isOn(s.href)}
+            class:has-attn={count > 0}
+            aria-current={isOn(s.href) ? "page" : undefined}
+          >
+            <span class="nav-label">{s.label}</span>
+            {#if count > 0}
+              <span class="nav-badge" aria-label="{count} item{count === 1 ? '' : 's'} needing attention">
+                {count > 99 ? "99+" : count}
+              </span>
+            {/if}
           </a>
         {/each}
       </nav>
@@ -113,6 +133,10 @@
     gap: 2px;
   }
   .admin-nav a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 8px 10px;
     font-family: var(--font-body);
     font-size: 14px;
@@ -131,6 +155,30 @@
     color: var(--ink);
     border-left-color: var(--accent);
     font-weight: 500;
+  }
+  /* "Needs attention" tab: ink-tone label + accent badge so it reads at a
+     glance without shouting. The badge is a small pill with the count. */
+  .admin-nav a.has-attn {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .nav-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .nav-badge {
+    flex-shrink: 0;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    line-height: 1.4;
+    min-width: 20px;
+    text-align: center;
   }
   .admin-logout {
     margin-top: auto;
