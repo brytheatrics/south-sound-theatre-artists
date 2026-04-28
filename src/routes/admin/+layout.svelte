@@ -22,6 +22,20 @@
   const isOn = $derived((href: string) =>
     href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"),
   );
+
+  // Remember the last admin sub-page so the public-nav "Admin" pill can
+  // bounce Lexi back where she was instead of always landing on
+  // /admin (Pending queue). Skips auth routes so we never persist
+  // /admin/login or /admin/verify.
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    if (isAuthRoute) return;
+    try {
+      window.localStorage.setItem("ssta_last_admin_path", path);
+    } catch {
+      // localStorage can fail in private mode / iOS edge cases - silent.
+    }
+  });
 </script>
 
 {#if isAuthRoute}

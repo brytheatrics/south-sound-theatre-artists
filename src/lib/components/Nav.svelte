@@ -13,6 +13,27 @@
 
   const path = $derived(page.url.pathname);
   const isActive = $derived((href: string) => path === href || path.startsWith(href + "/"));
+
+  // Default the Admin pill to /admin, but if the admin layout has stashed
+  // a more recent sub-page in localStorage, prefer that. Effect runs only
+  // on the client after hydration, so SSR keeps the default href.
+  let adminHref = $state("/admin");
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem("ssta_last_admin_path");
+      if (
+        saved &&
+        saved.startsWith("/admin") &&
+        saved !== "/admin/login" &&
+        saved !== "/admin/verify"
+      ) {
+        adminHref = saved;
+      }
+    } catch {
+      // localStorage may be unavailable in private mode - keep default.
+    }
+  });
 </script>
 
 <nav class="nv">
@@ -31,7 +52,7 @@
     {/each}
   </div>
   {#if isAdmin}
-    <a class="nv-admin" href="/admin" aria-label="Go to admin panel">
+    <a class="nv-admin" href={adminHref} aria-label="Go to admin panel">
       Admin
     </a>
   {/if}
