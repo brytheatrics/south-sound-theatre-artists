@@ -1,0 +1,184 @@
+<script lang="ts">
+  import { enhance } from "$app/forms";
+  let { data, form } = $props();
+  let busy = $state(false);
+
+  // Local state mirrors the saved settings so toggling cycle-all updates
+  // the picker visibility without a round-trip.
+  /* svelte-ignore state_referenced_locally */
+  let cycleAll = $state(data.settings.include_all_callboard);
+  /* svelte-ignore state_referenced_locally */
+  let enabled = $state(data.settings.enabled);
+  /* svelte-ignore state_referenced_locally */
+  let pickedIds = $state<Set<string>>(
+    new Set(data.settings.include_callboard_post_ids ?? []),
+  );
+
+  function togglePost(id: string) {
+    if (pickedIds.has(id)) pickedIds.delete(id);
+    else pickedIds.add(id);
+    pickedIds = new Set(pickedIds);
+  }
+
+  const POST_TYPE_LABELS: Record<string, string> = {
+    audition: "Audition",
+    designer: "Designer",
+    crew: "Crew",
+    production: "Production",
+    general: "General",
+  };
+</script>
+
+<svelte:head><title>Homepage marquee - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
+
+<header class="hd">
+  <span class="eyebrow"><span class="num">·</span>Admin · marquee</span>
+  <h1 class="h1-display">Homepage marquee.</h1>
+  <p class="lede">
+    The scrolling ticker below the spotlight on the homepage. Cycle through
+    every open callboard post or pick a specific subset to feature.
+  </p>
+</header>
+
+{#if form?.error}<div class="form-error" role="alert">{form.error}</div>{/if}
+{#if form?.saved}<div class="form-ok" role="status">Saved.</div>{/if}
+
+<form method="POST" action="?/save" class="card" use:enhance={() => { busy = true; return async ({ update }) => { await update({ reset: false }); busy = false; }; }}>
+  <label class="check">
+    <input type="checkbox" name="enabled" bind:checked={enabled} />
+    <span><strong>Show marquee on the homepage</strong></span>
+  </label>
+  <p class="hint">Turn this off to hide the scrolling bar entirely.</p>
+
+  <hr class="rule" />
+
+  <div class="cb-block">
+    <span class="block-label">Callboard posts</span>
+    <p class="hint">
+      What scrolls in the marquee. Each item links back to its callboard
+      post.
+    </p>
+
+    <label class="check">
+      <input type="checkbox" name="include_all_callboard" bind:checked={cycleAll} />
+      <span>Cycle through <strong>all</strong> open callboard posts</span>
+    </label>
+
+    {#if !cycleAll}
+      {#if data.callboardPosts.length === 0}
+        <p class="cb-empty">No approved callboard posts to choose from yet.</p>
+      {:else}
+        <div class="cb-list">
+          {#each data.callboardPosts as p (p.id)}
+            <label class="cb-row" class:on={pickedIds.has(p.id)}>
+              <input
+                type="checkbox"
+                name="post_id"
+                value={p.id}
+                checked={pickedIds.has(p.id)}
+                onchange={() => togglePost(p.id)}
+              />
+              <span class="cb-type">{POST_TYPE_LABELS[p.post_type] ?? p.post_type}</span>
+              <span class="cb-title">{p.title}</span>
+              <span class="cb-org">{p.organization_name}</span>
+              {#if p.deadline_text}
+                <span class="cb-deadline">{p.deadline_text}</span>
+              {/if}
+            </label>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  </div>
+
+  <button type="submit" class="bt bt-pri" disabled={busy}>
+    {busy ? "Saving..." : "Save settings"}
+  </button>
+</form>
+
+<style>
+  .hd { display: flex; flex-direction: column; gap: 0.5rem; max-width: 800px; margin-bottom: 2rem; }
+  .h1-display { margin: 0.5rem 0 0.25rem; }
+  .lede { font-family: var(--font-accent); font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 1rem; }
+  .card { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius-lg); margin-bottom: 1rem; max-width: 760px; }
+  .check { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; color: var(--ink); cursor: pointer; }
+  .check strong { font-weight: 600; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: -4px 0 0; line-height: 1.45; }
+  .rule { border: 0; border-top: 1px solid var(--rule-soft); margin: 0.25rem 0; }
+  .block-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .cb-block { display: flex; flex-direction: column; gap: 0.625rem; }
+  .cb-empty { margin: 0; font-size: 13px; color: var(--muted); font-style: italic; }
+  .cb-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+  .cb-row {
+    display: grid;
+    grid-template-columns: auto 80px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 8px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .cb-row:hover { background: var(--paper); }
+  .cb-row.on { background: color-mix(in oklch, var(--accent), var(--bg) 90%); }
+  .cb-type {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-align: center;
+  }
+  .cb-title { color: var(--ink); font-weight: 500; min-width: 0; }
+  .cb-org {
+    font-family: var(--font-accent);
+    font-style: italic;
+    color: var(--accent);
+    font-size: 12.5px;
+  }
+  .cb-deadline {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .bt { font-family: var(--font-body); font-size: 14px; padding: 9px 16px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; align-self: flex-start; }
+  .bt-pri { background: var(--ink); color: var(--bg); }
+  .bt-pri:hover:not(:disabled) { background: var(--accent); }
+  .bt:disabled { opacity: 0.5; cursor: progress; }
+  .form-error { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border: 1px solid var(--warn); color: var(--warn); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
+  .form-ok { background: color-mix(in oklch, var(--accent), var(--bg) 85%); border: 1px solid var(--accent); color: var(--accent); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
+
+  @media (max-width: 720px) {
+    .cb-row {
+      grid-template-columns: auto 1fr;
+      grid-auto-flow: row;
+    }
+    .cb-row .cb-type { grid-column: 1; grid-row: 1; }
+    .cb-row .cb-title { grid-column: 2; grid-row: 1; }
+    .cb-row .cb-org   { grid-column: 2; grid-row: 2; }
+    .cb-row .cb-deadline { grid-column: 2; grid-row: 3; justify-self: start; }
+  }
+</style>

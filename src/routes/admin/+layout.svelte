@@ -18,6 +18,7 @@
     { href: "/admin/callboard", label: "Callboard", countKey: "callboard" },
     { href: "/admin/orgs", label: "Organizations", countKey: "orgs" },
     { href: "/admin/featured", label: "Featured" },
+    { href: "/admin/marquee", label: "Homepage marquee" },
     { href: "/admin/content", label: "Site content" },
     { href: "/admin/banner", label: "Announcement" },
     { href: "/admin/templates", label: "Email templates" },

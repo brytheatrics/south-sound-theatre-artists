@@ -1,40 +1,18 @@
 // /admin/banner: edit the announcement banner. Multiple rows allowed so
 // admin can stage future banners; only the enabled+in-window row renders
 // publicly.
-//
-// Each banner row can also include callboard posts as additional rotating
-// items - either an explicit checkbox-picked list, or "cycle through all
-// open callboard posts" via the include_all_callboard flag.
 
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
 export const load: PageServerLoad = async () => {
-  const [bannersRes, postsRes] = await Promise.all([
-    supabaseAdmin
-      .from("announcement_banner")
-      .select(
-        `id, body_markdown, enabled, starts_at, ends_at,
-         include_all_callboard, include_callboard_post_ids, updated_at`,
-      )
-      .order("updated_at", { ascending: false }),
-    // Approved + published callboard posts the admin can pick from.
-    supabaseAdmin
-      .from("callboard_posts")
-      .select("id, title, organization_name, post_type, deadline_text, expires_at")
-      .eq("status", "approved")
-      .eq("published", true)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
-  ]);
-  if (bannersRes.error) throw bannersRes.error;
-  if (postsRes.error) throw postsRes.error;
-
-  return {
-    banners: bannersRes.data ?? [],
-    callboardPosts: postsRes.data ?? [],
-  };
+  const { data, error } = await supabaseAdmin
+    .from("announcement_banner")
+    .select("id, body_markdown, enabled, starts_at, ends_at, updated_at")
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return { banners: data ?? [] };
 };
 
 function toIsoOrNull(s: string | null): string | null {
@@ -52,39 +30,24 @@ export const actions: Actions = {
     const enabled = data.get("enabled") === "on";
     const startsAt = toIsoOrNull(((data.get("starts_at") as string) ?? "").trim() || null);
     const endsAt = toIsoOrNull(((data.get("ends_at") as string) ?? "").trim() || null);
-    const includeAllCallboard = data.get("include_all_callboard") === "on";
-    // Picked posts come through as repeated post_id form fields. Filter to
-    // looks-like-uuid so a user can't smuggle bogus values in.
-    const pickedIds = data
-      .getAll("post_id")
-      .map(String)
-      .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
 
     if (!body) return fail(400, { error: "Banner text is required." });
-
-    const payload = {
-      body_markdown: body,
-      enabled,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      include_all_callboard: includeAllCallboard,
-      // If "cycle all" is on, the explicit picks are ignored - clear them
-      // so the row's state stays internally consistent.
-      include_callboard_post_ids: includeAllCallboard ? [] : pickedIds,
-    };
 
     if (id) {
       const { error } = await supabaseAdmin
         .from("announcement_banner")
-        .update(payload)
+        .update({ body_markdown: body, enabled, starts_at: startsAt, ends_at: endsAt })
         .eq("id", id);
       if (error) return fail(500, { error: "Could not save." });
       return { saved: id };
     }
 
-    const { error } = await supabaseAdmin
-      .from("announcement_banner")
-      .insert(payload);
+    const { error } = await supabaseAdmin.from("announcement_banner").insert({
+      body_markdown: body,
+      enabled,
+      starts_at: startsAt,
+      ends_at: endsAt,
+    });
     if (error) return fail(500, { error: "Could not create." });
     return { created: true };
   },

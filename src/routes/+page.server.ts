@@ -1,4 +1,5 @@
-// Homepage data: counts + featured pool + recently-added grid.
+// Homepage data: counts + featured pool + recently-added grid + the
+// marquee items shown in the scrolling ticker below the spotlight.
 // Featured rotation is keyed by today's date so the same 4 artists show
 // throughout a day and rotate the next morning.
 
@@ -16,8 +17,27 @@ type ProfileRow = {
   headshot_url: string | null;
 };
 
+export type MarqueeItem = {
+  id: string;
+  glyph: string;
+  text: string;
+  href: string;
+};
+
+// Star for "now-playing" / production-style posts, sparkle for everything
+// else. Keeps the marquee visually punctuated without prefixing the post
+// title (titles often already say "Auditions:" / "Now playing:" / etc.,
+// and a prefix would double up).
+const POST_TYPE_GLYPH: Record<string, string> = {
+  audition: "✦",
+  designer: "✦",
+  crew: "✦",
+  production: "★",
+  general: "✦",
+};
+
 export const load: PageServerLoad = async () => {
-  const [countRes, curatedRes, fallbackRes, recentRes, homeRes] = await Promise.all([
+  const [countRes, curatedRes, fallbackRes, recentRes, homeRes, marqueeRes] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select("*", { count: "exact", head: true })
@@ -52,11 +72,50 @@ export const load: PageServerLoad = async () => {
       .select("body_markdown")
       .eq("slug", "home")
       .maybeSingle(),
+    supabaseAdmin
+      .from("marquee_settings")
+      .select("enabled, include_all_callboard, include_callboard_post_ids")
+      .eq("id", 1)
+      .maybeSingle(),
   ]);
 
   if (curatedRes.error) throw curatedRes.error;
   if (fallbackRes.error) throw fallbackRes.error;
   if (recentRes.error) throw recentRes.error;
+
+  // Marquee assembly: pull approved + published callboard posts based on
+  // the admin's settings, project them into compact ticker strings.
+  const marqueeSettings = marqueeRes.data;
+  let marquee: MarqueeItem[] = [];
+  if (marqueeSettings?.enabled) {
+    const ids = (marqueeSettings.include_callboard_post_ids ?? []) as string[];
+    const wantAll = marqueeSettings.include_all_callboard;
+    if (wantAll || ids.length > 0) {
+      let q = supabaseAdmin
+        .from("callboard_posts")
+        .select("id, post_type, title, organization_name, deadline_text, expires_at, location")
+        .eq("status", "approved")
+        .eq("published", true)
+        .is("deleted_at", null)
+        .order("expires_at", { ascending: true, nullsFirst: false });
+      if (!wantAll) q = q.in("id", ids);
+      const { data: posts } = await q.limit(30);
+      marquee = (posts ?? []).map((p) => {
+        // Format: "{Org} - {Title}{deadline or location}"
+        const tail = p.deadline_text
+          ? `, ${p.deadline_text}`
+          : p.location
+          ? `, ${p.location}`
+          : "";
+        return {
+          id: p.id,
+          glyph: POST_TYPE_GLYPH[p.post_type] ?? "✦",
+          text: `${p.organization_name} - ${p.title}${tail}`,
+          href: `/callboard/${p.id}`,
+        };
+      });
+    }
+  }
 
   // Curated rotation has priority. Fall back to a date-seeded shuffle of
   // all published profiles.
@@ -86,6 +145,7 @@ export const load: PageServerLoad = async () => {
     featured,
     recent: (recentRes.data ?? []) as ProfileRow[],
     homeBody: homeRes.data?.body_markdown ?? "",
+    marquee,
   };
 };
 

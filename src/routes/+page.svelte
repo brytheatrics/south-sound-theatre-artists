@@ -7,15 +7,9 @@
   let paused = $state(false);
   let marqueePaused = $state(false);
 
-  // Placeholder callboard items - swap for real `callboard_posts` rows in v1.2.
-  const marqueeItems = [
-    { glyph: "★", text: "Now appearing - Theo Park in Sweeney Todd, TLT thru May 18" },
-    { glyph: "✦", text: "New audition - The Cherry Orchard, Lakewood, May 4" },
-    { glyph: "★", text: "Now playing - Indecent at Centerstage thru May 12" },
-    { glyph: "✦", text: "Crew call - LD needed, Tacoma Little Theatre spring season" },
-    { glyph: "★", text: "Workshop - Devised theatre with Wren Castellanos, May 4 weekend" },
-    { glyph: "✦", text: "Open call - Gig Harbor New Works festival, submissions thru June" },
-  ];
+  // Marquee items come from /admin/marquee - either every open callboard
+  // post or the admin-picked subset. Empty array hides the bar entirely.
+  const marqueeItems = $derived(data.marquee ?? []);
 
   $effect(() => {
     if (paused || data.featured.length <= 1) return;
@@ -115,23 +109,25 @@
   </section>
 {/if}
 
-<!-- Marquee: placeholder callboard ticker. Real entries come from the
-     callboard table in v1.2. -->
-<div
-  class="marquee"
-  onmouseenter={() => (marqueePaused = true)}
-  onmouseleave={() => (marqueePaused = false)}
-  role="presentation"
->
-  <div class="marquee-track" class:paused={marqueePaused}>
-    {#each [...marqueeItems, ...marqueeItems] as item, i (i)}
-      <span class="m-item">
-        <span class="m-glyph" aria-hidden="true">{item.glyph}</span>
-        <span class="m-text">{item.text}</span>
-      </span>
-    {/each}
+<!-- Marquee: scrolling callboard ticker. Items + cycle-all toggle live in
+     /admin/marquee. Hidden when there's nothing approved to show. -->
+{#if marqueeItems.length > 0}
+  <div
+    class="marquee"
+    onmouseenter={() => (marqueePaused = true)}
+    onmouseleave={() => (marqueePaused = false)}
+    role="presentation"
+  >
+    <div class="marquee-track" class:paused={marqueePaused}>
+      {#each [...marqueeItems, ...marqueeItems] as item, i (i)}
+        <a class="m-item" href={item.href}>
+          <span class="m-glyph" aria-hidden="true">{item.glyph}</span>
+          <span class="m-text">{item.text}</span>
+        </a>
+      {/each}
+    </div>
   </div>
-</div>
+{/if}
 
 <section class="recent">
   <header class="recent-head">
@@ -351,6 +347,10 @@
     font-size: 15px;
     color: var(--ink-soft);
     letter-spacing: -0.005em;
+    text-decoration: none;
+  }
+  .m-item:hover {
+    color: var(--accent);
   }
   .m-glyph {
     color: var(--accent);
