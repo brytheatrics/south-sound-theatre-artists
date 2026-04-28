@@ -25,10 +25,12 @@
     // Directory
     { href: "/admin/profiles", label: "All profiles", group: true },
 
-    // Homepage curation
-    { href: "/admin/featured", label: "Featured", group: true },
+    // Homepage curation - listed in the order the elements appear on
+    // the page itself (announcement banner up top, then the spotlight
+    // and the marquee strip below it).
+    { href: "/admin/banner", label: "Announcement", group: true },
+    { href: "/admin/featured", label: "Featured" },
     { href: "/admin/marquee", label: "Homepage marquee" },
-    { href: "/admin/banner", label: "Announcement" },
 
     // Site copy
     { href: "/admin/content", label: "Site content", group: true },
@@ -177,12 +179,11 @@
     color: var(--ink);
     font-weight: 500;
   }
-  /* Group separator: a thin rule above the first item of each section
-     (Directory / Homepage / Copy / Config) to break the sidebar into
-     scannable chunks without spending a row on labels. */
+  /* Group separator: a hairline above the first item of each section.
+     No extra spacing - just a faint rule sitting in the natural gap
+     between items, so the chunks scan cleanly without the sidebar
+     feeling sparse. */
   .admin-nav a.group-start {
-    margin-top: 10px;
-    padding-top: 14px;
     border-top: 1px solid var(--rule-soft);
   }
   .nav-label {
@@ -239,8 +240,6 @@
     /* Group separators don't translate to a horizontal row; suppress so
        the mobile nav doesn't get random gaps. */
     .admin-nav a.group-start {
-      margin-top: 0;
-      padding-top: 8px;
       border-top: 0;
     }
   }
