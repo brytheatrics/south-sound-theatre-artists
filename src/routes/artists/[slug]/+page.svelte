@@ -29,6 +29,31 @@
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
 
   let showContact = $state(false);
+  let shareToast = $state<string | null>(null);
+
+  async function shareProfile() {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const title = `${p.full_name} - South Sound Theatre Artists`;
+    const text = `${p.full_name} on the South Sound Theatre Artists directory.`;
+    // Native share sheet on iOS / Android. Falls back to clipboard on
+    // browsers without Web Share (most desktops).
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch {
+        // User cancelled, or share unavailable - fall through to clipboard.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      shareToast = "Link copied to clipboard";
+      setTimeout(() => (shareToast = null), 2000);
+    } catch {
+      shareToast = "Couldn't copy - select the URL from the address bar.";
+      setTimeout(() => (shareToast = null), 3000);
+    }
+  }
 
   // Build a click-through URL from a handle. Handles can be entered as
   // either @name or name; the platform's own URL format normalises it.
@@ -95,7 +120,18 @@
             Website <span aria-hidden="true">↗</span>
           </a>
         {/if}
+        <button
+          type="button"
+          class="bt bt-ghost"
+          onclick={shareProfile}
+          aria-label="Share this profile"
+        >
+          Share <span aria-hidden="true">↗</span>
+        </button>
       </div>
+      {#if shareToast}
+        <p class="share-toast" role="status">{shareToast}</p>
+      {/if}
 
       <p class="member">Member since {memberSince(p.member_since)}</p>
     </div>
@@ -444,6 +480,14 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
+  }
+  .share-toast {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
   }
 
   .rule {
