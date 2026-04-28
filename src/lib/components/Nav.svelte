@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { goto } from "$app/navigation";
 
   type Props = { isAdmin?: boolean };
   let { isAdmin = false }: Props = $props();
@@ -14,26 +15,28 @@
   const path = $derived(page.url.pathname);
   const isActive = $derived((href: string) => path === href || path.startsWith(href + "/"));
 
-  // Default the Admin pill to /admin, but if the admin layout has stashed
-  // a more recent sub-page in localStorage, prefer that. Effect runs only
-  // on the client after hydration, so SSR keeps the default href.
-  let adminHref = $state("/admin");
-  $effect(() => {
+  // Read localStorage at click time (not via $effect) so we always see
+  // the freshest value. Effects fire in document order and Nav is above
+  // the admin layout, so an effect-based read happens before the layout
+  // has had a chance to write the latest tab.
+  function onAdminClick(e: MouseEvent) {
     if (typeof window === "undefined") return;
     try {
       const saved = window.localStorage.getItem("ssta_last_admin_path");
       if (
         saved &&
+        saved !== "/admin" &&
         saved.startsWith("/admin") &&
         saved !== "/admin/login" &&
         saved !== "/admin/verify"
       ) {
-        adminHref = saved;
+        e.preventDefault();
+        goto(saved);
       }
     } catch {
-      // localStorage may be unavailable in private mode - keep default.
+      // Fall through to the default href = /admin.
     }
-  });
+  }
 </script>
 
 <nav class="nv">
@@ -52,7 +55,12 @@
     {/each}
   </div>
   {#if isAdmin}
-    <a class="nv-admin" href={adminHref} aria-label="Go to admin panel">
+    <a
+      class="nv-admin"
+      href="/admin"
+      aria-label="Go to admin panel"
+      onclick={onAdminClick}
+    >
       Admin
     </a>
   {/if}
