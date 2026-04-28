@@ -13,22 +13,38 @@ import { generateToken, hashToken } from "$lib/server/tokens";
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const load: PageServerLoad = async () => {
-  const { data, error } = await supabaseAdmin
-    .from("pending_submissions")
-    .select(
-      `id, email, full_name, pronouns, bio, disciplines, headshot_url,
-       headshot_consent, geographic_area, city, resumes, resume_data,
-       mentorship_offering, mentorship_seeking,
-       playable_age_min, playable_age_max, languages, unions,
-       instagram_handle, facebook_url, tiktok_handle, linkedin_url,
-       twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
-       created_at`,
-    )
-    .eq("status", "pending_review")
-    .eq("email_verified", true)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return { submissions: data ?? [] };
+  const [submissionsRes, callboardCountRes, orgsCountRes] = await Promise.all([
+    supabaseAdmin
+      .from("pending_submissions")
+      .select(
+        `id, email, full_name, pronouns, bio, disciplines, headshot_url,
+         headshot_consent, geographic_area, city, resumes, resume_data,
+         mentorship_offering, mentorship_seeking,
+         playable_age_min, playable_age_max, languages, unions,
+         instagram_handle, facebook_url, tiktok_handle, linkedin_url,
+         twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
+         created_at`,
+      )
+      .eq("status", "pending_review")
+      .eq("email_verified", true)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("callboard_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending_review")
+      .is("deleted_at", null),
+    supabaseAdmin
+      .from("verified_orgs")
+      .select("*", { count: "exact", head: true })
+      .eq("verified", false)
+      .is("deleted_at", null),
+  ]);
+  if (submissionsRes.error) throw submissionsRes.error;
+  return {
+    submissions: submissionsRes.data ?? [],
+    callboardPendingCount: callboardCountRes.count ?? 0,
+    orgsPendingCount: orgsCountRes.count ?? 0,
+  };
 };
 
 export const actions: Actions = {

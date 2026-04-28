@@ -41,6 +41,22 @@
     {data.submissions.length}
     {data.submissions.length === 1 ? "submission" : "submissions"} waiting.
   </p>
+  {#if data.callboardPendingCount > 0}
+    <div class="queue-notice">
+      <a href="/admin/callboard?status=pending_review" class="queue-notice-link">
+        {data.callboardPendingCount} callboard
+        {data.callboardPendingCount === 1 ? "post" : "posts"} pending review &rarr;
+      </a>
+    </div>
+  {/if}
+  {#if data.orgsPendingCount > 0}
+    <div class="queue-notice">
+      <a href="/admin/orgs?verified=0" class="queue-notice-link">
+        {data.orgsPendingCount} organization
+        {data.orgsPendingCount === 1 ? "application" : "applications"} pending &rarr;
+      </a>
+    </div>
+  {/if}
   {#if form?.error}
     <div class="form-error" role="alert">{form.error}</div>
   {/if}
