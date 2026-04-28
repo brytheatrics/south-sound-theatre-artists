@@ -101,7 +101,46 @@
   .h1-display { margin: 0.5rem 0 0.25rem; }
   .lede { font-family: var(--font-accent); font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 1rem; }
   .card { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius-lg); margin-bottom: 1rem; max-width: 760px; }
-  .check { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; color: var(--ink); cursor: pointer; }
+
+  /* Unified checkbox styling: accent-tinted fill when checked, square
+     edges and a consistent size, so the toggles + per-row picks read as
+     one visual family across the page. */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin: 0;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--bg);
+    cursor: pointer;
+    display: inline-grid;
+    place-content: center;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  input[type="checkbox"]:hover {
+    border-color: var(--ink);
+  }
+  input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  input[type="checkbox"]:checked::after {
+    content: "";
+    width: 9px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .check { display: flex; align-items: center; gap: 10px; font-family: var(--font-body); font-size: 14px; color: var(--ink); cursor: pointer; }
   .check strong { font-weight: 600; }
   .hint { font-size: 12.5px; color: var(--muted); margin: -4px 0 0; line-height: 1.45; }
   .rule { border: 0; border-top: 1px solid var(--rule-soft); margin: 0.25rem 0; }
