@@ -6,13 +6,17 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 
 ## Status (as of 2026-04-28)
 
-**v1: feature-complete.** All 22 build steps shipped end-to-end (steps 1-22 below). Trust system upgraded mid-stream so untrusted profiles' major edits queue in `flagged_edits` for admin review. Cron jobs (steps 23-27) deferred to launch prep; **only the Supabase keepalive cron has shipped** (`.github/workflows/keepalive.yml`) — needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` GitHub secrets.
+**v1: feature-complete.** All 22 build steps shipped end-to-end (steps 1-22 below). Trust system upgraded mid-stream so untrusted profiles' major edits queue in `flagged_edits` for admin review.
 
 **v1.1: complete.** Structured resume builder, multi-PDF upload (with pre-upload contact-info warning modal), mentorship offering + seeking with directory-lens filter, analytics (GoatCounter, gated on `PUBLIC_GOATCOUNTER_CODE`), Share-profile button. **QR codes intentionally skipped** in favour of Web Share API. **PDF parsing/column-mapper not built** — folded into the redaction tooling discussion (see "Maybe later").
 
-**Active: v1.2 callboard.** No code yet, but data model placeholders exist on this page below.
+**v1.2: complete.** Public callboard list / detail / submit pages, admin moderation queue, verified-org application + approval flow, email-verify gate on submissions, auto-expire of stale posts, productions table populated as a side-effect of approving audition / production posts, opt-in weekly digest with one-click unsubscribe, resource library (admin-managed link list at `/resources`), homepage marquee that pulls from the callboard with admin-controlled cycle-all + per-post picker.
 
-**Blocked on real-world info:** domain access (needed for Resend domain verification, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing). Cron jobs except keepalive still pending. ADMIN_GUIDE.md deferred until closer to launch so Lexi can drive notes from real use.
+**Cron jobs: 5 of 5 shipped.** Supabase keepalive (`keepalive.yml`), daily admin digest (`admin-daily-digest.yml`), email volume alert at 70% / 90% (`email-volume-alert.yml`), weekly callboard digest (`callboard-weekly-digest.yml`), and weekly Supabase JSON backup (`backup.yml`). Stale profile cleanup (`stale-profile-cleanup.yml`) handles the 18-month "still active?" ping plus the 30-day soft-delete trash sweep. All require their respective GitHub Actions secrets to start running; the keepalive needs only `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, the email crons add `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `ADMIN_EMAIL` / `PUBLIC_SITE_URL`, and the backup needs a separate private repo plus a fine-grained PAT.
+
+**Admin polish layer (mid-2026-04-28 sessions):** sidebar reorder + visual grouping of tabs, attention badges on every queue tab driven by a single layout server load, homepage marquee admin tab with checkbox picker + cycle-all toggle, smoothed CSS transform for the marquee animation. Admin sidebar order now mirrors how Lexi works through the day (review queues -> directory -> homepage -> copy -> config).
+
+**Blocked on real-world info:** domain access (needed for Resend domain verification, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing). ADMIN_GUIDE.md deferred until closer to launch so Lexi can drive notes from real use. Backup cron lives in the repo but no-ops cleanly until `BACKUP_REPO` + `BACKUP_REPO_TOKEN` secrets point at a private snapshot repo.
 
 ---
 
@@ -68,10 +72,12 @@ Rate limiting: 5 password attempts per IP per 15 minutes on the admin login endp
 | `unions` | Reference list with descriptions |
 | `admin_sessions` | Admin login sessions (token_hash, expires_at, last_used_at) |
 | `admin_login_attempts` | Rate-limit tracking (5 fails / 15 min / IP) |
-| `productions` | Shows extracted from approved callboard posts (v1.2+) |
-| `callboard_posts` | Audition notices, etc. (v1.2+) |
-| `verified_orgs` | Approved theatre organizations (v1.2+) |
-| `notification_subscriptions` | Artist opt-ins for weekly digest by discipline (v1.2+) |
+| `productions` | Shows extracted from approved callboard posts (v1.2). Populated as a side-effect of approving audition / production posts in either admin or verified-org auto-publish path |
+| `callboard_posts` | Audition notices, designer / crew calls, production announcements, general opportunities (v1.2). Email-verify token + status workflow same as pending_submissions |
+| `verified_orgs` | Approved theatre organizations (v1.2). Posts from a verified org skip the admin queue and go live straight from the email-verify step |
+| `callboard_subscriptions` | Opt-in weekly digest. `subscriber_email` unique, `disciplines` text[], `post_types` text[], `last_digest_at`, `unsubscribed_at`, per-row `unsubscribe_token` for one-click links (v1.2) |
+| `marquee_settings` | Single-row config for the homepage scrolling ticker. `enabled`, `include_all_callboard`, `include_callboard_post_ids`. Admin-edited at `/admin/marquee` (v1.2) |
+| `resources` + `resource_categories` | Curated link library at `/resources`. Soft-deleted with `deleted_at`; admin manages from `/admin/resources` (v1.2) |
 
 All tables include `created_at`, `updated_at`. Soft-deleted rows have `deleted_at` set; a daily cron hard-deletes rows where `deleted_at` is older than 30 days.
 
@@ -117,18 +123,23 @@ The minimum viable site: artists submit, get approved, edit, get contacted. Laun
 - ❌ **Profile QR code.** Skipped. Replaced with a Share button (`navigator.share` on mobile, clipboard fallback on desktop).
 - ✅ **Analytics: GoatCounter.** Drop-in script, gated on `PUBLIC_GOATCOUNTER_CODE`. Public routes only - skips `/admin/*` and `/edit/*`. "View analytics" pill in the public nav opens the GoatCounter dashboard in a new tab when an admin session is active.
 
-### v1.2 - Callboard + Notification opt-ins + Productions data (active)
+### v1.2 - Callboard + Notification opt-ins + Productions data (shipped)
 Adds the second product surface and the data foundation for v1.3.
 
-- Callboard public page (filterable by post type)
-- Public callboard submission form (with email verification for unverified posters)
-- Admin callboard management (approve unverified posts, remove any post)
-- Verified theatre organization application + approval flow
-- Verified-org callboard posts go live immediately without per-post approval
-- Auto-unpublish posts after audition / closing date
-- Opt-in weekly digest of matching callboard posts (Sunday evening, skip empty weeks)
-- `productions` table populated from approved callboard posts as a side effect
-- Resource library (curated links, content-managed by admin)
+- ✅ Callboard public page (filterable by post type, list + cards views)
+- ✅ Public callboard submission form (with email verification for unverified posters)
+- ✅ Admin callboard management (approve / reject / soft-delete with trash)
+- ✅ Verified theatre organization application + approval flow (`/callboard/apply-verified`, `/admin/orgs`)
+- ✅ Verified-org callboard posts go live immediately without per-post approval
+- ✅ Auto-unpublish posts after audition / closing date (lazy on page load)
+- ✅ Opt-in weekly digest with per-row unsubscribe token (`callboard_subscriptions` + edit-page toggle + Sunday-evening cron)
+- ✅ `productions` table populated from approved audition / production posts at both approve paths (admin queue + verified-org auto-publish)
+- ✅ Resource library (`/resources`, `/admin/resources`, categories + soft-delete + sort_order)
+
+**Side additions during v1.2:**
+- Homepage marquee fed by callboard (`/admin/marquee` with cycle-all toggle + checkbox picker)
+- Admin sidebar reorder + visual grouping + attention badges
+- Padding / alignment polish across the new callboard pages
 
 **Patterns to mirror from v1:**
 - Submit flow: same email-verification gate as `pending_submissions` (see `src/routes/submit/`)
@@ -225,7 +236,19 @@ These make later phases cheap to add. Bake them into v1 even when the immediate 
 - Email Blocklist
 - Settings (admin contact email, daily digest preference)
 
-**v1.2 adds:** Callboard Management, Verified Organizations.
+**v1.2 adds:** Callboard Management, Verified Organizations, Homepage marquee, Resource library.
+
+**Admin sidebar groupings (post-v1.2 reorder):**
+
+1. Review queue (Pending / Edit review / Reports / Callboard / Organizations) - badged with attention counts
+2. Directory (All profiles)
+3. Homepage curation (Announcement / Featured / Homepage marquee)
+4. Site copy (Site content / Resources / Email templates)
+5. Config (Disciplines / Blocklist)
+
+A `group: true` flag on the first item of each section draws a thin
+hairline rule above it so the chunks read as scannable blocks
+without spending a row on category labels.
 
 **Editor UX:** markdown + toolbar (Bold / Italic / Link / List / Heading / Image-upload). Live preview pane alongside. Image button uploads to Cloudinary and inserts the markdown image syntax automatically. Email templates show a variable-placeholder sidebar.
 

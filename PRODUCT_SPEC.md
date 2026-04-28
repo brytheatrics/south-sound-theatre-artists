@@ -10,11 +10,13 @@ This document describes the full scope of a community website for South Sound th
 
 **v1.1: shipped.** Structured resume builder (`resume_data` jsonb, three sections), multi-PDF resume upload (`resumes` jsonb array with pre-upload contact-info warning), mentorship offering + seeking with directory-lens filter, GoatCounter analytics gated on `PUBLIC_GOATCOUNTER_CODE`, Share-profile button. **PDF parsing / column-mapper cut.** **QR code skipped** in favour of Share button.
 
-**v1.2 callboard: not started.** Active phase. Patterns to mirror are documented in BUILD_PLAN.
+**v1.2: shipped.** Public callboard with list / card views and filters, public submit flow with email verification, admin callboard moderation + soft-delete trash, verified theatre organization application + admin approval, verified-org posts auto-publish on email verify, productions table populated automatically from approved audition / production posts, opt-in weekly digest with one-click unsubscribe (controlled from the magic-link edit page), resource library (`/resources` + `/admin/resources` + nav link), homepage marquee fed by callboard with admin-controlled cycle-all + per-post picker.
+
+**Cron jobs: 5 of 5 shipped.** Supabase keepalive, daily admin digest (only emails when something is queued), email volume alert at 70% / 90% of the Resend cap, weekly callboard digest, weekly Supabase JSON backup pushed to a separate private repo, stale profile cleanup (18 month "still active?" ping plus 30-day soft-delete trash sweep). All as GitHub Actions; see `.github/workflows/`.
 
 **Launch ops outstanding:**
-- Cron jobs except keepalive (digest, volume alert, backup, stale-cleanup)
 - `ADMIN_GUIDE.md` (deferred until close to launch so Lexi can drive notes)
+- Backup repo + PAT (the cron lives in the workflow file but no-ops cleanly until secrets are set)
 - Domain-blocked items: Resend domain verify, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing, Gmail Send-As
 
 **See also:**

@@ -362,22 +362,126 @@ Resolved since the last run-through:
 
 ---
 
+## v1.2 manual checks (done 2026-04-28)
+
+### Callboard public surface
+
+- [x] `/callboard` renders 7 seeded posts with proper page padding,
+      filter strip, secondary toolbar (View / Sort / Verified-only,
+      all left-aligned to mirror /directory), closing-this-week strip,
+      list + card views.
+- [x] Filter chips narrow by post type; verified-only toggle filters
+      to posts with `verified_org_id`.
+- [x] Detail pages at `/callboard/[id]` render with proper gutters
+      desktop + mobile.
+- [x] Submit form at `/callboard/submit` aligns at desktop (required
+      `*` was wrapping below labels - fixed by removing
+      `flex-direction: column` from `.label`). 2-up rows use
+      `align-items: end` so inputs line up when one field has a
+      label-hint and the other doesn't.
+
+### Callboard moderation
+
+- [x] Admin callboard page shows pending / approved / rejected lists.
+      Approve sets status=approved, published=true, and inserts a
+      productions row for audition / production types.
+- [x] Verified-org posts auto-publish on email-verify token click;
+      productions row inserted from the same code path.
+- [x] Admin trash retention is 30 days (sweep happens in stale
+      profile cleanup cron).
+
+### Callboard subscriptions + weekly digest
+
+- [x] Edit page (`/edit/[token]`) has a "Send me a weekly callboard
+      digest" toggle. Toggling on creates / re-activates a row in
+      `callboard_subscriptions` keyed on the profile's email and
+      seeds disciplines from the profile.
+- [x] Toggling off stamps `unsubscribed_at` without deleting the row.
+- [x] `scripts/callboard-weekly-digest.mjs` runs locally, pulls
+      matching new posts since last_digest_at, sends one email per
+      subscriber with content, skips those with nothing new.
+- [x] `/callboard/unsubscribe/[token]` honors the one-click
+      unsubscribe link from digest emails.
+
+### Resource library
+
+- [x] `/resources` renders an empty state when nothing's curated.
+- [x] `/admin/resources` exposes both Add-resource and Add-category
+      forms, plus inline edit cards for existing entries.
+- [x] Soft-delete on resource removal; ON DELETE SET NULL on
+      categories so resources survive a category deletion as
+      "Uncategorized".
+- [x] "Resources" appears in the public Nav (between Callboard and
+      About) and in the admin sidebar Site copy group.
+
+### Homepage marquee
+
+- [x] `/admin/marquee` toggle "Show marquee on the homepage" hides /
+      shows the ticker entirely.
+- [x] "Cycle through all open callboard posts" toggle. When off, a
+      checkbox picker lists all approved + published posts.
+- [x] Custom checkbox styling matches the rest of the site (16px,
+      accent fill + white check).
+- [x] Homepage marquee renders real callboard items as `<a>` links
+      to `/callboard/[id]`. Production posts get the ★ glyph,
+      everything else gets ✦.
+- [x] Animation uses translate3d + GPU compositing + CSS-only :hover
+      pause for smoother motion. `prefers-reduced-motion: reduce`
+      halts the animation entirely.
+
+### Admin sidebar polish
+
+- [x] Tabs grouped: Review queue (top, where badges live), Directory,
+      Homepage curation, Site copy, Config. Hairline rules between
+      groups using `--rule` (visible) rather than `--rule-soft`.
+- [x] Attention badges on Pending queue / Edit review / Reports /
+      Callboard / Organizations driven by a single layout server
+      load. Counts cap at "99+".
+- [x] Mobile (horizontal wrap) suppresses the group separators.
+
+### Cron smoke tests (2026-04-28)
+
+- [x] `node scripts/admin-daily-digest.mjs` - sent the digest email
+      because Pending queue had 1 item; subject and body rendered
+      from the `admin_daily_digest` template.
+- [x] `node scripts/email-volume-alert.mjs` - exited with "Below 70%
+      threshold (sent=19/3000, 0%)". No alert sent.
+- [x] `node scripts/stale-profile-cleanup.mjs` - 0 pinged / 0
+      archived / 0 purged (no profiles old enough).
+- [x] `node scripts/callboard-weekly-digest.mjs` - 0 subs, 0 sent,
+      no errors.
+- [x] `node scripts/backup-tables.mjs` - dumped 21 tables (251 rows)
+      to JSON files.
+
+---
+
 ## What I didn't build
 
-- **Step 23-27 crons** except Supabase keepalive (which ships in
-  `.github/workflows/keepalive.yml` and just needs `SUPABASE_URL` +
-  `SUPABASE_SERVICE_ROLE_KEY` GitHub Actions secrets to start
-  running). Daily admin digest, email volume alert, weekly backup,
-  stale profile cleanup all still pending.
-- **Step 28 ADMIN_GUIDE.md** - deferred until closer to launch so
-  Lexi can drive notes from real use.
-- **Step 29 Cloudflare Email Routing setup doc** - blocked on domain
-  access.
+- **ADMIN_GUIDE.md** - deferred until closer to launch so Lexi can
+  drive notes from real use.
+- **Cloudflare Email Routing setup doc** - blocked on domain access.
 - **PDF parsing / column mapper** (was in v1.1 spec) - cut. Folded
   into the redaction tooling discussion (BUILD_PLAN "Maybe later").
 - **PDF redaction tooling** - parked in BUILD_PLAN "Maybe later"
   with mockup notes.
 - **Profile QR code** - skipped in favour of the Share button.
+
+### Crons that ship but need secrets to actually run
+
+- **Daily admin digest** - needs `SUPABASE_DB_URL`, `RESEND_API_KEY`,
+  `RESEND_FROM_EMAIL`, `ADMIN_EMAIL`, `PUBLIC_SITE_URL` as GitHub
+  Actions repo secrets.
+- **Email volume alert** - same secrets minus `PUBLIC_SITE_URL`.
+- **Stale profile cleanup** - same as daily digest.
+- **Weekly callboard digest** - same as daily digest minus
+  `ADMIN_EMAIL`.
+- **Weekly backup** - needs `SUPABASE_DB_URL`, plus `BACKUP_REPO`
+  ("owner/repo") + `BACKUP_REPO_TOKEN` (fine-grained PAT with
+  contents:write on that separate private repo). The workflow no-ops
+  cleanly when `BACKUP_REPO` / `BACKUP_REPO_TOKEN` are unset, so
+  it's safe to leave merged before the target repo exists.
+- **Supabase keepalive** - needs `SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY`.
 
 ---
 

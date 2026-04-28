@@ -10,8 +10,8 @@ A free community web platform for South Sound (Tacoma/Olympia/Gig Harbor) theatr
 - **`TEST_CHECKLIST.md`** - manual test results for v1 + v1.1, known shortcuts, things still to verify.
 
 ### Current state (2026-04-28)
-- v1 (directory + admin) and v1.1 (resumes / mentorship / analytics) are shipped and tested.
-- v1.2 callboard is the active phase.
+- v1 (directory + admin), v1.1 (resumes / mentorship / analytics), and v1.2 (callboard / resources / weekly digest / homepage marquee) are all shipped.
+- All five cron workflows live under `.github/workflows/` (keepalive, daily admin digest, email volume alert, weekly callboard digest, weekly backup, stale profile cleanup). They no-op or require secrets to run; see TEST_CHECKLIST for the secret list.
 - See `BUILD_PLAN.md` "Status" header for the full breakdown.
 
 ## Local Development
@@ -88,17 +88,38 @@ Profiles, additions over the v1 baseline:
 - `resumes` (jsonb array of `{label, url}`) - multiple PDF resumes per artist, capped at 20
 - `resume_data` (jsonb, `{credits, training, skills}` arrays of typed objects) - structured resume builder
 - `mentorship_offering`, `mentorship_seeking` (text arrays) - both indexed (GIN) for the directory's mentorship lens
+- `stale_pinged_at` (timestamptz, nullable) - drives the 18-month "still active?" cron pipeline (mig 031)
+
+v1.2 adds (callboard surface):
+- `callboard_posts`, `verified_orgs`, `productions` (mig 025)
+- `marquee_settings` - single row (id check enforces id=1) controlling the homepage ticker (mig 029)
+- `callboard_subscriptions` - opt-in weekly digest, with per-row `unsubscribe_token` for one-click links (migs 032 + 033)
+- `resources` + `resource_categories` - admin-managed link library (mig 034)
 
 `flagged_edits` lives in `001_init.sql` (one row per submission, `proposed_changes jsonb`). Rejected status uses `rejection_reason` text.
 
-`magic_link_tokens` doubles for both edit-profile (24h) and admin 2FA (10 min).
+`magic_link_tokens` doubles for both edit-profile (24h) and admin 2FA (10 min). Stale-cleanup cron also issues edit tokens with a 30-day TTL when pinging long-quiet profiles.
 
 Reference tables (admin-editable):
 - `disciplines` + `discipline_categories` - many-to-one
 - `areas` (with `description` for hover tooltips)
 - `unions` (with descriptions)
+- `resource_categories` - sortable groups for the resource library
 
-Soft-delete pattern: `deleted_at` column. Profiles with `deleted_at IS NOT NULL` live in `/admin/profiles/trash` for 30 days, then hard-deleted by a future cron (not yet shipped).
+Soft-delete pattern: `deleted_at` column. The stale-cleanup cron handles the 30-day hard-purge sweep across `profiles`, `callboard_posts`, and `verified_orgs`.
+
+## Cron jobs
+
+All under `.github/workflows/`. Shared infrastructure in `scripts/_lib/cron.mjs` (pg client + sendCronEmail wrapper that mirrors `lib/server/email.ts` behavior). Each script is a standalone `node scripts/<name>.mjs` so it can be run locally for smoke-tests.
+
+| Workflow | Schedule | Sends? |
+|---|---|---|
+| `keepalive.yml` | every 3 days at 12:00 UTC | no |
+| `admin-daily-digest.yml` | 15:00 UTC daily | only when queue is non-empty |
+| `email-volume-alert.yml` | 16:00 UTC daily | once at 70%, again at 90% |
+| `stale-profile-cleanup.yml` | 17:00 UTC Mondays | one ping per stale profile |
+| `callboard-weekly-digest.yml` | 01:00 UTC Mondays (Sun PT) | per-subscriber, skips empty weeks |
+| `backup.yml` | 18:00 UTC Sundays | no email; pushes JSON to a separate private repo |
 
 ## Data Locations
 
