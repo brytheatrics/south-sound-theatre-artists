@@ -170,6 +170,19 @@
 
   <div class="filter-block">
     <span class="block-label">Discipline</span>
+    {#if mentoring && learning}
+      <span class="block-hint">
+        Filtering by disciplines artists are interested in mentoring or learning.
+      </span>
+    {:else if mentoring}
+      <span class="block-hint">
+        Filtering by disciplines artists can <strong>mentor in</strong>.
+      </span>
+    {:else if learning}
+      <span class="block-hint">
+        Filtering by disciplines artists <strong>want to learn</strong>.
+      </span>
+    {/if}
     <DisciplinePicker
       items={data.options.disciplines}
       categoryOrder={data.options.disciplineCategories}
@@ -493,6 +506,18 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--muted);
+  }
+  .block-hint {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: -4px 0 4px;
+  }
+  .block-hint strong {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--ink);
   }
   .chip-row {
     display: flex;

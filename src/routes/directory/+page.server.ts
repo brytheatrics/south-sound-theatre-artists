@@ -42,8 +42,24 @@ export const load: PageServerLoad = async ({ url }) => {
       // ilike against the name. Slug match too so direct URLs find each other.
       q2 = q2.or(`full_name.ilike.%${q}%,slug.ilike.%${q}%`);
     }
+    // Discipline picker doubles as a mentorship lens: when a mentorship
+    // chip is on, the picker narrows by the matching mentorship array
+    // instead of the artist's own disciplines. Both chips together OR
+    // the two arrays so "anyone interested in mentorship around X" works.
     if (disciplines.length > 0) {
-      q2 = q2.overlaps("disciplines", disciplines);
+      if (mentoring && learning) {
+        // Postgrest .or() takes a comma-separated string. Use cs (contains
+        // any) per array.
+        const offer = `mentorship_offering.ov.{${disciplines.map((d) => `"${d.replace(/"/g, '\\"')}"`).join(",")}}`;
+        const seek = `mentorship_seeking.ov.{${disciplines.map((d) => `"${d.replace(/"/g, '\\"')}"`).join(",")}}`;
+        q2 = q2.or(`${offer},${seek}`);
+      } else if (mentoring) {
+        q2 = q2.overlaps("mentorship_offering", disciplines);
+      } else if (learning) {
+        q2 = q2.overlaps("mentorship_seeking", disciplines);
+      } else {
+        q2 = q2.overlaps("disciplines", disciplines);
+      }
     }
     if (unions.length > 0) {
       q2 = q2.overlaps("unions", unions);
