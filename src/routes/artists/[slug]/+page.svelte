@@ -29,6 +29,20 @@
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
 
   let showContact = $state(false);
+
+  // Build a click-through URL from a handle. Handles can be entered as
+  // either @name or name; the platform's own URL format normalises it.
+  function handleUrl(platform: "instagram" | "tiktok" | "twitter", handle: string): string {
+    const h = handle.replace(/^@+/, "").trim();
+    switch (platform) {
+      case "instagram":
+        return `https://instagram.com/${h}`;
+      case "tiktok":
+        return `https://tiktok.com/@${h}`;
+      case "twitter":
+        return `https://x.com/${h}`;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -97,12 +111,30 @@
       {#if p.instagram_handle || p.facebook_url || p.tiktok_handle || p.linkedin_url || p.twitter_handle || p.youtube_url}
         <span class="eyebrow"><span class="num">02</span>Find them online</span>
         <ul class="socials">
-          {#if p.instagram_handle}<li>Instagram · <span>{p.instagram_handle}</span></li>{/if}
-          {#if p.tiktok_handle}<li>TikTok · <span>{p.tiktok_handle}</span></li>{/if}
-          {#if p.twitter_handle}<li>X / Twitter · <span>{p.twitter_handle}</span></li>{/if}
-          {#if p.facebook_url}<li><a href={p.facebook_url} target="_blank" rel="noopener">Facebook ↗</a></li>{/if}
-          {#if p.linkedin_url}<li><a href={p.linkedin_url} target="_blank" rel="noopener">LinkedIn ↗</a></li>{/if}
-          {#if p.youtube_url}<li><a href={p.youtube_url} target="_blank" rel="noopener">YouTube ↗</a></li>{/if}
+          {#if p.instagram_handle}
+            <li><a href={handleUrl("instagram", p.instagram_handle)} target="_blank" rel="noopener">
+              Instagram <span class="handle">{p.instagram_handle}</span> <span aria-hidden="true">↗</span>
+            </a></li>
+          {/if}
+          {#if p.tiktok_handle}
+            <li><a href={handleUrl("tiktok", p.tiktok_handle)} target="_blank" rel="noopener">
+              TikTok <span class="handle">{p.tiktok_handle}</span> <span aria-hidden="true">↗</span>
+            </a></li>
+          {/if}
+          {#if p.twitter_handle}
+            <li><a href={handleUrl("twitter", p.twitter_handle)} target="_blank" rel="noopener">
+              X / Twitter <span class="handle">{p.twitter_handle}</span> <span aria-hidden="true">↗</span>
+            </a></li>
+          {/if}
+          {#if p.facebook_url}
+            <li><a href={p.facebook_url} target="_blank" rel="noopener">Facebook <span aria-hidden="true">↗</span></a></li>
+          {/if}
+          {#if p.linkedin_url}
+            <li><a href={p.linkedin_url} target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
+          {/if}
+          {#if p.youtube_url}
+            <li><a href={p.youtube_url} target="_blank" rel="noopener">YouTube <span aria-hidden="true">↗</span></a></li>
+          {/if}
         </ul>
       {/if}
     </div>
@@ -110,12 +142,36 @@
     <aside class="side">
       <span class="eyebrow"><span class="num">·</span>At a glance</span>
       <dl class="kv">
-        <dt>Disciplines</dt><dd>{p.disciplines.join(", ")}</dd>
-        {#if p.geographic_area}<dt>Area</dt><dd>{p.geographic_area}</dd>{/if}
-        {#if playable}<dt>Playable age</dt><dd>{playable}</dd>{/if}
-        {#if p.languages.length > 0}<dt>Languages</dt><dd>{p.languages.join(", ")}</dd>{/if}
-        {#if p.unions.length > 0}<dt>Unions</dt><dd>{p.unions.join(", ")}</dd>{/if}
-        {#if p.ethnicities.length > 0}<dt>Ethnicity</dt><dd>{p.ethnicities.join(", ")}</dd>{/if}
+        <dt>Disciplines</dt>
+        <dd class="kv-chips">
+          {#each p.disciplines as d}<span class="kv-chip">{d}</span>{/each}
+        </dd>
+
+        {#if p.geographic_area}
+          <dt>Area</dt><dd>{p.geographic_area}</dd>
+        {/if}
+        {#if playable}
+          <dt>Playable age</dt><dd>{playable}</dd>
+        {/if}
+
+        {#if p.languages.length > 0}
+          <dt>Languages</dt>
+          <dd class="kv-chips">
+            {#each p.languages as l}<span class="kv-chip subtle">{l}</span>{/each}
+          </dd>
+        {/if}
+        {#if p.unions.length > 0}
+          <dt>Unions</dt>
+          <dd class="kv-chips">
+            {#each p.unions as u}<span class="kv-chip">{u}</span>{/each}
+          </dd>
+        {/if}
+        {#if p.ethnicities.length > 0}
+          <dt>Ethnicity</dt>
+          <dd class="kv-chips">
+            {#each p.ethnicities as e}<span class="kv-chip subtle">{e}</span>{/each}
+          </dd>
+        {/if}
       </dl>
 
       <p class="report-note">
@@ -342,17 +398,34 @@
     margin: 0;
     padding: 0;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: 6px;
     font-family: var(--font-body);
-    font-size: 14px;
-    color: var(--ink-soft);
+    font-size: 13px;
   }
-  .socials span {
-    color: var(--ink);
+  .socials li {
+    display: inline-flex;
   }
   .socials a {
-    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    text-decoration: none;
+    background: var(--bg-raised);
+    line-height: 1.2;
+  }
+  .socials a:hover {
+    border-color: var(--ink);
+    background: var(--paper);
+    text-decoration: none;
+  }
+  .socials .handle {
+    color: var(--muted);
+    font-size: 12px;
   }
 
   .side {
@@ -364,9 +437,9 @@
     border-radius: var(--radius-lg);
   }
   .kv {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 6px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     margin: 0;
   }
   .kv dt {
@@ -375,12 +448,34 @@
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--muted);
-    margin: 0;
+    margin: 0 0 4px;
   }
   .kv dd {
     margin: 0;
     color: var(--ink);
     font-size: 14px;
+    line-height: 1.4;
+  }
+  .kv-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .kv-chip {
+    display: inline-flex;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .kv-chip.subtle {
+    background: transparent;
+    color: var(--ink-soft);
+    border-style: dashed;
   }
   .report-note {
     margin: 1rem 0 0;
