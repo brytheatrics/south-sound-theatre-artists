@@ -31,6 +31,12 @@
   let resumes = $state<Array<{ label: string; url: string }>>(
     Array.isArray(p.resumes) ? p.resumes : [],
   );
+  let mentorshipOffering = $state<Set<string>>(
+    new Set(p.mentorship_offering ?? []),
+  );
+  let mentorshipSeeking = $state<Set<string>>(
+    new Set(p.mentorship_seeking ?? []),
+  );
   let resumeData = $state<ResumeData>(
     p.resume_data && typeof p.resume_data === "object"
       ? {
@@ -185,6 +191,32 @@
     <h2 class="block-h">Headshot</h2>
     <HeadshotUpload bind:value={headshotUrl} />
     <input type="hidden" name="headshot_url" value={headshotUrl} />
+  </section>
+
+  <section class="row">
+    <h2 class="block-h">Mentorship</h2>
+    <p style="margin: 0; font-family: var(--font-body); font-size: 13px; color: var(--muted);">
+      Open to mentoring in
+    </p>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={mentorshipOffering}
+      onToggle={(n) => (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+      inputName="mentorship_offering"
+      showOtherInput={false}
+    />
+    <p style="margin: 0.5rem 0 0; font-family: var(--font-body); font-size: 13px; color: var(--muted);">
+      Looking to learn
+    </p>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={mentorshipSeeking}
+      onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+      inputName="mentorship_seeking"
+      showOtherInput={false}
+    />
   </section>
 
   <section class="row">

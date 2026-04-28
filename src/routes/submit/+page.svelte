@@ -44,6 +44,8 @@
     ethnicityOther?: string;
     resumes?: Array<{ label: string; url: string }>;
     resumeData?: ResumeData;
+    mentorshipOffering?: string[];
+    mentorshipSeeking?: string[];
   };
   // svelte-ignore state_referenced_locally
   const v: FormValues = (form?.values ?? {}) as FormValues;
@@ -78,6 +80,12 @@
   let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
   let resumeData = $state<ResumeData>(
     v.resumeData ?? { credits: [], training: [], skills: [] },
+  );
+  let mentorshipOffering = $state<Set<string>>(
+    new Set(v.mentorshipOffering ?? []),
+  );
+  let mentorshipSeeking = $state<Set<string>>(
+    new Set(v.mentorshipSeeking ?? []),
   );
 
   $effect(() => {
@@ -262,6 +270,36 @@
         otherValue={disciplineOther}
         onOtherChange={(v) => (disciplineOther = v)}
         error={errors.disciplines}
+      />
+    </fieldset>
+
+    <fieldset>
+      <legend>Mentorship</legend>
+      <p class="hint">
+        Optional. Both directions are visible on your profile and the
+        directory has filters for either.
+      </p>
+
+      <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
+      <DisciplinePicker
+        items={data.disciplines}
+        categoryOrder={data.disciplineCategories}
+        selected={mentorshipOffering}
+        onToggle={(n) =>
+          (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+        inputName="mentorship_offering"
+        showOtherInput={false}
+      />
+
+      <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
+      <DisciplinePicker
+        items={data.disciplines}
+        categoryOrder={data.disciplineCategories}
+        selected={mentorshipSeeking}
+        onToggle={(n) =>
+          (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+        inputName="mentorship_seeking"
+        showOtherInput={false}
       />
     </fieldset>
 

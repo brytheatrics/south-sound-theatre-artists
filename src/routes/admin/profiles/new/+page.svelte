@@ -50,6 +50,8 @@
   let resumeData = $state<ResumeData>(
     v.resumeData ?? { credits: [], training: [], skills: [] },
   );
+  let mentorshipOffering = $state<Set<string>>(new Set());
+  let mentorshipSeeking = $state<Set<string>>(new Set());
   let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
@@ -75,6 +77,12 @@
     if (selectedDisciplines.has(name)) selectedDisciplines.delete(name);
     else selectedDisciplines.add(name);
     selectedDisciplines = new Set(selectedDisciplines);
+  }
+
+  function toggleSet(set: Set<string>, value: string): Set<string> {
+    if (set.has(value)) set.delete(value);
+    else set.add(value);
+    return new Set(set);
   }
 
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
@@ -145,6 +153,29 @@
         <span>The artist has confirmed rights to use this image.</span>
       </label>
     {/if}
+  </fieldset>
+
+  <fieldset>
+    <legend>Mentorship</legend>
+    <p class="hint">Optional. Mentoring offered + sought.</p>
+    <h3 class="field-label">Open to mentoring in</h3>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={mentorshipOffering}
+      onToggle={(n) => (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+      inputName="mentorship_offering"
+      showOtherInput={false}
+    />
+    <h3 class="field-label" style="margin-top: 0.75rem">Looking to learn</h3>
+    <DisciplinePicker
+      items={data.disciplines}
+      categoryOrder={data.disciplineCategories}
+      selected={mentorshipSeeking}
+      onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+      inputName="mentorship_seeking"
+      showOtherInput={false}
+    />
   </fieldset>
 
   <fieldset>

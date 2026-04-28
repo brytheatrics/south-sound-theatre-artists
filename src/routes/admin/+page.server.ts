@@ -18,6 +18,7 @@ export const load: PageServerLoad = async () => {
     .select(
       `id, email, full_name, pronouns, bio, disciplines, headshot_url,
        headshot_consent, geographic_area, city, resumes, resume_data,
+       mentorship_offering, mentorship_seeking,
        playable_age_min, playable_age_max, languages, unions,
        instagram_handle, facebook_url, tiktok_handle, linkedin_url,
        twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
@@ -104,6 +105,8 @@ async function approveOne(
       city: sub.city,
       resumes: sub.resumes ?? [],
       resume_data: sub.resume_data ?? {},
+      mentorship_offering: sub.mentorship_offering ?? [],
+      mentorship_seeking: sub.mentorship_seeking ?? [],
       playable_age_min: sub.playable_age_min,
       playable_age_max: sub.playable_age_max,
       languages: sub.languages,

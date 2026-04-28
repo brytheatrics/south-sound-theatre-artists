@@ -30,6 +30,12 @@
   let resumes = $state<Array<{ label: string; url: string }>>(
     Array.isArray(p.resumes) ? p.resumes : [],
   );
+  let mentorshipOffering = $state<Set<string>>(
+    new Set(p.mentorship_offering ?? []),
+  );
+  let mentorshipSeeking = $state<Set<string>>(
+    new Set(p.mentorship_seeking ?? []),
+  );
   let resumeData = $state<ResumeData>(
     p.resume_data && typeof p.resume_data === "object"
       ? {
@@ -182,6 +188,31 @@
         otherValue={disciplineOther}
         onOtherChange={(v) => (disciplineOther = v)}
         error={errors.disciplines}
+      />
+    </fieldset>
+
+    <fieldset>
+      <legend>Mentorship</legend>
+      <p class="hint">
+        Optional. Visible on your profile and filterable on the directory.
+      </p>
+      <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
+      <DisciplinePicker
+        items={data.disciplines}
+        categoryOrder={data.disciplineCategories}
+        selected={mentorshipOffering}
+        onToggle={(n) => (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+        inputName="mentorship_offering"
+        showOtherInput={false}
+      />
+      <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
+      <DisciplinePicker
+        items={data.disciplines}
+        categoryOrder={data.disciplineCategories}
+        selected={mentorshipSeeking}
+        onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+        inputName="mentorship_seeking"
+        showOtherInput={false}
       />
     </fieldset>
 

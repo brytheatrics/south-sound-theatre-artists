@@ -42,6 +42,10 @@
   /* svelte-ignore state_referenced_locally */
   let hasHeadshot = $state(data.filters.hasHeadshot);
   /* svelte-ignore state_referenced_locally */
+  let mentoring = $state(data.filters.mentoring);
+  /* svelte-ignore state_referenced_locally */
+  let learning = $state(data.filters.learning);
+  /* svelte-ignore state_referenced_locally */
   let ageMin = $state(data.filters.ageMin);
   /* svelte-ignore state_referenced_locally */
   let ageMax = $state(data.filters.ageMax);
@@ -83,6 +87,14 @@
     hasHeadshot = !hasHeadshot;
     submitNow();
   }
+  function toggleMentoring() {
+    mentoring = !mentoring;
+    submitNow();
+  }
+  function toggleLearning() {
+    learning = !learning;
+    submitNow();
+  }
   function setSort(value: typeof sortOptions[number]["value"]) {
     sort = value;
     // Defer so the hidden <input name="sort"> rerenders before submit.
@@ -96,6 +108,8 @@
     selectedAreas = new Set();
     language = "";
     hasHeadshot = false;
+    mentoring = false;
+    learning = false;
     ageMin = "";
     ageMax = "";
     setTimeout(submitNow, 0);
@@ -107,6 +121,8 @@
       selectedAreas.size +
       (language ? 1 : 0) +
       (hasHeadshot ? 1 : 0) +
+      (mentoring ? 1 : 0) +
+      (learning ? 1 : 0) +
       (ageMin || ageMax ? 1 : 0) +
       (q ? 1 : 0),
   );
@@ -212,6 +228,26 @@
           onchange={toggleHeadshot}
         />
         <span class="chip" class:on={hasHeadshot}>Has headshot</span>
+      </label>
+      <label class="chip-label">
+        <input
+          type="checkbox"
+          name="mentoring"
+          value="1"
+          checked={mentoring}
+          onchange={toggleMentoring}
+        />
+        <span class="chip" class:on={mentoring}>Open to mentoring</span>
+      </label>
+      <label class="chip-label">
+        <input
+          type="checkbox"
+          name="learning"
+          value="1"
+          checked={learning}
+          onchange={toggleLearning}
+        />
+        <span class="chip" class:on={learning}>Looking to learn</span>
       </label>
     </div>
   </div>

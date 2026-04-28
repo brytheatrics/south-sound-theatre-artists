@@ -140,6 +140,14 @@ export const actions: Actions = {
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
     const resumeData = parseResumeData(data.get("resume_data"));
+    const mentorshipOffering = data
+      .getAll("mentorship_offering")
+      .map(String)
+      .filter(Boolean);
+    const mentorshipSeeking = data
+      .getAll("mentorship_seeking")
+      .map(String)
+      .filter(Boolean);
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
@@ -261,6 +269,8 @@ export const actions: Actions = {
       twitter_handle: twitter || null,
       youtube_url: youtube || null,
       website_url: website || null,
+      mentorship_offering: mentorshipOffering,
+      mentorship_seeking: mentorshipSeeking,
     };
 
     // Trusted: every change applies. Untrusted: only minor fields apply

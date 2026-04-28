@@ -96,6 +96,8 @@ type Values = {
   ethnicityOther: string;
   resumes: Array<{ label: string; url: string }>;
   resumeData: ResumeData;
+  mentorshipOffering: string[];
+  mentorshipSeeking: string[];
 };
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
@@ -161,6 +163,14 @@ export const actions: Actions = {
       ethnicityOther: ((data.get("ethnicity_other") as string) ?? "").trim(),
       resumes: parseResumes(data.get("resumes")),
       resumeData: parseResumeData(data.get("resume_data")),
+      mentorshipOffering: data
+        .getAll("mentorship_offering")
+        .map(String)
+        .filter(Boolean),
+      mentorshipSeeking: data
+        .getAll("mentorship_seeking")
+        .map(String)
+        .filter(Boolean),
     };
 
     const errors: Record<string, string> = {};
@@ -291,6 +301,8 @@ export const actions: Actions = {
         city: values.city || null,
         resumes: values.resumes,
         resume_data: values.resumeData,
+        mentorship_offering: values.mentorshipOffering,
+        mentorship_seeking: values.mentorshipSeeking,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

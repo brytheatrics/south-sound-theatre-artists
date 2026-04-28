@@ -90,6 +90,14 @@ export const actions: Actions = {
     const resumesRaw = (data.get("resumes") as string) ?? "";
     const resumes = parseResumesJson(resumesRaw);
     const resumeData = parseResumeData(data.get("resume_data"));
+    const mentorshipOffering = data
+      .getAll("mentorship_offering")
+      .map(String)
+      .filter(Boolean);
+    const mentorshipSeeking = data
+      .getAll("mentorship_seeking")
+      .map(String)
+      .filter(Boolean);
     const disciplines = data.getAll("disciplines").map(String).filter(Boolean);
     const disciplineOther = ((data.get("discipline_other") as string) ?? "").trim();
     const publish = data.get("publish") !== "off";
@@ -159,6 +167,8 @@ export const actions: Actions = {
         city: city || null,
         resumes,
         resume_data: resumeData,
+        mentorship_offering: mentorshipOffering,
+        mentorship_seeking: mentorshipSeeking,
         published: publish,
       })
       .select("id, slug, full_name, email")

@@ -14,6 +14,8 @@ export const load: PageServerLoad = async ({ url }) => {
   const areas = params.getAll("area").filter(Boolean);
   const language = (params.get("lang") ?? "").trim();
   const hasHeadshot = params.get("headshot") === "1";
+  const mentoring = params.get("mentoring") === "1";
+  const learning = params.get("learning") === "1";
   const ageMinStr = params.get("ageMin") ?? "";
   const ageMaxStr = params.get("ageMax") ?? "";
   const sortParam = (params.get("sort") ?? "").trim();
@@ -54,6 +56,15 @@ export const load: PageServerLoad = async ({ url }) => {
     }
     if (hasHeadshot) {
       q2 = q2.not("headshot_url", "is", null);
+    }
+    // Mentorship filters: array_length > 0. PostgREST has no direct
+    // array-length operator, but `not.eq.{}` excludes the empty array
+    // sentinel that the column defaults to.
+    if (mentoring) {
+      q2 = q2.not("mentorship_offering", "eq", "{}");
+    }
+    if (learning) {
+      q2 = q2.not("mentorship_seeking", "eq", "{}");
     }
     return q2;
   };
@@ -124,6 +135,8 @@ export const load: PageServerLoad = async ({ url }) => {
       areas,
       language,
       hasHeadshot,
+      mentoring,
+      learning,
       ageMin: ageMinStr,
       ageMax: ageMaxStr,
       sort,

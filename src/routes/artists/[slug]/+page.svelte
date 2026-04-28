@@ -243,6 +243,19 @@
             {#each p.ethnicities as e}<span class="kv-chip subtle">{e}</span>{/each}
           </dd>
         {/if}
+
+        {#if p.mentorship_offering?.length > 0}
+          <dt>Mentoring in</dt>
+          <dd class="kv-chips">
+            {#each p.mentorship_offering as m}<span class="kv-chip">{m}</span>{/each}
+          </dd>
+        {/if}
+        {#if p.mentorship_seeking?.length > 0}
+          <dt>Looking to learn</dt>
+          <dd class="kv-chips">
+            {#each p.mentorship_seeking as m}<span class="kv-chip subtle">{m}</span>{/each}
+          </dd>
+        {/if}
       </dl>
 
       <p class="report-note">
