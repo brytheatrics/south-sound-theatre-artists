@@ -154,6 +154,7 @@
     color: var(--ink-soft);
     line-height: 1.55;
     margin: 0.5rem 0 0;
+    white-space: pre-line;
   }
   .actions {
     display: flex;

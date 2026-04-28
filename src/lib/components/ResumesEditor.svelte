@@ -7,6 +7,8 @@
   // hidden input as JSON so it survives the round-trip without needing
   // a separate field per row.
 
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
+
   export type Resume = { label: string; url: string };
 
   type Props = {
@@ -24,6 +26,10 @@
   let errorMessage = $state("");
   let pendingFileName = $state("");
   let inputRef: HTMLInputElement | undefined = $state();
+
+  // Confirmation modal: shows once per file pick to remind artists that
+  // public-directory PDFs typically expose phone / email at the top.
+  let pendingFile = $state<File | null>(null);
 
   function setLabel(i: number, label: string) {
     value = value.map((r, idx) => (idx === i ? { ...r, label } : r));
@@ -136,7 +142,37 @@
 
   function onChange(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) uploadFile(file);
+    if (!file) return;
+    // Pre-validate locally so the modal doesn't fire on obvious-fails.
+    const label = newLabel.trim();
+    if (!label) {
+      fail("Add a label first (e.g. Acting, Directing, Design).");
+      if (inputRef) inputRef.value = "";
+      return;
+    }
+    if (!isPdf(file)) {
+      fail("Resume must be a PDF.");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      fail(
+        `That file is ${formatBytes(file.size)} - the limit is ${formatBytes(MAX_BYTES)}. ` +
+          `Try compressing the PDF first.`,
+      );
+      return;
+    }
+    pendingFile = file;
+  }
+
+  function onCancelUpload() {
+    pendingFile = null;
+    if (inputRef) inputRef.value = "";
+  }
+
+  async function onConfirmUpload() {
+    const file = pendingFile;
+    pendingFile = null;
+    if (file) await uploadFile(file);
   }
 
   function isPdf(file: File): boolean {
@@ -221,6 +257,18 @@
   <!-- Hidden input the form serialises. The server JSON.parses it back. -->
   <input type="hidden" name="resumes" value={JSON.stringify(value)} />
 </div>
+
+<ConfirmModal
+  open={pendingFile !== null}
+  title="Heads up about your PDF"
+  body={`Theatre directories like ours are public, and most uploaded resumes have a phone number or email at the top. Your contact form already routes messages without revealing your email - consider removing those from the PDF before uploading. ` +
+    `\n\nUploading: ${pendingFile?.name ?? ""}`}
+  confirmLabel="I've checked it, upload"
+  cancelLabel="Cancel"
+  variant="warn"
+  onConfirm={onConfirmUpload}
+  onClose={onCancelUpload}
+/>
 
 <style>
   .resumes {
