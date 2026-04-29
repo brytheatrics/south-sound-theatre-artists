@@ -41,7 +41,16 @@ import pg from "pg";
 const { Client } = pg;
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const IMPORTS_DIR = "imports";
+// Optional --imports-dir <path> override for the source folder. Default
+// is ./imports/ in the repo. Use this to point at OneDrive / Desktop
+// folders without having to copy files around. Folders named "Template"
+// (case-insensitive) are skipped on the assumption that they're working
+// templates, not real submissions.
+const argDirIdx = process.argv.indexOf("--imports-dir");
+const IMPORTS_DIR =
+  argDirIdx >= 0 && process.argv[argDirIdx + 1]
+    ? process.argv[argDirIdx + 1]
+    : "imports";
 const RESULTS_CSV = join(IMPORTS_DIR, "_results.csv");
 const EDIT_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -76,6 +85,14 @@ const PDF_EXT = ".pdf";
 const DISCIPLINE_ALIASES = [
   // Performers
   { pattern: /\b(actor|actress|acting)\b/i, names: ["Actor"] },
+  // "performer" stands alone, "performed" / "performing" / "appeared"
+  // are verb-context for an actor. Catches bios that describe roles
+  // without ever using the word "actor" ("performed as Hamlet at...",
+  // "is a performer based in...", "appeared in dozens of productions").
+  { pattern: /\bperformer\b/i, names: ["Actor"] },
+  { pattern: /\bperformed\b/i, names: ["Actor"] },
+  { pattern: /\bperforming\b/i, names: ["Actor"] },
+  { pattern: /\bappeared (in|on|with|at)\b/i, names: ["Actor"] },
   { pattern: /\b(voice over|voice-over|voiceover|vo artist|voice actor)\b/i, names: ["Voice Actor"] },
   { pattern: /\b(singer|vocalist|singing)\b/i, names: ["Singer / Vocalist"] },
   { pattern: /\b(dancer|dancing)\b/i, names: ["Dancer"] },
@@ -88,9 +105,12 @@ const DISCIPLINE_ALIASES = [
   { pattern: /\b(puppeteer|puppetry)\b/i, names: ["Puppeteer"] },
   { pattern: /\b(deviser|devised theatre|devising)\b/i, names: ["Deviser"] },
 
-  // Direction / leadership
+  // Direction / leadership.
+  // Standalone "director" is too easy a false positive (it shows up
+  // inside "Marketing Director", "Music Director", "Director of X",
+  // etc.). Rely on verb forms ("directing" / "directed") and the
+  // multi-word patterns below to catch the right contexts.
   { pattern: /\b(directing|directed)\b/i, names: ["Director"] },
-  { pattern: /\b(\bdirector\b(?! of))/i, names: ["Director"] }, // avoid "director of marketing" etc.
   { pattern: /\bassistant director\b/i, names: ["Assistant Director"] },
   { pattern: /\bassociate director\b/i, names: ["Associate Director"] },
   { pattern: /\bartistic director\b/i, names: ["Artistic Director"] },
@@ -186,25 +206,62 @@ const DISCIPLINE_ALIASES = [
   { pattern: /\bvideographer\b/i, names: ["Videographer / Archivist"] },
 ];
 
+// Skipped in the canonical-list fallback because they're either too
+// generic ("Other"), match too loosely ("Crew", "Technician"), or are
+// catch-all placeholders that artists pick deliberately rather than
+// being a thing inferable from prose.
+const CANONICAL_SKIP = new Set([
+  "Other",
+  "Crew",
+  "Designer (General)",
+  "Performer (General)",
+  "Technician",
+  "Technician (General)",
+]);
+
 function inferDisciplines(bio, canonical) {
   if (!bio) return [];
-  const found = new Set();
 
-  // 1. Alias table (rich variants)
-  for (const { pattern, names } of DISCIPLINE_ALIASES) {
-    if (pattern.test(bio)) {
+  // Two-pass approach to avoid leaks like "Marketing Director" tagging
+  // both Marketing Director AND Director:
+  //   1. Run multi-word "specific" alias patterns first, recording the
+  //      matched spans.
+  //   2. Replace those spans with spaces in a working copy of the bio.
+  //   3. Run the rest of the alias patterns + canonical-list fallback
+  //      against the reduced text, so single-word fallbacks ("Director",
+  //      "Actor") can't re-match inside an already-consumed span.
+  const found = new Set();
+  let working = bio;
+
+  function consume(re) {
+    if (!re.test(working)) return false;
+    // Replace every match with same-length whitespace so other patterns
+    // that depend on offsets / boundaries don't shift.
+    working = working.replace(new RegExp(re.source, re.flags + "g"), (m) =>
+      " ".repeat(m.length),
+    );
+    return true;
+  }
+
+  // Specific patterns first - sorted by source length (longest = most
+  // specific). Single-word fallback patterns get processed last.
+  const sorted = [...DISCIPLINE_ALIASES].sort(
+    (a, b) => b.pattern.source.length - a.pattern.source.length,
+  );
+  for (const { pattern, names } of sorted) {
+    if (consume(pattern)) {
       for (const n of names) found.add(n);
     }
   }
-  // 2. Direct substring match against the canonical list (catches the
-  //    long tail). Word-boundary, case-insensitive.
+
+  // Canonical-list fallback: pick up the long tail. Skip the known
+  // false-positive prone names. Word-boundary, case-insensitive.
   for (const name of canonical) {
+    if (CANONICAL_SKIP.has(name)) continue;
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const re = new RegExp(`\\b${escaped}\\b`, "i");
-    if (re.test(bio)) found.add(name);
+    if (re.test(working)) found.add(name);
   }
-  // Filter to entries that exist in the canonical list (guards against
-  // an alias mapping to a discipline name that's been renamed since).
   return [...found].filter((d) => canonical.includes(d));
 }
 
@@ -356,10 +413,16 @@ async function importFolder(db, folderName) {
   const areas = await loadCanonicalAreas(db);
 
   // Disciplines: explicit meta wins; otherwise infer from bio.
+  // Meta values match case-insensitively against the canonical list and
+  // are normalised to the canonical capitalisation - so "actor" or
+  // "ACTOR" both end up as "Actor" in the DB.
   let disciplines = [];
   let inferredDisciplines = false;
   if (meta.disciplines) {
-    disciplines = splitList(meta.disciplines).filter((d) => canonical.includes(d));
+    const canonicalLower = new Map(canonical.map((c) => [c.toLowerCase(), c]));
+    disciplines = splitList(meta.disciplines)
+      .map((d) => canonicalLower.get(d.toLowerCase()) ?? null)
+      .filter(Boolean);
   } else if (bio) {
     disciplines = inferDisciplines(bio, canonical);
     inferredDisciplines = disciplines.length > 0;
@@ -503,6 +566,7 @@ async function main() {
   try {
     folders = readdirSync(IMPORTS_DIR).filter((name) => {
       if (name.startsWith("_")) return false; // skip _results.csv etc.
+      if (name.toLowerCase() === "template") return false; // working template
       const full = join(IMPORTS_DIR, name);
       return statSync(full).isDirectory();
     });
