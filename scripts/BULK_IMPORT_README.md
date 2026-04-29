@@ -90,7 +90,24 @@ node scripts/bulk-import-profiles.mjs --dry-run
 
 # Real import
 node scripts/bulk-import-profiles.mjs
+
+# Real import, with all rows marked trusted=true
+# (use only for batches Lexi vouches for - default is untrusted)
+node scripts/bulk-import-profiles.mjs --trust-all
 ```
+
+## Trust flag
+
+Imports default to `trusted = false`. The trust flag governs whether
+future magic-link edits an artist makes apply directly or queue in
+`flagged_edits` for admin review. Untrusted is the safer posture for a
+bulk import where Lexi may not personally know every submitter - she
+can flip individual rows to trusted from `/admin/profiles` after
+eyeballing them.
+
+For batches she does know (a known company's roster, a vetted
+mentorship cohort), pass `--trust-all` to flip the default for that
+run.
 
 Both modes write `imports/_results.csv` showing every folder's outcome:
 

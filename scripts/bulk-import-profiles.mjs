@@ -41,6 +41,14 @@ import pg from "pg";
 const { Client } = pg;
 
 const DRY_RUN = process.argv.includes("--dry-run");
+// Default trust is FALSE for imports. The trust flag controls whether
+// future magic-link edits the artist makes apply directly or queue in
+// flagged_edits for admin review. Defaulting to untrusted is the safer
+// posture for bulk imports - Lexi can flip individual rows to trusted
+// from /admin/profiles after eyeballing them. If you're importing a
+// known batch (people Lexi vouches for), pass --trust-all to flip the
+// default for that run.
+const TRUST_ALL = process.argv.includes("--trust-all");
 // Optional --imports-dir <path> override for the source folder. Default
 // is ./imports/ in the repo. Use this to point at OneDrive / Desktop
 // folders without having to copy files around. Folders named "Template"
@@ -516,7 +524,7 @@ async function importFolder(db, folderName) {
         meta.youtube ?? null,
         meta.website ?? null,
         JSON.stringify(resumes),
-        true,
+        TRUST_ALL,
         canPublish,
       ],
     );
