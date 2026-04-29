@@ -26,6 +26,17 @@
     cancelRemove();
   }
 
+  // Auto-save the sort number on blur. Skips if the field is empty or
+  // unchanged so we don't fire round-trips that wouldn't change anything.
+  // The Sort button still works as an explicit save.
+  function autoSubmitSort(e: FocusEvent, original: number) {
+    const input = e.currentTarget as HTMLInputElement;
+    const v = input.value.trim();
+    if (!v) return;
+    if (Number(v) === original) return;
+    input.form?.requestSubmit();
+  }
+
   // Group by category for display
   const byCategory = $derived.by(() => {
     const groups = new Map<string, typeof data.disciplines>();
@@ -132,7 +143,14 @@
         <form method="POST" action="?/reorderCategory" class="inline-form"
           use:enhance={() => { busy = `reorder-${c.name}`; return async ({ update }) => { await update(); busy = null; }; }}>
           <input type="hidden" name="name" value={c.name} />
-          <input type="number" name="sort_order" value={c.sort_order} class="num-input" />
+          <input
+            type="number"
+            name="sort_order"
+            value={c.sort_order}
+            class="num-input"
+            title="Auto-saves when you tab away"
+            onblur={(e) => autoSubmitSort(e, c.sort_order)}
+          />
           <button type="submit" class="bt-link" disabled={busy === `reorder-${c.name}`}>
             Sort
           </button>
@@ -176,7 +194,14 @@
           </form>
           <form method="POST" action="?/reorder" class="inline-form" use:enhance={() => { busy = `sort-${d.id}`; return async ({ update }) => { await update(); busy = null; }; }}>
             <input type="hidden" name="id" value={d.id} />
-            <input type="number" name="sort_order" value={d.sort_order} class="num-input" />
+            <input
+              type="number"
+              name="sort_order"
+              value={d.sort_order}
+              class="num-input"
+              title="Auto-saves when you tab away"
+              onblur={(e) => autoSubmitSort(e, d.sort_order)}
+            />
             <button type="submit" class="bt-link" disabled={busy === `sort-${d.id}`}>Sort</button>
           </form>
           <form method="POST" action="?/remove" use:enhance={() => { busy = `remove-${d.id}`; return async ({ update }) => { await update(); busy = null; }; }}>

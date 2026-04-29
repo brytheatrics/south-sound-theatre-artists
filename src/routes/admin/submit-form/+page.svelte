@@ -42,6 +42,18 @@
     if (!form || form.section !== section) return null;
     return form;
   }
+
+  // Auto-save the sort number on blur. Skips if the field is empty or
+  // unchanged so we don't fire round-trips that wouldn't change anything
+  // (and don't accidentally save 0/100 when she's mid-edit and clicks
+  // away). The Sort button still works as an explicit save.
+  function autoSubmitSort(e: FocusEvent, original: number) {
+    const input = e.currentTarget as HTMLInputElement;
+    const v = input.value.trim();
+    if (!v) return;
+    if (Number(v) === original) return;
+    input.form?.requestSubmit();
+  }
 </script>
 
 <svelte:head>
@@ -196,7 +208,14 @@
           }}
         >
           <input type="hidden" name="id" value={a.id} />
-          <input type="number" name="sort_order" value={a.sort_order} class="num-input" />
+          <input
+            type="number"
+            name="sort_order"
+            value={a.sort_order}
+            class="num-input"
+            title="Auto-saves when you tab away"
+            onblur={(e) => autoSubmitSort(e, a.sort_order)}
+          />
           <button type="submit" class="bt-link" disabled={busy === `sortArea-${a.id}`}>
             Sort
           </button>
@@ -364,7 +383,14 @@
           }}
         >
           <input type="hidden" name="id" value={u.id} />
-          <input type="number" name="sort_order" value={u.sort_order} class="num-input" />
+          <input
+            type="number"
+            name="sort_order"
+            value={u.sort_order}
+            class="num-input"
+            title="Auto-saves when you tab away"
+            onblur={(e) => autoSubmitSort(e, u.sort_order)}
+          />
           <button type="submit" class="bt-link" disabled={busy === `sortUnion-${u.id}`}>
             Sort
           </button>
@@ -490,7 +516,14 @@
           }}
         >
           <input type="hidden" name="id" value={e.id} />
-          <input type="number" name="sort_order" value={e.sort_order} class="num-input" />
+          <input
+            type="number"
+            name="sort_order"
+            value={e.sort_order}
+            class="num-input"
+            title="Auto-saves when you tab away"
+            onblur={(ev) => autoSubmitSort(ev, e.sort_order)}
+          />
           <button type="submit" class="bt-link" disabled={busy === `sortEthnicity-${e.id}`}>
             Sort
           </button>
