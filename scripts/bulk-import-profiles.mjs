@@ -32,9 +32,10 @@
 //   node scripts/bulk-import-profiles.mjs            # real import
 //   node scripts/bulk-import-profiles.mjs --dry-run  # parse + report only
 
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, basename, extname } from "node:path";
+import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { join, basename, extname, dirname } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import "dotenv/config";
 import pg from "pg";
 
@@ -82,6 +83,49 @@ if (!DRY_RUN && (!env.cloudName || !env.apiKey || !env.apiSecret)) {
 
 const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic"]);
 const PDF_EXT = ".pdf";
+const DOCX_EXT = ".docx";
+
+// Convert a .docx file to .pdf alongside it. Returns the PDF path on
+// success, null if the conversion couldn't run. Used so artists who
+// emailed a Word doc (or that one person who used Pages) end up with a
+// real PDF on their profile without manual intervention.
+//
+// Strategy: shell out to PowerShell + Word COM automation on Windows.
+// Idempotent - if the .pdf already exists alongside the .docx, returns
+// it without re-running Word. Skipped (returns null) if Word isn't
+// available; we surface a warning rather than failing the whole row.
+function convertDocxToPdf(docxPath) {
+  const pdfPath = docxPath.replace(/\.docx$/i, ".pdf");
+  if (existsSync(pdfPath)) return pdfPath;
+  if (process.platform !== "win32") {
+    console.warn(`  ! ${basename(docxPath)}: docx->pdf needs Windows + Word, skipping`);
+    return null;
+  }
+  // Word's ExportAsFixedFormat is the most reliable PDF export (handles
+  // images / tables / headers consistently across Office versions).
+  // wdExportFormatPDF = 17.
+  const ps = `
+    $ErrorActionPreference = 'Stop'
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+    try {
+      $doc = $word.Documents.Open([string]'${docxPath.replace(/'/g, "''")}', $false, $true)
+      $doc.ExportAsFixedFormat([string]'${pdfPath.replace(/'/g, "''")}', 17)
+      $doc.Close($false)
+    } finally {
+      $word.Quit()
+    }
+  `;
+  try {
+    execFileSync("powershell.exe", ["-NoProfile", "-Command", ps], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    return existsSync(pdfPath) ? pdfPath : null;
+  } catch (err) {
+    console.warn(`  ! ${basename(docxPath)}: docx->pdf conversion failed (${err.message?.slice(0, 200)})`);
+    return null;
+  }
+}
 
 // Canonical SSTA areas. Loose-matched against the meta.txt area value.
 // Exact list comes from the DB at runtime.
@@ -380,6 +424,7 @@ function readFolder(folderPath) {
   let metaPath = null;
   let imagePath = null;
   const pdfPaths = [];
+  const docxPaths = [];
   for (const name of entries) {
     const full = join(folderPath, name);
     if (statSync(full).isDirectory()) continue;
@@ -389,6 +434,15 @@ function readFolder(folderPath) {
     else if (lower === "meta.txt") metaPath = full;
     else if (IMAGE_EXTS.has(ext) && !imagePath) imagePath = full;
     else if (ext === PDF_EXT) pdfPaths.push(full);
+    else if (ext === DOCX_EXT) docxPaths.push(full);
+  }
+  // Convert any .docx files to PDF and add to the pdf list. Skips
+  // already-converted siblings (idempotent on rerun).
+  for (const docx of docxPaths) {
+    const converted = convertDocxToPdf(docx);
+    if (converted && !pdfPaths.includes(converted)) {
+      pdfPaths.push(converted);
+    }
   }
   return { bioPath, metaPath, imagePath, pdfPaths };
 }

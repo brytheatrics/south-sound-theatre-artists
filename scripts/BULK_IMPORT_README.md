@@ -15,7 +15,7 @@ imports/
     bio.txt              # required (or .md)  - any text, becomes profile.bio
     headshot.jpg         # optional            - any image format, only one
     resume.pdf           # optional            - 0+ PDFs, any filenames
-    acting-resume.pdf    # multiple OK
+    acting-resume.docx   # also fine           - .docx auto-converts to PDF
     meta.txt             # optional            - key:value lines for known fields
   Marcus Chen/
     headshot.jpg         # bio + meta optional - missing fields make this a hidden draft
@@ -30,6 +30,20 @@ image per folder; the script picks the first one alphabetically.
 
 **PDF labels** are auto-derived from the filename:
 `Acting_Resume_2024.pdf` → `Acting Resume 2024`. `resume.pdf` → `Resume`.
+
+**`.docx` auto-conversion:** when the script sees a `.docx`, it shells
+out to PowerShell + Microsoft Word's COM automation to generate a
+`.pdf` next to it (uses Word's `ExportAsFixedFormat` so images,
+tables, and formatting come through cleanly). The original `.docx`
+stays in the folder; the new `.pdf` is what gets uploaded to
+Cloudinary. Conversion is idempotent - reruns skip a `.docx` whose
+sibling `.pdf` already exists.
+
+Requires **Windows + Microsoft Office** for the conversion step. If
+the script runs anywhere else, `.docx` files are skipped with a
+console warning and the row imports without that resume. Pre-convert
+to PDF manually (Word: File → Save As → PDF) if you're running on
+mac/Linux.
 
 ## meta.txt fields (all optional)
 
