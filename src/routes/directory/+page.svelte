@@ -2,6 +2,7 @@
   import { page as pageState } from "$app/state";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
+  import MentorshipDots from "$lib/components/MentorshipDots.svelte";
 
   let { data } = $props();
 
@@ -340,12 +341,18 @@
     {#each data.profiles as p, i (p.slug)}
       <li>
         <a class="card" href={`/artists/${p.slug}`}>
-          <HeadshotPlaceholder
-            name={p.full_name}
-            src={p.headshot_url}
-            ratio="3 / 4"
-            tone={(i % 4) as 0 | 1 | 2 | 3}
-          />
+          <div class="card-img">
+            <HeadshotPlaceholder
+              name={p.full_name}
+              src={p.headshot_url}
+              ratio="3 / 4"
+              tone={(i % 4) as 0 | 1 | 2 | 3}
+            />
+            <MentorshipDots
+              offering={p.mentorship_offering ?? []}
+              seeking={p.mentorship_seeking ?? []}
+            />
+          </div>
           <div class="meta">
             <span class="name">{p.full_name}</span>
             <span class="disc">
@@ -678,6 +685,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+  }
+  /* Wraps the headshot so MentorshipDots can absolutely-position itself
+     in the corner of the image (not the whole card). */
+  .card-img {
+    position: relative;
   }
   .card:hover {
     text-decoration: none;

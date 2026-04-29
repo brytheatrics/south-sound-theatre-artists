@@ -33,7 +33,8 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("profiles")
       .select(
         `slug, full_name, pronouns, disciplines, geographic_area, city,
-         playable_age_min, playable_age_max, headshot_url, member_since`,
+         playable_age_min, playable_age_max, headshot_url, member_since,
+         mentorship_offering, mentorship_seeking`,
         { count: "exact" },
       )
       .eq("published", true)
