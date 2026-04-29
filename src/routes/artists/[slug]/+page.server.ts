@@ -10,21 +10,25 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 
-export const load: PageServerLoad = async ({ params }) => {
-  const { data, error: err } = await supabaseAdmin
+export const load: PageServerLoad = async ({ params, locals }) => {
+  const isAdmin = !!locals.admin;
+  let query = supabaseAdmin
     .from("profiles")
     .select(
-      `slug, full_name, pronouns, bio, disciplines, geographic_area, city,
+      `id, slug, full_name, pronouns, bio, disciplines, geographic_area, city,
        resumes, resume_data, mentorship_offering, mentorship_seeking,
        playable_age_min, playable_age_max, languages, unions, ethnicities,
        headshot_url, instagram_handle, facebook_url, tiktok_handle,
        linkedin_url, twitter_handle, youtube_url, website_url, member_since,
-       updated_at`,
+       updated_at, published`,
     )
     .eq("slug", params.slug)
-    .eq("published", true)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .is("deleted_at", null);
+  // Public visitors only see published profiles. Admins see hidden
+  // drafts too, so they can preview + edit a row that hasn't gone
+  // live yet from the same URL the visitor would eventually use.
+  if (!isAdmin) query = query.eq("published", true);
+  const { data, error: err } = await query.maybeSingle();
   if (err) throw err;
   if (!data) error(404, "Profile not found");
   return { profile: data };

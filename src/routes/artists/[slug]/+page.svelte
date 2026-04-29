@@ -1,11 +1,18 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import { page } from "$app/state";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
   import { normalizeUrl } from "$lib/util/url";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
   const p = data.profile;
+
+  // Admin bar visibility: layout data exposes isAdmin via the auth
+  // session cookie. When signed in as admin, render an "Edit profile"
+  // shortcut + a published/hidden status pill above the page so Lexi
+  // can edit any profile without bouncing back to /admin/profiles.
+  const isAdmin = $derived(page.data?.isAdmin === true);
 
   let submitting = $state(false);
 
@@ -77,6 +84,19 @@
   <meta property="og:title" content={p.full_name} />
   {#if p.headshot_url}<meta property="og:image" content={p.headshot_url} />{/if}
 </svelte:head>
+
+{#if isAdmin}
+  <div class="admin-bar" role="region" aria-label="Admin tools">
+    <span class="admin-bar-status" class:hidden-status={!p.published}>
+      {p.published ? "● Published" : "○ Hidden draft"}
+    </span>
+    <span class="admin-bar-spacer"></span>
+    <a class="admin-bar-link" href={`/admin/profiles/${p.id}/edit`}>
+      Edit profile <span aria-hidden="true">→</span>
+    </a>
+    <a class="admin-bar-link" href="/admin/profiles">All profiles</a>
+  </div>
+{/if}
 
 <article class="profile">
   <div class="hero">
@@ -364,6 +384,46 @@
 </article>
 
 <style>
+  /* Admin-only bar above the profile when an admin session is active.
+     Gives Lexi a one-click jump to the edit page so she can sweep
+     through profiles without bouncing back to /admin/profiles each
+     time. Status pill makes it obvious whether this row is live or
+     a hidden draft she pulled up via direct URL. */
+  .admin-bar {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 8px var(--page-pad-x);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .admin-bar-status {
+    background: var(--accent);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-weight: 600;
+  }
+  .admin-bar-status.hidden-status {
+    background: var(--warn);
+  }
+  .admin-bar-spacer { flex: 1; }
+  .admin-bar-link {
+    color: var(--bg);
+    text-decoration: none;
+  }
+  .admin-bar-link:hover {
+    text-decoration: underline;
+  }
+  @media (max-width: 540px) {
+    .admin-bar { gap: 8px; }
+    .admin-bar-spacer { display: none; }
+  }
+
   .profile {
     max-width: 1100px;
     margin: 0 auto;
