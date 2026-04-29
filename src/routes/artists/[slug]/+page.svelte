@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
+  import { normalizeUrl } from "$lib/util/url";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -116,7 +117,7 @@
           Contact {split.first}
         </button>
         {#if p.website_url}
-          <a class="bt bt-ghost" href={p.website_url} target="_blank" rel="noopener">
+          <a class="bt bt-ghost" href={normalizeUrl(p.website_url)} target="_blank" rel="noopener">
             Website <span aria-hidden="true">↗</span>
           </a>
         {/if}
@@ -231,13 +232,13 @@
             </a></li>
           {/if}
           {#if p.facebook_url}
-            <li><a href={p.facebook_url} target="_blank" rel="noopener">Facebook <span aria-hidden="true">↗</span></a></li>
+            <li><a href={normalizeUrl(p.facebook_url)} target="_blank" rel="noopener">Facebook <span aria-hidden="true">↗</span></a></li>
           {/if}
           {#if p.linkedin_url}
-            <li><a href={p.linkedin_url} target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
+            <li><a href={normalizeUrl(p.linkedin_url)} target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
           {/if}
           {#if p.youtube_url}
-            <li><a href={p.youtube_url} target="_blank" rel="noopener">YouTube <span aria-hidden="true">↗</span></a></li>
+            <li><a href={normalizeUrl(p.youtube_url)} target="_blank" rel="noopener">YouTube <span aria-hidden="true">↗</span></a></li>
           {/if}
         </ul>
       {/if}

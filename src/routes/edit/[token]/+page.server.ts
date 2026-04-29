@@ -16,6 +16,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { hashToken } from "$lib/server/tokens";
 import { parseResumeData, resumeDataEquals } from "$lib/server/resume";
+import { normalizeUrl } from "$lib/util/url";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -276,12 +277,12 @@ export const actions: Actions = {
       unions: finalUnions,
       ethnicities: finalEthnicities,
       instagram_handle: instagram || null,
-      facebook_url: facebook || null,
+      facebook_url: normalizeUrl(facebook) || null,
       tiktok_handle: tiktok || null,
-      linkedin_url: linkedin || null,
+      linkedin_url: normalizeUrl(linkedin) || null,
       twitter_handle: twitter || null,
-      youtube_url: youtube || null,
-      website_url: website || null,
+      youtube_url: normalizeUrl(youtube) || null,
+      website_url: normalizeUrl(website) || null,
       mentorship_offering: mentorshipOffering,
       mentorship_seeking: mentorshipSeeking,
     };

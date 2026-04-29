@@ -14,6 +14,7 @@ import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { parseResumeData, type ResumeData } from "$lib/server/resume";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
+import { normalizeUrl } from "$lib/util/url";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -308,12 +309,12 @@ export const actions: Actions = {
         languages,
         unions,
         instagram_handle: values.instagram || null,
-        facebook_url: values.facebook || null,
+        facebook_url: normalizeUrl(values.facebook) || null,
         tiktok_handle: values.tiktok || null,
-        linkedin_url: values.linkedin || null,
+        linkedin_url: normalizeUrl(values.linkedin) || null,
         twitter_handle: values.twitter || null,
-        youtube_url: values.youtube || null,
-        website_url: values.website || null,
+        youtube_url: normalizeUrl(values.youtube) || null,
+        website_url: normalizeUrl(values.website) || null,
         desired_slug: values.slug,
         pronouns: values.pronouns || null,
         ethnicities,

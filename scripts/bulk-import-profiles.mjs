@@ -294,6 +294,19 @@ function splitList(s) {
     .filter(Boolean);
 }
 
+// Mirror of src/lib/util/url.ts (inlined here so the .mjs script doesn't
+// need to import from $lib). Without normalisation, a value like
+// "harryturpin.com" gets used as-is on the profile page and the browser
+// treats it as a relative path.
+function normalizeUrl(input) {
+  const v = String(input ?? "").trim();
+  if (!v) return "";
+  if (v.startsWith("/") && !v.startsWith("//")) return v;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return v;
+  if (v.startsWith("//")) return "https:" + v;
+  return "https://" + v;
+}
+
 function slugify(name) {
   return name
     .toLowerCase()
@@ -517,12 +530,12 @@ async function importFolder(db, folderName) {
         unions,
         ethnicities,
         meta.instagram ?? null,
-        meta.facebook ?? null,
+        normalizeUrl(meta.facebook) || null,
         meta.tiktok ?? null,
-        meta.linkedin ?? null,
+        normalizeUrl(meta.linkedin) || null,
         meta.twitter ?? null,
-        meta.youtube ?? null,
-        meta.website ?? null,
+        normalizeUrl(meta.youtube) || null,
+        normalizeUrl(meta.website) || null,
         JSON.stringify(resumes),
         TRUST_ALL,
         canPublish,
