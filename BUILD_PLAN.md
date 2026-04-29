@@ -4,7 +4,7 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 
 ---
 
-## Status (as of 2026-04-28)
+## Status (as of 2026-04-29)
 
 **v1: feature-complete.** All 22 build steps shipped end-to-end (steps 1-22 below). Trust system upgraded mid-stream so untrusted profiles' major edits queue in `flagged_edits` for admin review.
 
@@ -14,9 +14,43 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 
 **Cron jobs: 5 of 5 shipped.** Supabase keepalive (`keepalive.yml`), daily admin digest (`admin-daily-digest.yml`), email volume alert at 70% / 90% (`email-volume-alert.yml`), weekly callboard digest (`callboard-weekly-digest.yml`), and weekly Supabase JSON backup (`backup.yml`). Stale profile cleanup (`stale-profile-cleanup.yml`) handles the 18-month "still active?" ping plus the 30-day soft-delete trash sweep. All require their respective GitHub Actions secrets to start running; the keepalive needs only `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, the email crons add `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `ADMIN_EMAIL` / `PUBLIC_SITE_URL`, and the backup needs a separate private repo plus a fine-grained PAT.
 
-**Admin polish layer (mid-2026-04-28 sessions):** sidebar reorder + visual grouping of tabs, attention badges on every queue tab driven by a single layout server load, homepage marquee admin tab with checkbox picker + cycle-all toggle, smoothed CSS transform for the marquee animation. Admin sidebar order now mirrors how Lexi works through the day (review queues -> directory -> homepage -> copy -> config).
+**Admin polish layer (2026-04-28 sessions):** sidebar reorder + visual grouping of tabs, attention badges on every queue tab driven by a single layout server load, homepage marquee admin tab with checkbox picker + cycle-all toggle, smoothed CSS transform for the marquee animation. Admin sidebar order now mirrors how Lexi works through the day (review queues -> directory -> homepage -> copy -> config).
 
-**Blocked on real-world info:** domain access (needed for Resend domain verification, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing). ADMIN_GUIDE.md deferred until closer to launch so Lexi can drive notes from real use. Backup cron lives in the repo but no-ops cleanly until `BACKUP_REPO` + `BACKUP_REPO_TOKEN` secrets point at a private snapshot repo.
+**Launch-prep work (2026-04-29 session):**
+- **Bulk import.** `scripts/bulk-import-profiles.mjs` — folder-based importer for the artists who emailed bios + headshots in before the site existed. Reads `imports/<Person Name>/` directories, picks up bio.txt + headshot + 0+ resumes (PDF or DOCX, with auto-conversion via Word COM on Windows) + meta.txt. Disciplines auto-inferred from bio prose with an alias table; meta override wins. Idempotent on re-run via email + slug dedup. 27 profiles + 1 resume PDF imported, all magic-link edit URLs parked in the run's `_results.csv` for mail-merge.
+- **URL normalisation.** `lib/util/url.ts` prefixes `https://` on bare-domain URLs at save time (submit / edit / admin profile editor / bulk import) and again as a defensive shim at render time. Fixes the "Harry's website opens `/artists/harryturpin.com`" footgun for any future bare-domain entry.
+- **Admin profile thumbnails.** 44px round headshot next to each row on `/admin/profiles`, falling back to the initials placeholder for profiles missing a photo. Quicker scan when working through the queue.
+- **Discipline rename + cascade.** `/admin/disciplines` Save-name action renames a discipline AND propagates the change across `profiles.disciplines`, `pending_submissions.disciplines`, `mentorship_offering`, `mentorship_seeking`. Two cases handled: a clean rename (new name doesn't yet exist) or a merge (new name exists, old row retired, all profile arrays remapped + deduped). Closes the "deleted Actor (Stage), added Actor, Chris Serface stuck with both" trap that surfaced today.
+- **Admin Edit shortcut on profile pages.** Logged-in admins see a thin dark bar above any `/artists/<slug>` with a status pill (Published / Hidden draft) and an "Edit profile ->" link to `/admin/profiles/<id>/edit`. Sweeping through profiles end-to-end no longer requires bouncing back to the admin list. Admins can also load hidden drafts via the public URL for preview.
+- **Word doc resume support.** ResumesEditor accepts `.docx` and `.doc` alongside PDF (file picker, MIME validation, label generation). Same `/artists/<slug>` render. Bulk import auto-converts `.docx` → `.pdf` via PowerShell + Word COM on Windows.
+- **Ko-fi widget.** `/support-us` now embeds Ko-fi's official donation iframe below the editable markdown content. Username pulled from `PUBLIC_KOFI_USERNAME` so future renames are an env-var change. Widget hides entirely when the env var is empty.
+
+**Email pipeline LIVE (2026-04-29):**
+- Domain `southsoundtheatreartists.org` (`.org`, not `.com` - registrar is Squarespace, DNS delegated to Cloudflare).
+- Resend domain verified - SPF, DKIM, DMARC records added via Resend's Cloudflare integration.
+- Cloudflare Email Routing forwards `lexi@southsoundtheatreartists.org` and `hello@southsoundtheatreartists.org` to `southsoundtheatreartists@gmail.com`.
+- Gmail Send-As configured for both addresses, sending through Resend SMTP (so outbound passes SPF / DKIM cleanly - no "via gmail.com" suffix).
+- `RESEND_FROM_EMAIL` flipped from `onboarding@resend.dev` to `South Sound Theatre Artists <hello@southsoundtheatreartists.org>` (display name format so mail clients show the org name as sender, not just "hello").
+- `ADMIN_EMAIL` flipped to `lexi@southsoundtheatreartists.org`.
+- Contact form delivery confirmed end-to-end: status='sent' from Resend (was 403 sandbox-rejected before).
+
+**Netlify deploy LIVE (2026-04-29):**
+- Staging URL: `https://southsoundtheatreartists.netlify.app`
+- All env vars imported from `.env` minus `SUPABASE_DB_URL` (build-script only, not needed in Netlify).
+- Build contributor issue resolved by unlinking + re-linking the Git connection in Netlify's site settings (free-tier contributor enforcement quirk).
+- Repo flipped from private to public to sidestep the contributor limit permanently for future contributors.
+- `static/robots.txt` sitemap URL pointed at the .org production domain.
+- `_2026-04-28_._com` placeholders in seed migrations (009, 010, 014) and scripts swapped to `.org`.
+
+**Outstanding before public launch:**
+- **Ko-fi widget content.** The widget panel is rendering on localhost but missing on the deployed staging site. Likely an adapter-netlify env-var quirk where the function bundle was built before `PUBLIC_KOFI_USERNAME` was set. Will resolve on the next push (which forces a clean rebuild) - intentionally not pushed for now to save build minutes.
+- **DNS cutover.** A records currently still point at Squarespace (existing site). When Lexi approves the staging deploy for launch, Cloudflare A records flip to Netlify's load-balancer IPs and `PUBLIC_SITE_URL` updates to `https://southsoundtheatreartists.org`. Trigger a clear-cache deploy after.
+- **GitHub Actions secrets for crons.** All 6 workflows committed but no-op until secrets are set in repo Settings. List in TEST_CHECKLIST.
+- **Mail-merge launch invitations.** 27 magic-link edit URLs in `imports/Submissions/_results.csv` (or wherever Blake stored the run output) waiting to send. Swap `localhost:5173` for the production URL before merging.
+- **`ADMIN_PASSWORD` rotation.** The dev placeholder is in Netlify env right now; rotate to a stronger password before public launch and tell Lexi via private channel.
+- **Backup repo + PAT.** Backup cron no-ops cleanly until `BACKUP_REPO` + `BACKUP_REPO_TOKEN` are set.
+- **`ADMIN_GUIDE.md`.** Deferred until closer to launch so Lexi can drive notes from real use of the staging deploy.
+- **Lexi's Ko-fi onboarding.** Sign up at ko-fi.com is done (`ko-fi.com/lexibarnettssta`) but Stripe / PayPal connection + donation tier setup may not be. Until those are in, the embed iframe will show a barebones "Powered by Ko-fi" with no donation form.
 
 ---
 

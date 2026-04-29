@@ -4,20 +4,29 @@ This document describes the full scope of a community website for South Sound th
 
 ---
 
-## Implementation status (as of 2026-04-28)
+## Implementation status (as of 2026-04-29)
 
-**v1: shipped.** Directory, profiles, contact, admin queue, magic-link edit, reports, blocklist, content/template/discipline editors, featured rotation, banner, sitemap, error page, all the static pages. Trust system added mid-stream so untrusted artists' major edits queue in `flagged_edits`.
+**v1, v1.1, v1.2: all shipped.** Full feature set is live. See BUILD_PLAN.md for the per-phase breakdown.
 
-**v1.1: shipped.** Structured resume builder (`resume_data` jsonb, three sections), multi-PDF resume upload (`resumes` jsonb array with pre-upload contact-info warning), mentorship offering + seeking with directory-lens filter, GoatCounter analytics gated on `PUBLIC_GOATCOUNTER_CODE`, Share-profile button. **PDF parsing / column-mapper cut.** **QR code skipped** in favour of Share button.
+**Domain + email pipeline: LIVE.** Domain `southsoundtheatreartists.org` is registered at Squarespace with DNS delegated to Cloudflare. Resend domain-verified. Cloudflare Email Routing forwards `lexi@` and `hello@` to `southsoundtheatreartists@gmail.com`. Gmail Send-As routes outbound via Resend SMTP (clean SPF/DKIM, no "via gmail.com" suffix). Contact form, magic-link emails, admin notifications all deliver to real recipients now (was 403-blocked in Resend sandbox before today).
 
-**v1.2: shipped.** Public callboard with list / card views and filters, public submit flow with email verification, admin callboard moderation + soft-delete trash, verified theatre organization application + admin approval, verified-org posts auto-publish on email verify, productions table populated automatically from approved audition / production posts, opt-in weekly digest with one-click unsubscribe (controlled from the magic-link edit page), resource library (`/resources` + `/admin/resources` + nav link), homepage marquee fed by callboard with admin-controlled cycle-all + per-post picker.
+**Staging deploy: LIVE on Netlify.** `https://southsoundtheatreartists.netlify.app` — Lexi will review here before the .org DNS gets pointed at Netlify for public launch.
 
-**Cron jobs: 5 of 5 shipped.** Supabase keepalive, daily admin digest (only emails when something is queued), email volume alert at 70% / 90% of the Resend cap, weekly callboard digest, weekly Supabase JSON backup pushed to a separate private repo, stale profile cleanup (18 month "still active?" ping plus 30-day soft-delete trash sweep). All as GitHub Actions; see `.github/workflows/`.
+**Bulk import: complete.** 27 artist profiles seeded via `scripts/bulk-import-profiles.mjs` from a folder of emailed-in submissions. Each has a 30-day single-use magic-link edit URL parked in the importer's `_results.csv` for mail-merge-out at launch.
 
-**Launch ops outstanding:**
+**Cron jobs: 5 of 5 shipped.** Supabase keepalive, daily admin digest (only emails when something is queued), email volume alert at 70% / 90% of the Resend cap, weekly callboard digest, weekly Supabase JSON backup pushed to a separate private repo, stale profile cleanup (18 month "still active?" ping plus 30-day soft-delete trash sweep). All as GitHub Actions; see `.github/workflows/`. Currently no-op on production until GitHub Actions secrets are set.
+
+**Outstanding before launching the public domain:**
+- Lexi's review of the staging site (gather edits, fix typos, polish copy)
+- Final DNS flip in Cloudflare: A records from Squarespace IPs to Netlify's load-balancer IPs, then `PUBLIC_SITE_URL` env update + clear-cache redeploy
+- GitHub Actions secrets for the cron workflows
+- `ADMIN_PASSWORD` rotation for production
+- Mail-merge magic-link URLs to invite the 27 imported artists to claim their profiles
+- Lexi's Ko-fi page onboarding (Stripe / PayPal connection so the embed widget has a working donation form to render)
 - `ADMIN_GUIDE.md` (deferred until close to launch so Lexi can drive notes)
 - Backup repo + PAT (the cron lives in the workflow file but no-ops cleanly until secrets are set)
-- Domain-blocked items: Resend domain verify, robots.txt sitemap URL, SPF/DKIM/DMARC, Cloudflare Email Routing, Gmail Send-As
+
+**Known minor item:** Ko-fi donation widget on `/support-us` shows on localhost but the entire panel is currently missing on the deployed staging - traceable to an adapter-netlify env-var quirk that will resolve on the next clean rebuild. Tracking in BUILD_PLAN's Outstanding list.
 
 **See also:**
 - `BUILD_PLAN.md` for phased roadmap, current schema additions, and the "Maybe later" parking lot.

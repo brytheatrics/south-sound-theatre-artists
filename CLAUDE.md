@@ -9,9 +9,12 @@ A free community web platform for South Sound (Tacoma/Olympia/Gig Harbor) theatr
 - **`BUILD_PLAN.md`** - phased implementation plan, current status header, "Maybe later" parking lot, schema additions list. **Read the status block first** before assuming a feature is unbuilt.
 - **`TEST_CHECKLIST.md`** - manual test results for v1 + v1.1, known shortcuts, things still to verify.
 
-### Current state (2026-04-28)
+### Current state (2026-04-29)
 - v1 (directory + admin), v1.1 (resumes / mentorship / analytics), and v1.2 (callboard / resources / weekly digest / homepage marquee) are all shipped.
 - All five cron workflows live under `.github/workflows/` (keepalive, daily admin digest, email volume alert, weekly callboard digest, weekly backup, stale profile cleanup). They no-op or require secrets to run; see TEST_CHECKLIST for the secret list.
+- **Domain + email pipeline live.** `southsoundtheatreartists.org` is registered at Squarespace, DNS managed by Cloudflare. Resend domain-verified. Cloudflare Email Routing forwards `lexi@` + `hello@` to `southsoundtheatreartists@gmail.com`. Gmail Send-As sends outbound via Resend SMTP. Real emails deliver end-to-end (no more sandbox 403s).
+- **Staging deploy live** at `https://southsoundtheatreartists.netlify.app`. Domain DNS will flip from Squarespace -> Netlify when Lexi approves. Repo is now public (sidesteps Netlify free-tier contributor limit).
+- **27 imported profiles** in the DB via `scripts/bulk-import-profiles.mjs`. Magic-link edit URLs sit in `Submissions/_results.csv` waiting for mail-merge-out at launch.
 - See `BUILD_PLAN.md` "Status" header for the full breakdown.
 
 ## Local Development
@@ -120,6 +123,42 @@ All under `.github/workflows/`. Shared infrastructure in `scripts/_lib/cron.mjs`
 | `stale-profile-cleanup.yml` | 17:00 UTC Mondays | one ping per stale profile |
 | `callboard-weekly-digest.yml` | 01:00 UTC Mondays (Sun PT) | per-subscriber, skips empty weeks |
 | `backup.yml` | 18:00 UTC Sundays | no email; pushes JSON to a separate private repo |
+
+## Bulk import (one-shot operational tool)
+
+`scripts/bulk-import-profiles.mjs` was built for the launch batch of artists who emailed bios + headshots in before the site existed. Folder convention + flags documented in `scripts/BULK_IMPORT_README.md`. Key behaviors worth knowing for future related work:
+
+- Reads `imports/<Person Name>/` directories (or any path via `--imports-dir <path>`). Folder name -> full_name.
+- Per-folder files: `bio.txt` (optional), `meta.txt` (optional, key:value), one image, 0+ `.pdf` and/or `.docx` resumes (DOCX auto-converted via PowerShell + Word COM on Windows).
+- Auto-infers disciplines from bio prose via an alias table; meta override wins. False positives are tolerated since artists fix their own profiles via magic-link later.
+- Dedup: skips re-import on email match, refuses slug auto-suffix without an email to dedupe on.
+- Defaults to `trusted = false` (safer for unknown submitters); `--trust-all` for vetted batches.
+- Outputs `<imports-dir>/_results.csv` with one row per folder + magic-link edit URL for mail-merge.
+- No emails go out during import. Welcome / magic-link delivery is a separate manual step at launch.
+
+## URL normalisation
+
+`lib/util/url.ts` exports `normalizeUrl(s)` that prefixes `https://` on bare-domain URLs. Used at:
+- **Save time**: submit / edit / admin-profile-edit save actions sanitize `website_url`, `facebook_url`, `linkedin_url`, `youtube_url` before writing.
+- **Render time**: artist profile page applies the same shim so old rows with bare domains still link out correctly without a backfill.
+- **Bulk import**: same logic inlined in the .mjs script.
+
+Without this, a value like `harryturpin.com` gets used as a relative URL and clicking it goes to `/artists/harryturpin.com` instead of the actual site.
+
+## Domain + email infrastructure (live as of 2026-04-29)
+
+- **Domain registrar**: Squarespace (where annual renewal happens). DNS delegated to Cloudflare via custom nameservers.
+- **Cloudflare DNS**: authoritative for `southsoundtheatreartists.org`. Free plan, Email Routing enabled.
+- **Resend domain**: verified against the Cloudflare-managed DNS. Records added via Resend's Cloudflare integration.
+- **Email Routing**: `lexi@` and `hello@` -> `southsoundtheatreartists@gmail.com`. Catch-all available too.
+- **Gmail Send-As**: both addresses configured to send via Resend SMTP (`smtp.resend.com:587`, username `resend`, password is the Resend API key). Outbound passes SPF/DKIM cleanly.
+- **`RESEND_FROM_EMAIL`**: must use `Display Name <email>` format or mail clients show the local-part (e.g. "Hello") as sender. Current value: `South Sound Theatre Artists <hello@southsoundtheatreartists.org>`.
+
+## Staging vs production
+
+- **Staging**: `https://southsoundtheatreartists.netlify.app` - what Lexi reviews. Auto-deploys on push to `main`.
+- **Production (post-launch)**: same Netlify site, but `southsoundtheatreartists.org` DNS points at it. Update `PUBLIC_SITE_URL` env in Netlify to the .org URL when DNS flips.
+- **Repo is public** on GitHub (sidesteps Netlify's free-tier private-repo contributor limit).
 
 ## Data Locations
 

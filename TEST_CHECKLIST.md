@@ -6,6 +6,13 @@ Build commit range: `580794a` → current `main`.
 the 5xx outage page (skipped — requires intentionally breaking
 `SUPABASE_DB_URL`).
 
+**As of 2026-04-29 the site is live on Netlify staging:**
+`https://southsoundtheatreartists.netlify.app`. Real emails deliver
+end-to-end (Resend domain verified). DNS for the .org domain is
+managed by Cloudflare; A records still point at Squarespace until
+launch. See "Launch-day email setup" below for the step-by-step DNS
+flip plan.
+
 Quick map of what shipped:
 
 | Step | What | Where |
@@ -30,89 +37,93 @@ Quick map of what shipped:
 
 ## Decisions you should make before launch
 
-- [ ] **Resend domain verification** - until you verify a domain at
-  `resend.com/domains` and switch `RESEND_FROM_EMAIL`, every send to a
-  recipient other than the verified Resend recipient fails with a 403.
-  Blocked on domain access. Plan + steps below in "Launch-day email
-  setup".
-- [x] **Privacy + Terms** - polished draft now lives in `site_content`
+- [x] **Resend domain verification** - DONE 2026-04-29. SPF / DKIM /
+  DMARC records added via Resend's Cloudflare integration. Domain
+  `southsoundtheatreartists.org` shows all green checkmarks in
+  Resend. `RESEND_FROM_EMAIL` flipped from `onboarding@resend.dev`
+  to `South Sound Theatre Artists <hello@southsoundtheatreartists.org>`.
+- [x] **Privacy + Terms** - polished draft lives in `site_content`
   (last_updated date, contact email, cookies note, minors clause,
   governing law, change-notice). Lexi can fine-tune in /admin/content;
   no lawyer review chosen.
-- [x] **`ADMIN_PASSWORD`** - rotated from the dev placeholder. Re-set in
-  Netlify env vars at deploy time.
-- [ ] **Update `static/robots.txt`** to the production custom domain
-  when you have one. Blocked on domain access.
+- [ ] **`ADMIN_PASSWORD`** - imported placeholder still in Netlify env
+  vars (currently `SsTaADMIN3823`). Rotate to a stronger password
+  before public launch and tell Lexi via private channel.
+- [x] **`static/robots.txt`** sitemap URL updated to `.org` domain.
+- [ ] **DNS flip Squarespace -> Netlify**. Cloudflare A records still
+  point at Squarespace IPs from the existing site. When Lexi green-
+  lights the staging deploy, flip A records to Netlify's load-balancer
+  IPs and update `PUBLIC_SITE_URL` in Netlify env to `.org`. Trigger a
+  clear-cache redeploy after.
 
 ---
 
-## Launch-day email setup
+## Email pipeline (DONE 2026-04-29)
 
-When the domain lands and DNS access is in hand, do everything below in
-one sitting so the email side flips on cleanly. The plan is to set up a
-custom-domain admin address (e.g. `lexi@southsoundtheatreartists.com`
-or `hello@`) that forwards to **southsoundtheatreartists@gmail.com**
-(Lexi's actual inbox). Replies from her Gmail go out as the custom
-address.
+Steps 1-5 + 7 below were completed today. The site now sends and
+receives real email end-to-end through `southsoundtheatreartists.org`.
 
-1. **Resend domain verification.** Sign in to resend.com -> Domains ->
-   Add Domain -> enter the SSTA domain. Resend will list 4-5 DNS
-   records (return-path CNAME + DKIM + SPF). Add them at the registrar
-   / Cloudflare. Verification turns green within a few minutes of DNS
-   propagating.
+1. [x] **Resend domain verified.** SPF, DKIM, DMARC records added via
+   Resend's Cloudflare integration. Old placeholder `v=spf1 -all`
+   record manually deleted (it would have blocked all sends).
+2. [x] **DMARC record.** Added by the Resend integration.
+3. [x] **Cloudflare Email Routing.** Active for
+   `lexi@southsoundtheatreartists.org` and
+   `hello@southsoundtheatreartists.org`. Both forward to
+   `southsoundtheatreartists@gmail.com`.
+4. [x] **Gmail Send-As.** Both addresses configured to send through
+   Resend SMTP (`smtp.resend.com:587`, username `resend`, password is
+   the Resend API key). Outbound passes SPF / DKIM cleanly - no "via
+   gmail.com" suffix.
+5. [x] **Site env vars updated.**
+   - `RESEND_FROM_EMAIL` = `South Sound Theatre Artists <hello@southsoundtheatreartists.org>`
+     (display-name format so mail clients show the org name as
+     sender, not just "hello").
+   - `ADMIN_EMAIL` = `lexi@southsoundtheatreartists.org`.
+   - Both `.env` (local dev) and Netlify production env have the new
+     values.
+6. [x] **`static/robots.txt`** sitemap URL updated to .org.
+7. [x] **Smoke-tested.** Contact form on `/artists/blake-r-york`
+   delivers cleanly: `email_log` row shows `status='sent'`, recipient
+   gets the email with proper From + Reply-To, replies thread back to
+   the original sender.
 
-2. **DMARC record.** One TXT record at `_dmarc.thedomain.com` value
-   `v=DMARC1; p=quarantine; rua=mailto:southsoundtheatreartists@gmail.com`.
-   Not required for delivery but improves spam-folder behaviour.
+## Launch-day still-to-do
 
-3. **Cloudflare Email Routing.** Cloudflare dashboard -> Email ->
-   Email Routing -> add the SSTA domain. Add a route:
-   `lexi@southsoundtheatreartists.com` -> forwards to
-   `southsoundtheatreartists@gmail.com` (or whatever address Lexi
-   actually uses publicly). Verify the destination by clicking the
-   email Cloudflare sends. Free, ~10 minutes.
+When Lexi green-lights the staging site for public launch:
 
-4. **Gmail "Send As".** In Lexi's Gmail: Settings -> Accounts and
-   Import -> Send mail as -> Add another email address. Enter
-   `lexi@southsoundtheatreartists.com`. Gmail emails a confirmation
-   code to that address; because Cloudflare forwards it, the code
-   lands in her Gmail. Paste it back, done. Replies will then go out
-   as `lexi@southsoundtheatreartists.com`, not `gmail.com`.
-
-5. **Switch site env vars.** Update both local `.env` and Netlify
-   production env:
-   - `RESEND_FROM_EMAIL` -> `noreply@southsoundtheatreartists.com`
-     (or `hello@` / `lexi@`, whatever sender address you want
-     visitors to see). Anything `@southsoundtheatreartists.com` works
-     once the domain's verified.
-   - `ADMIN_EMAIL` -> `lexi@southsoundtheatreartists.com` (so admin
-     digests / 2FA / volume alerts route through the Cloudflare
-     forwarder to her Gmail).
-
-6. **Update `static/robots.txt`.** Replace any localhost / placeholder
-   sitemap URL with the production one
-   (`https://southsoundtheatreartists.com/sitemap.xml`). Otherwise
-   robots.txt advertises the wrong sitemap.
-
-7. **Drop the manual Resend recipient verification.** In Resend
-   settings, the per-recipient verified addresses are no longer
-   needed - the verified domain lets you send to anyone. Optional
-   cleanup, not breaking.
-
-8. **Mail-merge the parked magic-link URLs.** The bulk-import
-   `_results.csv` from `Submissions/_results.csv` has each imported
-   artist's edit URL. Once Resend can deliver to anyone, mail-merge
-   these out in waves (or send manually one at a time) to invite the
-   artists to claim and finish their profiles. Remember to swap
-   `localhost:5173` for the production domain in the URLs.
-
-9. **Smoke test.** Pick one real artist's email (or use a personal
-   secondary inbox), trigger:
-   - Magic-link resend via `/edit-link`
-   - Contact form submission against a published profile
-   - Manual run of `node scripts/admin-daily-digest.mjs`
-   Confirm each lands in the right inbox, the From header reads
-   `@southsoundtheatreartists.com`, and replies thread back correctly.
+1. [ ] **DNS flip Squarespace -> Netlify.** In Cloudflare DNS, replace
+   the four Squarespace A records on the apex with Netlify's load-
+   balancer IPs (or the ALIAS record Netlify provides). Replace the
+   `www` CNAME with the Netlify subdomain. **Set both to DNS-only
+   (gray cloud)** - Netlify handles its own TLS, doesn't play well
+   with Cloudflare's orange-cloud proxy. Add `southsoundtheatreartists.org`
+   as a custom domain in Netlify; it provisions a Let's Encrypt cert
+   in ~10 minutes.
+2. [ ] **Update `PUBLIC_SITE_URL`** in Netlify env to
+   `https://southsoundtheatreartists.org`. Trigger a clear-cache
+   deploy after - magic-link emails, callboard digest links, marquee
+   item URLs all read this for absolute paths.
+3. [ ] **GitHub Actions secrets.** Set the cron-job env vars in
+   `Settings -> Secrets and variables -> Actions`:
+   `SUPABASE_DB_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
+   `ADMIN_EMAIL`, `PUBLIC_SITE_URL`, `SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`. Optional: `BACKUP_REPO`,
+   `BACKUP_REPO_TOKEN` for the weekly backup cron (no-ops cleanly
+   when unset).
+4. [ ] **Mail-merge magic-link URLs** from the bulk-import
+   `_results.csv` to invite the 27 imported artists. Swap
+   `localhost:5173` for `https://southsoundtheatreartists.org` in
+   each URL before sending.
+5. [ ] **Rotate `ADMIN_PASSWORD`** in Netlify env to a stronger
+   value. Tell Lexi via private channel.
+6. [ ] **Lexi's Ko-fi onboarding.** Connect Stripe / PayPal in her
+   Ko-fi dashboard so the embed widget renders a real donation form.
+   Until that's done the iframe shows a barebones "Powered by Ko-fi"
+   panel.
+7. [ ] **Final smoke test on the .org URL.** Magic-link resend, contact
+   form delivery, admin login + 2FA, callboard submission, marquee
+   render all working against the live domain.
 
 ---
 
@@ -524,11 +535,100 @@ Resolved since the last run-through:
 
 ---
 
+## Launch-prep checks (done 2026-04-29)
+
+### Bulk import
+
+- [x] `scripts/bulk-import-profiles.mjs` ran end-to-end against
+      `~/OneDrive/Desktop/Artists Directory/Submissions/`. 27 profiles
+      created. 1 resume PDF uploaded to Cloudinary. All headshots
+      uploaded.
+- [x] Idempotent re-runs: dedup on email match, skip on slug collision
+      without email. Verified by running twice.
+- [x] DOCX -> PDF auto-conversion works on Windows (PowerShell + Word
+      COM). McKenna Webb's `.docx` resume converted + uploaded.
+- [x] Disciplines inferred from bio prose with alias table; meta
+      override wins; CANONICAL_SKIP excludes false-positive-prone
+      catch-alls ("Other", "Crew", etc.).
+- [x] Default trust level set to false; `--trust-all` flag flips it
+      for vetted batches.
+- [x] `_results.csv` written with one row per folder, including
+      magic-link edit URLs for mail-merge.
+
+### URL normalisation
+
+- [x] `lib/util/url.ts` `normalizeUrl()` prepends `https://` on bare
+      domains. Verified via the bulk import (Harry Turpin's
+      `harryturpin.com` is now stored as `https://harryturpin.com` and
+      links out correctly from his profile).
+- [x] Applied at save time in submit / edit / admin profile editor +
+      bulk import script (mirror copy).
+- [x] Defensively applied at render time on artist profile page so
+      old rows don't break.
+
+### Admin polish
+
+- [x] `/admin/profiles` shows a 44px round headshot next to each row
+      (initials placeholder when missing).
+- [x] `/admin/disciplines` Save-name action renames a discipline with
+      cascade across `profiles.disciplines`,
+      `pending_submissions.disciplines`, and the mentorship arrays.
+      Two cases verified: simple rename, and merge (when new name
+      already exists).
+- [x] Logged-in admins on `/artists/<slug>` see a dark bar above the
+      profile with status pill + "Edit profile" link to
+      `/admin/profiles/<id>/edit`. Hidden drafts viewable via the
+      public URL when admin signed in (404 for non-admins).
+
+### Word doc resume support
+
+- [x] ResumesEditor accepts `.pdf`, `.doc`, `.docx`. File picker
+      `accept` attribute updated; MIME validation handles all three
+      types; modal warning copy generalised.
+- [x] Public profile section heading reads "Resumes" instead of
+      "Resume PDFs".
+
+### Ko-fi widget
+
+- [x] `/support-us` renders KofiWidget below the markdown content
+      when `PUBLIC_KOFI_USERNAME` is set. Widget hides entirely when
+      empty.
+- [x] Verified on localhost: eyebrow + blurb + iframe + footer link
+      all render correctly.
+- [ ] **Not yet visible on staging deploy.** Likely an adapter-netlify
+      env-var-baking quirk. Will resolve on next clear-cache deploy.
+
+### Email pipeline live
+
+- [x] Resend domain `southsoundtheatreartists.org` verified. SPF /
+      DKIM / DMARC records all green.
+- [x] Cloudflare Email Routing forwards `lexi@` + `hello@` to
+      `southsoundtheatreartists@gmail.com`.
+- [x] Gmail Send-As configured for both via Resend SMTP. Test reply
+      from Gmail goes out as `hello@southsoundtheatreartists.org`
+      with no "via gmail.com" suffix.
+- [x] Contact form delivery confirmed: `status='sent'` from Resend,
+      email lands in recipient's inbox, Reply-To threads correctly.
+- [x] Display name in From header: "South Sound Theatre Artists"
+      (was just "Hello" with the local-part fallback before).
+
+### Netlify staging deploy
+
+- [x] Site builds and deploys at
+      `https://southsoundtheatreartists.netlify.app` from the public
+      `ssta-admin/south-sound-theatre-artists` repo.
+- [x] All 12+ env vars imported from local `.env`. `PUBLIC_SITE_URL`
+      points at the netlify.app URL (will swap to .org at launch).
+- [x] Build pipeline clean. Auto-deploys on push to `main`.
+
+---
+
 ## What I didn't build
 
 - **ADMIN_GUIDE.md** - deferred until closer to launch so Lexi can
   drive notes from real use.
-- **Cloudflare Email Routing setup doc** - blocked on domain access.
+- **Cloudflare Email Routing setup doc** - obsolete now that the
+  routing is set up directly.
 - **PDF parsing / column mapper** (was in v1.1 spec) - cut. Folded
   into the redaction tooling discussion (BUILD_PLAN "Maybe later").
 - **PDF redaction tooling** - parked in BUILD_PLAN "Maybe later"
