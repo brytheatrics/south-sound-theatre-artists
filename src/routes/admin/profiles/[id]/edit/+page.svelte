@@ -124,6 +124,12 @@
   let saving = $state(false);
   let sendingInvite = $state(false);
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
+  // Any field-level validation issue (vs. the catch-all _form key). Used
+  // to render a "couldn't save" banner near the submit button so a 400
+  // doesn't look like a no-op when the per-field error is off-screen.
+  const hasFieldErrors = $derived(
+    Object.keys(errors).some((k) => k !== "_form"),
+  );
 </script>
 
 <svelte:head>
@@ -411,6 +417,17 @@
   </section>
 
   <div class="actions">
+    <!-- Same banners we render in the header, repeated here so feedback
+         lands next to the click on long forms. Without this the only
+         "Saved." banner is at the top of the page and a ~2000px-down
+         click looked like a no-op. -->
+    {#if form?.saved}<div class="form-ok" role="status">Saved.</div>{/if}
+    {#if errors._form}<div class="form-error" role="alert">{errors._form}</div>{/if}
+    {#if hasFieldErrors && !errors._form}
+      <div class="form-error" role="alert">
+        Couldn't save - one or more fields above need attention.
+      </div>
+    {/if}
     <button type="submit" class="bt bt-pri" disabled={saving}>
       {saving ? "Saving..." : "Save changes"}
     </button>
