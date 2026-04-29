@@ -35,7 +35,14 @@
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
+  /* Bump body weight from book (400) to medium (500). 400 + the
+     antialiased smoothing combo reads as too thin on phones - text
+     felt "delicate" per real-world feedback. 500 stays editorial
+     without going heavy. Inter Tight ships 400/500/600/700, so this
+     hits a real font weight (no faux-bold). */
+  font-weight: 500;
+  /* No antialiased override - let the OS use its default. Subpixel on
+     desktop, grayscale on retina mobile. */
   text-rendering: optimizeLegibility;
 }
 
