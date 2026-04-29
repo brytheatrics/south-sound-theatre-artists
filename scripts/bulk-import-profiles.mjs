@@ -510,6 +510,63 @@ async function importFolder(db, folderName) {
   const ethnicities = meta.ethnicities ? splitList(meta.ethnicities) : [];
 
   const baseSlug = slugify(fullName);
+
+  // Dedupe guard: if a profile already exists with this person's email
+  // (from meta.txt) OR the same base slug, skip the row instead of
+  // creating a duplicate -2 / -3 / etc. The folder can sit alongside
+  // already-imported ones across multiple runs without producing
+  // duplicates each time. Only triggers when meta supplies a real
+  // email; placeholder emails would all collide on the same shared
+  // domain.
+  if (meta.email) {
+    const existingByEmail = await db.query(
+      `select slug from profiles where email = $1::text limit 1`,
+      [meta.email.toLowerCase()],
+    );
+    if (existingByEmail.rowCount > 0) {
+      return {
+        folder: folderName,
+        slug: existingByEmail.rows[0].slug,
+        full_name: fullName,
+        email: meta.email.toLowerCase(),
+        email_is_placeholder: false,
+        has_bio: !!bio,
+        has_headshot: !!imagePath,
+        resume_count: pdfPaths.length,
+        disciplines,
+        inferred_disciplines: inferredDisciplines,
+        area: matchedArea ?? "",
+        status: "skipped_existing",
+        missing_required: "",
+        edit_url: "[skipped - profile exists]",
+      };
+    }
+  }
+  const existingBySlug = await db.query(
+    `select slug from profiles where slug = $1::text limit 1`,
+    [baseSlug],
+  );
+  // If the slug is taken AND there's no email to match on, refuse to
+  // auto-suffix - that's how we ended up with -2 dups before. Surface
+  // it so Lexi can decide manually.
+  if (existingBySlug.rowCount > 0 && !meta.email) {
+    return {
+      folder: folderName,
+      slug: baseSlug,
+      full_name: fullName,
+      email: "",
+      email_is_placeholder: true,
+      has_bio: !!bio,
+      has_headshot: !!imagePath,
+      resume_count: pdfPaths.length,
+      disciplines,
+      inferred_disciplines: inferredDisciplines,
+      area: matchedArea ?? "",
+      status: "skipped_slug_collision",
+      missing_required: "no email to dedupe on",
+      edit_url: "[skipped - slug already exists, add email to meta.txt to dedupe]",
+    };
+  }
   const slug = await uniqueSlug(db, baseSlug);
 
   // Email is NOT NULL in the schema. Use a placeholder when missing so
@@ -669,7 +726,14 @@ async function main() {
     try {
       const result = await importFolder(db, folder);
       results.push(result);
-      const flag = result.status === "published" ? "✓" : "draft";
+      const flag =
+        result.status === "published"
+          ? "✓"
+          : result.status === "skipped_existing"
+          ? "skip"
+          : result.status === "skipped_slug_collision"
+          ? "skip"
+          : "draft";
       console.log(
         `  ${flag} ${folder} -> ${result.slug} (${result.disciplines.length} disciplines${result.inferred_disciplines ? ", inferred" : ""}, ${result.resume_count} resume(s)${result.missing_required ? `, missing: ${result.missing_required}` : ""})`,
       );
@@ -727,12 +791,14 @@ async function main() {
   }
   writeFileSync(RESULTS_CSV, lines.join("\n") + "\n");
 
-  const ok = results.filter((r) => r.status !== "error").length;
   const drafts = results.filter((r) => r.status === "hidden_draft").length;
+  const published = results.filter((r) => r.status === "published").length;
+  const skipped = results.filter((r) => r.status?.startsWith("skipped")).length;
   const errors = results.filter((r) => r.status === "error").length;
+  const ok = drafts + published;
   console.log("");
   console.log(
-    `Done. ${ok} imported (${drafts} as drafts), ${errors} error(s). See ${RESULTS_CSV}.`,
+    `Done. ${ok} imported (${published} published, ${drafts} drafts), ${skipped} skipped, ${errors} error(s). See ${RESULTS_CSV}.`,
   );
   if (DRY_RUN) console.log("(Dry run - no rows actually written. Re-run without --dry-run to import.)");
 }
