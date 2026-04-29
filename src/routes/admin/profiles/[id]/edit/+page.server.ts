@@ -6,9 +6,14 @@
 
 import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { parseResumeData } from "$lib/server/resume";
+import { sendEmail } from "$lib/server/email";
+import { generateToken, hashToken } from "$lib/server/tokens";
 import { normalizeUrl } from "$lib/util/url";
+
+const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -80,7 +85,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ params, request }) => {
+  save: async ({ params, request }) => {
     const data = await request.formData();
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const slug = ((data.get("slug") as string) ?? "").trim().toLowerCase();
@@ -223,5 +228,79 @@ export const actions: Actions = {
     }
 
     return { saved: true };
+  },
+
+  // Sends the artist an invitation email with a fresh single-use edit
+  // link, for profiles created by admin (bulk import, /admin/profiles/new
+  // when send_link wasn't used at creation time, etc.). Different from
+  // the magic_link template which assumes the artist was the one who
+  // initiated the relationship - this is "we set up your profile, claim
+  // it". The token is created here, not assumed to exist.
+  sendInvitation: async ({ params }) => {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, slug, full_name, email")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (!profile) return fail(404, { errors: { _form: "Profile not found." } });
+    if (!profile.email) {
+      return fail(400, {
+        errors: {
+          _form: "This profile has no email - add one before sending an invitation.",
+        },
+      });
+    }
+    // Block placeholder emails the bulk-import script generated for
+    // folders without a meta.txt email line. They have nowhere to land.
+    if (profile.email.endsWith("@unknown.ssta.local")) {
+      return fail(400, {
+        errors: {
+          _form:
+            "This profile is using a placeholder email - replace it with the real address before sending an invitation.",
+        },
+      });
+    }
+
+    const token = generateToken();
+    const tokenHash = hashToken(token);
+    const expires = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
+    const { error: tokenErr } = await supabaseAdmin
+      .from("magic_link_tokens")
+      .insert({
+        token_hash: tokenHash,
+        email: profile.email.toLowerCase(),
+        purpose: "edit_profile",
+        target_id: profile.id,
+        expires_at: expires,
+      });
+    if (tokenErr) {
+      console.error("invitation token insert failed", tokenErr);
+      return fail(500, { errors: { _form: "Could not create the edit token." } });
+    }
+
+    const editUrl = `${PUBLIC_SITE_URL}/edit/${token}`;
+    const profileUrl = `${PUBLIC_SITE_URL}/artists/${profile.slug}`;
+    const result = await sendEmail({
+      to: profile.email,
+      templateSlug: "admin_invitation",
+      vars: {
+        name: profile.full_name,
+        edit_url: editUrl,
+        profile_url: profileUrl,
+        site_url: PUBLIC_SITE_URL,
+      },
+    });
+    if (!result.ok) {
+      return fail(500, {
+        errors: {
+          _form:
+            result.reason === "template_not_found"
+              ? "Email template missing - run the latest migrations."
+              : "Could not send the email. The token was created though.",
+        },
+      });
+    }
+
+    return { invitationSent: profile.email };
   },
 };

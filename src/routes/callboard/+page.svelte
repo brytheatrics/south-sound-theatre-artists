@@ -321,7 +321,6 @@
   <div class="footer-actions">
     <a class="bt bt-pri" href="/callboard/submit">Post a call</a>
     <a class="bt bt-ghost" href="/callboard/apply-verified">Get verified</a>
-    <div class="footer-contact mono-label">Questions &middot; hello@ssta.org</div>
   </div>
 </footer>
 
@@ -763,10 +762,6 @@
     gap: 0.625rem;
     align-items: flex-start;
   }
-  .footer-contact {
-    margin-top: 0.5rem;
-  }
-
   /* === BUTTON STYLES === */
   .bt {
     font-family: var(--font-body);

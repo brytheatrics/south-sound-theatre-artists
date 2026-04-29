@@ -122,6 +122,7 @@
   }
 
   let saving = $state(false);
+  let sendingInvite = $state(false);
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
 </script>
 
@@ -137,16 +138,42 @@
     Direct edit, no flagged-edit queue. Saves apply immediately to the
     public profile.
   </p>
-  <p class="quick-links">
+  <div class="quick-links">
     <a class="bt bt-ghost" href="/admin/profiles">← All profiles</a>
     <a class="bt bt-ghost" href={`/artists/${p.slug}`} target="_blank" rel="noopener">View public ↗</a>
-  </p>
+    <!-- Sends the artist a "we set up your profile, claim it" email
+         with a fresh 24h edit link. For admin-created profiles (bulk
+         import or /admin/profiles/new) where the artist hasn't yet
+         been invited to manage their own page. -->
+    <form
+      method="POST"
+      action="?/sendInvitation"
+      class="inline-form"
+      use:enhance={() => {
+        sendingInvite = true;
+        return async ({ update }) => {
+          await update({ reset: false });
+          sendingInvite = false;
+        };
+      }}
+    >
+      <button type="submit" class="bt bt-ghost" disabled={sendingInvite}>
+        {sendingInvite ? "Sending..." : "Send invitation email →"}
+      </button>
+    </form>
+  </div>
   {#if form?.saved}<div class="form-ok" role="status">Saved.</div>{/if}
+  {#if form?.invitationSent}
+    <div class="form-ok" role="status">
+      Invitation email sent to {form.invitationSent}. Link expires in 24 hours.
+    </div>
+  {/if}
   {#if errors._form}<div class="form-error" role="alert">{errors._form}</div>{/if}
 </header>
 
 <form
   method="POST"
+  action="?/save"
   class="ed"
   use:enhance={() => {
     saving = true;
@@ -411,6 +438,14 @@
     gap: 8px;
     margin: 0 0 0.75rem;
     flex-wrap: wrap;
+    align-items: center;
+  }
+  /* Forms inside .quick-links should behave like their child button -
+     no extra block-level layout, no margin. */
+  .quick-links :global(form.inline-form) {
+    display: inline;
+    margin: 0;
+    padding: 0;
   }
   .bt {
     font-family: var(--font-body);
