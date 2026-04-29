@@ -41,8 +41,6 @@ Quick map of what shipped:
   no lawyer review chosen.
 - [x] **`ADMIN_PASSWORD`** - rotated from the dev placeholder. Re-set in
   Netlify env vars at deploy time.
-- [ ] **`SESSION_SECRET`** - real random value in dev. Rotate to a fresh
-  one in Netlify production env.
 - [ ] **Update `static/robots.txt`** to the production custom domain
   when you have one. Blocked on domain access.
 
