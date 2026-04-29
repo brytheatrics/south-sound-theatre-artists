@@ -32,8 +32,9 @@ Quick map of what shipped:
 
 - [ ] **Resend domain verification** - until you verify a domain at
   `resend.com/domains` and switch `RESEND_FROM_EMAIL`, every send to a
-  recipient other than `ssta.admin@gmail.com` fails with a 403. Blocked
-  on domain access.
+  recipient other than the verified Resend recipient fails with a 403.
+  Blocked on domain access. Plan + steps below in "Launch-day email
+  setup".
 - [x] **Privacy + Terms** - polished draft now lives in `site_content`
   (last_updated date, contact email, cookies note, minors clause,
   governing law, change-notice). Lexi can fine-tune in /admin/content;
@@ -44,6 +45,76 @@ Quick map of what shipped:
   one in Netlify production env.
 - [ ] **Update `static/robots.txt`** to the production custom domain
   when you have one. Blocked on domain access.
+
+---
+
+## Launch-day email setup
+
+When the domain lands and DNS access is in hand, do everything below in
+one sitting so the email side flips on cleanly. The plan is to set up a
+custom-domain admin address (e.g. `lexi@southsoundtheatreartists.com`
+or `hello@`) that forwards to **southsoundtheatreartists@gmail.com**
+(Lexi's actual inbox). Replies from her Gmail go out as the custom
+address.
+
+1. **Resend domain verification.** Sign in to resend.com -> Domains ->
+   Add Domain -> enter the SSTA domain. Resend will list 4-5 DNS
+   records (return-path CNAME + DKIM + SPF). Add them at the registrar
+   / Cloudflare. Verification turns green within a few minutes of DNS
+   propagating.
+
+2. **DMARC record.** One TXT record at `_dmarc.thedomain.com` value
+   `v=DMARC1; p=quarantine; rua=mailto:southsoundtheatreartists@gmail.com`.
+   Not required for delivery but improves spam-folder behaviour.
+
+3. **Cloudflare Email Routing.** Cloudflare dashboard -> Email ->
+   Email Routing -> add the SSTA domain. Add a route:
+   `lexi@southsoundtheatreartists.com` -> forwards to
+   `southsoundtheatreartists@gmail.com` (or whatever address Lexi
+   actually uses publicly). Verify the destination by clicking the
+   email Cloudflare sends. Free, ~10 minutes.
+
+4. **Gmail "Send As".** In Lexi's Gmail: Settings -> Accounts and
+   Import -> Send mail as -> Add another email address. Enter
+   `lexi@southsoundtheatreartists.com`. Gmail emails a confirmation
+   code to that address; because Cloudflare forwards it, the code
+   lands in her Gmail. Paste it back, done. Replies will then go out
+   as `lexi@southsoundtheatreartists.com`, not `gmail.com`.
+
+5. **Switch site env vars.** Update both local `.env` and Netlify
+   production env:
+   - `RESEND_FROM_EMAIL` -> `noreply@southsoundtheatreartists.com`
+     (or `hello@` / `lexi@`, whatever sender address you want
+     visitors to see). Anything `@southsoundtheatreartists.com` works
+     once the domain's verified.
+   - `ADMIN_EMAIL` -> `lexi@southsoundtheatreartists.com` (so admin
+     digests / 2FA / volume alerts route through the Cloudflare
+     forwarder to her Gmail).
+
+6. **Update `static/robots.txt`.** Replace any localhost / placeholder
+   sitemap URL with the production one
+   (`https://southsoundtheatreartists.com/sitemap.xml`). Otherwise
+   robots.txt advertises the wrong sitemap.
+
+7. **Drop the manual Resend recipient verification.** In Resend
+   settings, the per-recipient verified addresses are no longer
+   needed - the verified domain lets you send to anyone. Optional
+   cleanup, not breaking.
+
+8. **Mail-merge the parked magic-link URLs.** The bulk-import
+   `_results.csv` from `Submissions/_results.csv` has each imported
+   artist's edit URL. Once Resend can deliver to anyone, mail-merge
+   these out in waves (or send manually one at a time) to invite the
+   artists to claim and finish their profiles. Remember to swap
+   `localhost:5173` for the production domain in the URLs.
+
+9. **Smoke test.** Pick one real artist's email (or use a personal
+   secondary inbox), trigger:
+   - Magic-link resend via `/edit-link`
+   - Contact form submission against a published profile
+   - Manual run of `node scripts/admin-daily-digest.mjs`
+   Confirm each lands in the right inbox, the From header reads
+   `@southsoundtheatreartists.com`, and replies thread back correctly.
 
 ---
 
