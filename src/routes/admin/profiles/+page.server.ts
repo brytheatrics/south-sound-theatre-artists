@@ -30,7 +30,11 @@ export const load: PageServerLoad = async ({ url }) => {
   if (sort === "name") {
     query = query.order("last_name", { ascending: true });
   } else if (sort === "newest") {
-    query = query.order("member_since", { ascending: false });
+    // member_since is day-resolution; tiebreak by created_at so the
+    // most recently approved profile shows first within today's batch.
+    query = query
+      .order("member_since", { ascending: false })
+      .order("created_at", { ascending: false });
   } else {
     query = query.order("updated_at", { ascending: false });
   }

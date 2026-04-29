@@ -101,7 +101,13 @@ export const load: PageServerLoad = async ({ url }) => {
   } else if (sort === "updated") {
     query = query.order("updated_at", { ascending: false });
   } else {
-    query = query.order("member_since", { ascending: false });
+    // member_since is a date (day-resolution), so multiple profiles
+    // created on the same day tie. created_at is a timestamptz and breaks
+    // the tie by exact creation time - the just-approved profile lands
+    // at the top instead of floating somewhere inside today's batch.
+    query = query
+      .order("member_since", { ascending: false })
+      .order("created_at", { ascending: false });
   }
   const offset = (page - 1) * PAGE_SIZE;
   query = query.range(offset, offset + PAGE_SIZE - 1);

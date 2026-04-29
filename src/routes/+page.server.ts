@@ -58,7 +58,10 @@ export const load: PageServerLoad = async () => {
       )
       .eq("published", true)
       .is("deleted_at", null)
+      // member_since is day-resolution; tiebreak by created_at so the
+      // newest approval rises above the bulk-import batch on launch day.
       .order("member_since", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(4),
     supabaseAdmin
       .from("site_content")
