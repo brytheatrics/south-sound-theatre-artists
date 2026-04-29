@@ -19,6 +19,7 @@
     <nav class="ft-links" aria-label="Footer">
       <a href="/about">About</a>
       <a href="/contact">Contact</a>
+      <a href="/edit-link">Edit your profile</a>
       <a href="/support-us">Support us</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
