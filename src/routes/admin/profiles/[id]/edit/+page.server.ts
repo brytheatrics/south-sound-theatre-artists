@@ -35,40 +35,35 @@ function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   }
 }
 
-const ETHNICITY_OPTIONS = [
-  "African American / Black",
-  "Asian",
-  "Hispanic / Latino",
-  "Indigenous / Native American",
-  "Middle Eastern / North African",
-  "Pacific Islander",
-  "White / European",
-  "Multiracial / Mixed",
-  "Prefer not to say",
-];
-
 export const load: PageServerLoad = async ({ params }) => {
-  const [profileRes, areasRes, disciplinesRes, categoriesRes, unionsRes] =
-    await Promise.all([
-      supabaseAdmin
-        .from("profiles")
-        .select("*")
-        .eq("id", params.id)
-        .maybeSingle(),
-      supabaseAdmin.from("areas").select("name, description").order("sort_order"),
-      supabaseAdmin
-        .from("disciplines")
-        .select("name, category")
-        .order("sort_order"),
-      supabaseAdmin
-        .from("discipline_categories")
-        .select("name")
-        .order("sort_order"),
-      supabaseAdmin
-        .from("unions")
-        .select("name, description")
-        .order("sort_order"),
-    ]);
+  const [
+    profileRes,
+    areasRes,
+    disciplinesRes,
+    categoriesRes,
+    unionsRes,
+    ethnicitiesRes,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle(),
+    supabaseAdmin.from("areas").select("name, description").order("sort_order"),
+    supabaseAdmin
+      .from("disciplines")
+      .select("name, category")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("discipline_categories")
+      .select("name")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("unions")
+      .select("name, description")
+      .order("sort_order"),
+    supabaseAdmin.from("ethnicities").select("name").order("sort_order"),
+  ]);
 
   if (!profileRes.data) error(404, "Profile not found.");
 
@@ -80,7 +75,11 @@ export const load: PageServerLoad = async ({ params }) => {
       (c: { name: string }) => c.name,
     ),
     unions: unionsRes.data ?? [],
-    options: { ethnicity: ETHNICITY_OPTIONS },
+    options: {
+      ethnicity: (ethnicitiesRes.data ?? []).map(
+        (r: { name: string }) => r.name,
+      ),
+    },
   };
 };
 

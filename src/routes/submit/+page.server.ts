@@ -18,38 +18,29 @@ import { normalizeUrl } from "$lib/util/url";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
-const ETHNICITY_OPTIONS = [
-  "African American / Black",
-  "Asian",
-  "Hispanic / Latino",
-  "Indigenous / Native American",
-  "Middle Eastern / North African",
-  "Pacific Islander",
-  "White / European",
-  "Multiracial / Mixed",
-  "Prefer not to say",
-];
-
 export const load: PageServerLoad = async () => {
-  const [disciplinesRes, categoriesRes, areasRes, unionsRes] = await Promise.all([
-    supabaseAdmin
-      .from("disciplines")
-      .select("name, category")
-      .order("sort_order"),
-    supabaseAdmin
-      .from("discipline_categories")
-      .select("name")
-      .order("sort_order"),
-    supabaseAdmin.from("areas").select("name, description").order("sort_order"),
-    supabaseAdmin
-      .from("unions")
-      .select("name, description")
-      .order("sort_order"),
-  ]);
+  const [disciplinesRes, categoriesRes, areasRes, unionsRes, ethnicitiesRes] =
+    await Promise.all([
+      supabaseAdmin
+        .from("disciplines")
+        .select("name, category")
+        .order("sort_order"),
+      supabaseAdmin
+        .from("discipline_categories")
+        .select("name")
+        .order("sort_order"),
+      supabaseAdmin.from("areas").select("name, description").order("sort_order"),
+      supabaseAdmin
+        .from("unions")
+        .select("name, description")
+        .order("sort_order"),
+      supabaseAdmin.from("ethnicities").select("name").order("sort_order"),
+    ]);
   if (disciplinesRes.error) throw disciplinesRes.error;
   if (categoriesRes.error) throw categoriesRes.error;
   if (areasRes.error) throw areasRes.error;
   if (unionsRes.error) throw unionsRes.error;
+  if (ethnicitiesRes.error) throw ethnicitiesRes.error;
 
   return {
     disciplines: (disciplinesRes.data ?? []) as Array<{
@@ -64,7 +55,11 @@ export const load: PageServerLoad = async () => {
       name: string;
       description: string | null;
     }>,
-    options: { ethnicity: ETHNICITY_OPTIONS },
+    options: {
+      ethnicity: (ethnicitiesRes.data ?? []).map(
+        (r: { name: string }) => r.name,
+      ),
+    },
   };
 };
 

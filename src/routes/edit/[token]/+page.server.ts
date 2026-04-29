@@ -59,27 +59,34 @@ export const load: PageServerLoad = async ({ params }) => {
   const token = await loadValidToken(params.token);
   if (!token || !token.target_id) error(404, "Edit link is invalid or expired.");
 
-  const [profileRes, areasRes, disciplinesRes, categoriesRes, unionsRes] =
-    await Promise.all([
-      supabaseAdmin
-        .from("profiles")
-        .select("*")
-        .eq("id", token.target_id)
-        .maybeSingle(),
-      supabaseAdmin.from("areas").select("name, description").order("sort_order"),
-      supabaseAdmin
-        .from("disciplines")
-        .select("name, category")
-        .order("sort_order"),
-      supabaseAdmin
-        .from("discipline_categories")
-        .select("name")
-        .order("sort_order"),
-      supabaseAdmin
-        .from("unions")
-        .select("name, description")
-        .order("sort_order"),
-    ]);
+  const [
+    profileRes,
+    areasRes,
+    disciplinesRes,
+    categoriesRes,
+    unionsRes,
+    ethnicitiesRes,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", token.target_id)
+      .maybeSingle(),
+    supabaseAdmin.from("areas").select("name, description").order("sort_order"),
+    supabaseAdmin
+      .from("disciplines")
+      .select("name, category")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("discipline_categories")
+      .select("name")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("unions")
+      .select("name, description")
+      .order("sort_order"),
+    supabaseAdmin.from("ethnicities").select("name").order("sort_order"),
+  ]);
 
   if (!profileRes.data) error(404, "Profile not found.");
 
@@ -104,17 +111,9 @@ export const load: PageServerLoad = async ({ params }) => {
     ),
     unions: unionsRes.data ?? [],
     options: {
-      ethnicity: [
-        "African American / Black",
-        "Asian",
-        "Hispanic / Latino",
-        "Indigenous / Native American",
-        "Middle Eastern / North African",
-        "Pacific Islander",
-        "White / European",
-        "Multiracial / Mixed",
-        "Prefer not to say",
-      ],
+      ethnicity: (ethnicitiesRes.data ?? []).map(
+        (r: { name: string }) => r.name,
+      ),
     },
   };
 };

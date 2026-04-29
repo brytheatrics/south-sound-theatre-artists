@@ -33,34 +33,24 @@ function parseResumesJson(raw: string): Array<{ label: string; url: string }> {
   }
 }
 
-const ETHNICITY_OPTIONS = [
-  "African American / Black",
-  "Asian",
-  "Hispanic / Latino",
-  "Indigenous / Native American",
-  "Middle Eastern / North African",
-  "Pacific Islander",
-  "White / European",
-  "Multiracial / Mixed",
-  "Prefer not to say",
-];
-
 export const load: PageServerLoad = async () => {
-  const [disciplinesRes, categoriesRes, areasRes, unionsRes] = await Promise.all([
-    supabaseAdmin
-      .from("disciplines")
-      .select("name, category")
-      .order("sort_order"),
-    supabaseAdmin
-      .from("discipline_categories")
-      .select("name")
-      .order("sort_order"),
-    supabaseAdmin.from("areas").select("name, description").order("sort_order"),
-    supabaseAdmin
-      .from("unions")
-      .select("name, description")
-      .order("sort_order"),
-  ]);
+  const [disciplinesRes, categoriesRes, areasRes, unionsRes, ethnicitiesRes] =
+    await Promise.all([
+      supabaseAdmin
+        .from("disciplines")
+        .select("name, category")
+        .order("sort_order"),
+      supabaseAdmin
+        .from("discipline_categories")
+        .select("name")
+        .order("sort_order"),
+      supabaseAdmin.from("areas").select("name, description").order("sort_order"),
+      supabaseAdmin
+        .from("unions")
+        .select("name, description")
+        .order("sort_order"),
+      supabaseAdmin.from("ethnicities").select("name").order("sort_order"),
+    ]);
 
   return {
     disciplines: disciplinesRes.data ?? [],
@@ -69,7 +59,11 @@ export const load: PageServerLoad = async () => {
     ),
     areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     unions: unionsRes.data ?? [],
-    options: { ethnicity: ETHNICITY_OPTIONS },
+    options: {
+      ethnicity: (ethnicitiesRes.data ?? []).map(
+        (r: { name: string }) => r.name,
+      ),
+    },
   };
 };
 
