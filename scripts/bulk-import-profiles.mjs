@@ -1,0 +1,604 @@
+// scripts/bulk-import-profiles.mjs
+//
+// One-shot bulk import for profiles that came in via email before the
+// site existed. Reads ./imports/<Person Name>/ folders, each containing
+// any combination of:
+//   - bio.txt          -> profile.bio (full file contents, trimmed)
+//   - headshot.{jpg,png,webp,heic,jpeg}  -> uploaded to Cloudinary
+//   - resume*.pdf      -> 0+ PDFs uploaded to Cloudinary as raw uploads,
+//                         attached as profile.resumes [{label, url}, ...]
+//   - meta.txt         -> "key: value" lines for known fields
+//                         (email / disciplines / area / city / pronouns /
+//                          playable_age / languages / website / instagram
+//                          / facebook / tiktok / linkedin / twitter /
+//                          youtube / unions / ethnicities)
+//
+// Folder name becomes the full_name. Anything missing is left empty.
+// Profiles missing required fields (disciplines or geographic_area) are
+// imported as hidden drafts so they don't show on /directory until you
+// finish them in /admin/profiles.
+//
+// Discipline auto-detection: if meta.txt doesn't supply disciplines and
+// a bio.txt exists, the script greps the bio for canonical discipline
+// names + a small alias table (SM / LD / ASM / etc) and applies what it
+// finds. Imperfect by design - artists fix their own profiles via
+// magic-link later, so a slightly trigger-happy parse is the right call.
+//
+// Outputs ./imports/_results.csv with one row per folder showing what
+// was imported, what was inferred, and the magic-link edit URL so you
+// can mail-merge those out in waves once you're ready.
+//
+// Usage:
+//   node scripts/bulk-import-profiles.mjs            # real import
+//   node scripts/bulk-import-profiles.mjs --dry-run  # parse + report only
+
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { join, basename, extname } from "node:path";
+import { randomBytes, createHash } from "node:crypto";
+import "dotenv/config";
+import pg from "pg";
+
+const { Client } = pg;
+
+const DRY_RUN = process.argv.includes("--dry-run");
+const IMPORTS_DIR = "imports";
+const RESULTS_CSV = join(IMPORTS_DIR, "_results.csv");
+const EDIT_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+const env = {
+  db: process.env.SUPABASE_DB_URL,
+  cloudName: process.env.PUBLIC_CLOUDINARY_CLOUD_NAME,
+  apiKey: process.env.CLOUDINARY_API_KEY,
+  apiSecret: process.env.CLOUDINARY_API_SECRET,
+  siteUrl: process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.com",
+};
+
+function fail(msg) {
+  console.error(`ERROR: ${msg}`);
+  process.exit(1);
+}
+
+if (!env.db) fail("SUPABASE_DB_URL is not set in .env");
+if (!DRY_RUN && (!env.cloudName || !env.apiKey || !env.apiSecret)) {
+  fail("Cloudinary env (CLOUD_NAME / API_KEY / API_SECRET) is incomplete");
+}
+
+const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic"]);
+const PDF_EXT = ".pdf";
+
+// Canonical SSTA areas. Loose-matched against the meta.txt area value.
+// Exact list comes from the DB at runtime.
+
+// Common discipline aliases to canonical name patterns. The script
+// matches these against bio text; multiple aliases can map to the same
+// canonical discipline. Match order doesn't matter - dedup happens at
+// the end. Patterns are case-insensitive, word-boundary matched.
+const DISCIPLINE_ALIASES = [
+  // Performers
+  { pattern: /\b(actor|actress|acting)\b/i, names: ["Actor"] },
+  { pattern: /\b(voice over|voice-over|voiceover|vo artist|voice actor)\b/i, names: ["Voice Actor"] },
+  { pattern: /\b(singer|vocalist|singing)\b/i, names: ["Singer / Vocalist"] },
+  { pattern: /\b(dancer|dancing)\b/i, names: ["Dancer"] },
+  { pattern: /\b(musical theatre|music theatre performer|musical theater)\b/i, names: ["Musical Theatre Performer"] },
+  { pattern: /\b(ensemble|ensemble performer)\b/i, names: ["Ensemble Performer"] },
+  { pattern: /\b(swing performer|swing role)\b/i, names: ["Swing"] },
+  { pattern: /\b(understudy|understudying)\b/i, names: ["Understudy"] },
+  { pattern: /\b(improviser|improvising|improv)\b/i, names: ["Improviser"] },
+  { pattern: /\b(circus performer|circus artist|aerialist)\b/i, names: ["Circus Performer"] },
+  { pattern: /\b(puppeteer|puppetry)\b/i, names: ["Puppeteer"] },
+  { pattern: /\b(deviser|devised theatre|devising)\b/i, names: ["Deviser"] },
+
+  // Direction / leadership
+  { pattern: /\b(directing|directed)\b/i, names: ["Director"] },
+  { pattern: /\b(\bdirector\b(?! of))/i, names: ["Director"] }, // avoid "director of marketing" etc.
+  { pattern: /\bassistant director\b/i, names: ["Assistant Director"] },
+  { pattern: /\bassociate director\b/i, names: ["Associate Director"] },
+  { pattern: /\bartistic director\b/i, names: ["Artistic Director"] },
+  { pattern: /\bcasting director\b/i, names: ["Casting Director"] },
+  { pattern: /\b(music director|musical director|md\b)/i, names: ["Music Director"] },
+  { pattern: /\b(choreographer|choreographing|choreography)\b/i, names: ["Choreographer"] },
+  { pattern: /\bassistant choreographer\b/i, names: ["Assistant Choreographer"] },
+  { pattern: /\b(intimacy director|intimacy coordinator)\b/i, names: ["Intimacy Director"] },
+  { pattern: /\b(fight director|fight choreographer)\b/i, names: ["Fight Director"] },
+  { pattern: /\bmovement director\b/i, names: ["Movement Director"] },
+
+  // Design
+  { pattern: /\b(scenic designer|set designer|scenic design|set design)\b/i, names: ["Scenic Designer"] },
+  { pattern: /\b(lighting designer|lighting design|\bld\b)\b/i, names: ["Lighting Designer"] },
+  { pattern: /\b(costume designer|costume design)\b/i, names: ["Costume Designer"] },
+  { pattern: /\b(sound designer|sound design)\b/i, names: ["Sound Designer"] },
+  { pattern: /\b(projection designer|projection design)\b/i, names: ["Projection Designer"] },
+  { pattern: /\bvideo designer\b/i, names: ["Video Designer"] },
+  { pattern: /\b(props designer|props design|properties designer)\b/i, names: ["Props Designer"] },
+  { pattern: /\bprops master\b/i, names: ["Props Master"] },
+  { pattern: /\b(makeup designer|hair (and|&) makeup designer)\b/i, names: ["Makeup Designer"] },
+  { pattern: /\bmakeup artist\b/i, names: ["Makeup Artist (Run Crew)"] },
+  { pattern: /\bwig designer\b/i, names: ["Wig Designer"] },
+  { pattern: /\bhair designer\b/i, names: ["Hair Designer"] },
+  { pattern: /\bgraphic designer\b/i, names: ["Graphic Designer"] },
+
+  // Stage management
+  { pattern: /\b(stage manager|stage management|\bsm\b)\b/i, names: ["Stage Manager"] },
+  { pattern: /\b(assistant stage manager|\basm\b)\b/i, names: ["Assistant Stage Manager"] },
+  { pattern: /\bproduction stage manager|psm\b/i, names: ["Production Stage Manager"] },
+  { pattern: /\bproduction manager\b/i, names: ["Production Manager"] },
+  { pattern: /\bcompany manager\b/i, names: ["Company Manager"] },
+
+  // Crew / tech
+  { pattern: /\b(technical director|\btd\b)\b/i, names: ["Technical Director"] },
+  { pattern: /\bassistant technical director\b/i, names: ["Assistant Technical Director"] },
+  { pattern: /\b(carpenter|scenic carpenter|build crew)\b/i, names: ["Scenic Carpenter"] },
+  { pattern: /\bmaster carpenter\b/i, names: ["Master Carpenter"] },
+  { pattern: /\b(electrician|electrics|theatrical electrician)\b/i, names: ["Theatrical Electrician"] },
+  { pattern: /\bmaster electrician\b/i, names: ["Master Electrician"] },
+  { pattern: /\b(sound (engineer|op|mixer)|a1)\b/i, names: ["A1 / Sound Engineer"] },
+  { pattern: /\b(stitcher|seamstress|tailor|costume shop)\b/i, names: ["Stitcher / Seamstress / Tailor"] },
+  { pattern: /\b(dresser)\b/i, names: ["Dresser"] },
+  { pattern: /\bwardrobe (supervisor|head)\b/i, names: ["Wardrobe Supervisor"] },
+  { pattern: /\brun crew\b/i, names: ["Run Crew"] },
+  { pattern: /\bdeck crew\b/i, names: ["Deck Crew"] },
+  { pattern: /\bfly crew\b/i, names: ["Fly Crew"] },
+  { pattern: /\b(light board op|lighting board op)\b/i, names: ["Light Board Operator"] },
+  { pattern: /\b(sound board op)\b/i, names: ["Sound Board Operator"] },
+  { pattern: /\bfollow spot\b/i, names: ["Follow Spot Operator"] },
+  { pattern: /\btheatrical rigger|rigging\b/i, names: ["Theatrical Rigger"] },
+  { pattern: /\bscenic artist|scenic painter\b/i, names: ["Scenic Artist / Painter"] },
+
+  // Music
+  { pattern: /\bcomposer|composing\b/i, names: ["Composer"] },
+  { pattern: /\barranger|arrangements\b/i, names: ["Arranger"] },
+  { pattern: /\borchestrator\b/i, names: ["Orchestrator"] },
+  { pattern: /\blyricist\b/i, names: ["Lyricist"] },
+  { pattern: /\bconductor\b/i, names: ["Conductor"] },
+  { pattern: /\bpit musician\b/i, names: ["Pit Musician"] },
+  { pattern: /\brehearsal pianist\b/i, names: ["Rehearsal Pianist"] },
+
+  // Writing / producing
+  { pattern: /\b(playwright|playwriting|wrote (the )?play)\b/i, names: ["Playwright"] },
+  { pattern: /\b(dramaturg|dramaturgy)\b/i, names: ["Dramaturg"] },
+  { pattern: /\b(producing|produced (the )?(show|production))\b/i, names: ["Producer"] },
+  { pattern: /\bproducer\b/i, names: ["Producer"] },
+  { pattern: /\bexecutive producer\b/i, names: ["Executive Producer"] },
+  { pattern: /\bassociate producer\b/i, names: ["Associate Producer"] },
+  { pattern: /\badapter|adaptation\b/i, names: ["Adapter"] },
+  { pattern: /\btranslator\b/i, names: ["Translator (Theatre)"] },
+  { pattern: /\bscript doctor\b/i, names: ["Script Doctor"] },
+
+  // Coaches
+  { pattern: /\bdialect coach\b/i, names: ["Dialect Coach"] },
+  { pattern: /\bvocal coach\b/i, names: ["Vocal Coach"] },
+  { pattern: /\bacting coach\b/i, names: ["Acting Coach"] },
+  { pattern: /\bmovement coach\b/i, names: ["Movement Coach"] },
+
+  // Education / admin
+  { pattern: /\b(teaching artist|theatre educator|theater educator)\b/i, names: ["Teaching Artist"] },
+  { pattern: /\bworkshop facilitator\b/i, names: ["Workshop Facilitator"] },
+  { pattern: /\bgeneral manager\b/i, names: ["General Manager"] },
+  { pattern: /\bdevelopment director\b/i, names: ["Development Director"] },
+  { pattern: /\bmarketing director\b/i, names: ["Marketing Director"] },
+  { pattern: /\bgrant writer\b/i, names: ["Grant Writer"] },
+  { pattern: /\bbox office\b/i, names: ["Box Office Manager"] },
+  { pattern: /\bhouse manager\b/i, names: ["House Manager"] },
+  { pattern: /\busher\b/i, names: ["Usher"] },
+
+  // Documentation
+  { pattern: /\bproduction photographer\b/i, names: ["Production Photographer"] },
+  { pattern: /\bvideographer\b/i, names: ["Videographer / Archivist"] },
+];
+
+function inferDisciplines(bio, canonical) {
+  if (!bio) return [];
+  const found = new Set();
+
+  // 1. Alias table (rich variants)
+  for (const { pattern, names } of DISCIPLINE_ALIASES) {
+    if (pattern.test(bio)) {
+      for (const n of names) found.add(n);
+    }
+  }
+  // 2. Direct substring match against the canonical list (catches the
+  //    long tail). Word-boundary, case-insensitive.
+  for (const name of canonical) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`, "i");
+    if (re.test(bio)) found.add(name);
+  }
+  // Filter to entries that exist in the canonical list (guards against
+  // an alias mapping to a discipline name that's been renamed since).
+  return [...found].filter((d) => canonical.includes(d));
+}
+
+function parseMeta(text) {
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const colon = trimmed.indexOf(":");
+    if (colon === -1) continue;
+    const key = trimmed.slice(0, colon).trim().toLowerCase();
+    const val = trimmed.slice(colon + 1).trim();
+    if (key && val) out[key] = val;
+  }
+  return out;
+}
+
+function splitList(s) {
+  return s
+    .split(/[,;\n]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 60);
+}
+
+async function uniqueSlug(db, base) {
+  let slug = base;
+  let n = 2;
+  while (true) {
+    const r = await db.query(`select 1 from profiles where slug = $1`, [slug]);
+    if (r.rowCount === 0) return slug;
+    slug = `${base}-${n}`;
+    n++;
+  }
+}
+
+function titleCaseFromFilename(filename) {
+  const base = filename.replace(/\.[^.]+$/, "");
+  const words = base.replace(/[_\-]+/g, " ").trim();
+  if (!words || /^resume$/i.test(words)) return "Resume";
+  return words
+    .split(/\s+/)
+    .map((w) => (w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
+}
+
+function cloudinarySign(params, secret) {
+  const stringToSign =
+    Object.keys(params)
+      .sort()
+      .map((k) => `${k}=${params[k]}`)
+      .join("&") + secret;
+  return createHash("sha1").update(stringToSign).digest("hex");
+}
+
+async function uploadToCloudinary(filePath, opts) {
+  // opts.folder ('headshots' or 'resumes'), opts.resourceType ('image' or 'raw'),
+  // opts.transformation (optional, image only)
+  const timestamp = Math.floor(Date.now() / 1000);
+  const params = { folder: opts.folder, timestamp: String(timestamp) };
+  if (opts.transformation) params.transformation = opts.transformation;
+  const signature = cloudinarySign(params, env.apiSecret);
+
+  const fileBytes = readFileSync(filePath);
+  const form = new FormData();
+  form.append("file", new Blob([fileBytes]), basename(filePath));
+  form.append("api_key", env.apiKey);
+  form.append("timestamp", String(timestamp));
+  form.append("signature", signature);
+  form.append("folder", opts.folder);
+  if (opts.transformation) form.append("transformation", opts.transformation);
+
+  const url = `https://api.cloudinary.com/v1_1/${env.cloudName}/${opts.resourceType}/upload`;
+  const resp = await fetch(url, { method: "POST", body: form });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Cloudinary upload failed (${resp.status}): ${txt.slice(0, 300)}`);
+  }
+  const json = await resp.json();
+  return json.secure_url;
+}
+
+function readFolder(folderPath) {
+  const entries = readdirSync(folderPath);
+  let bioPath = null;
+  let metaPath = null;
+  let imagePath = null;
+  const pdfPaths = [];
+  for (const name of entries) {
+    const full = join(folderPath, name);
+    if (statSync(full).isDirectory()) continue;
+    const lower = name.toLowerCase();
+    const ext = extname(lower);
+    if (lower === "bio.txt" || lower === "bio.md") bioPath = full;
+    else if (lower === "meta.txt") metaPath = full;
+    else if (IMAGE_EXTS.has(ext) && !imagePath) imagePath = full;
+    else if (ext === PDF_EXT) pdfPaths.push(full);
+  }
+  return { bioPath, metaPath, imagePath, pdfPaths };
+}
+
+async function loadCanonicalDisciplines(db) {
+  const r = await db.query(`select name from disciplines order by name`);
+  return r.rows.map((x) => x.name);
+}
+
+async function loadCanonicalAreas(db) {
+  const r = await db.query(`select name from areas order by sort_order`);
+  return r.rows.map((x) => x.name);
+}
+
+function matchArea(input, areas) {
+  if (!input) return null;
+  const lower = input.toLowerCase();
+  // Exact (case-insensitive) match first
+  for (const a of areas) if (a.toLowerCase() === lower) return a;
+  // Contains check ('Tacoma' in 'Tacoma area')
+  for (const a of areas) if (a.toLowerCase().includes(lower) || lower.includes(a.toLowerCase().split(" ")[0])) return a;
+  return null;
+}
+
+function parseAgeRange(s) {
+  if (!s) return [null, null];
+  const m = s.match(/(\d{1,3})\s*[-–to]+\s*(\d{1,3})/);
+  if (!m) return [null, null];
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (a >= 0 && b <= 120 && a <= b) return [a, b];
+  return [null, null];
+}
+
+async function importFolder(db, folderName) {
+  const folderPath = join(IMPORTS_DIR, folderName);
+  const fullName = folderName.trim();
+  const { bioPath, metaPath, imagePath, pdfPaths } = readFolder(folderPath);
+  const bio = bioPath ? readFileSync(bioPath, "utf-8").trim() : null;
+  const meta = metaPath ? parseMeta(readFileSync(metaPath, "utf-8")) : {};
+
+  const canonical = await loadCanonicalDisciplines(db);
+  const areas = await loadCanonicalAreas(db);
+
+  // Disciplines: explicit meta wins; otherwise infer from bio.
+  let disciplines = [];
+  let inferredDisciplines = false;
+  if (meta.disciplines) {
+    disciplines = splitList(meta.disciplines).filter((d) => canonical.includes(d));
+  } else if (bio) {
+    disciplines = inferDisciplines(bio, canonical);
+    inferredDisciplines = disciplines.length > 0;
+  }
+
+  const matchedArea = matchArea(meta.area, areas);
+  const [ageMin, ageMax] = parseAgeRange(meta.playable_age);
+  const languages = meta.languages ? splitList(meta.languages) : [];
+  const unions = meta.unions ? splitList(meta.unions) : [];
+  const ethnicities = meta.ethnicities ? splitList(meta.ethnicities) : [];
+
+  const baseSlug = slugify(fullName);
+  const slug = await uniqueSlug(db, baseSlug);
+
+  // Email is NOT NULL in the schema. Use a placeholder when missing so
+  // the import doesn't fail. Flagged in the results CSV so you know
+  // which ones need a real email later.
+  const email = meta.email
+    ? meta.email.toLowerCase()
+    : `import+${slug}@unknown.ssta.local`;
+  const emailIsPlaceholder = !meta.email;
+
+  // Required-to-publish gate: must have at least one discipline AND an
+  // area. Otherwise the row imports as a hidden draft.
+  const canPublish = disciplines.length > 0 && !!matchedArea;
+  const missingRequired = [];
+  if (disciplines.length === 0) missingRequired.push("disciplines");
+  if (!matchedArea) missingRequired.push("area");
+
+  let headshotUrl = null;
+  if (imagePath && !DRY_RUN) {
+    headshotUrl = await uploadToCloudinary(imagePath, {
+      folder: "headshots",
+      resourceType: "image",
+      transformation: "c_limit,w_1200,h_1200,q_auto,f_auto",
+    });
+  } else if (imagePath && DRY_RUN) {
+    headshotUrl = "[would upload]";
+  }
+
+  const resumes = [];
+  for (const pdfPath of pdfPaths) {
+    if (DRY_RUN) {
+      resumes.push({
+        label: titleCaseFromFilename(basename(pdfPath)),
+        url: "[would upload]",
+      });
+      continue;
+    }
+    const url = await uploadToCloudinary(pdfPath, {
+      folder: "resumes",
+      resourceType: "raw",
+    });
+    resumes.push({ label: titleCaseFromFilename(basename(pdfPath)), url });
+  }
+
+  let editUrl = null;
+  if (!DRY_RUN) {
+    // Insert profile.
+    const ins = await db.query(
+      `insert into profiles
+        (slug, full_name, email, bio, disciplines, headshot_url,
+         headshot_consent, geographic_area, city, pronouns,
+         playable_age_min, playable_age_max, languages, unions,
+         ethnicities, instagram_handle, facebook_url, tiktok_handle,
+         linkedin_url, twitter_handle, youtube_url, website_url,
+         resumes, trusted, published)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+       returning id`,
+      [
+        slug,
+        fullName,
+        email,
+        bio,
+        disciplines,
+        headshotUrl,
+        !!headshotUrl,
+        matchedArea,
+        meta.city ?? null,
+        meta.pronouns ?? null,
+        ageMin,
+        ageMax,
+        languages,
+        unions,
+        ethnicities,
+        meta.instagram ?? null,
+        meta.facebook ?? null,
+        meta.tiktok ?? null,
+        meta.linkedin ?? null,
+        meta.twitter ?? null,
+        meta.youtube ?? null,
+        meta.website ?? null,
+        JSON.stringify(resumes),
+        true,
+        canPublish,
+      ],
+    );
+    const profileId = ins.rows[0].id;
+
+    // Generate a single-use 30-day edit token. Saved to results CSV so
+    // it can be mail-merged out later when ready - NOT emailed during
+    // the import.
+    const token = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const expires = new Date(Date.now() + EDIT_TOKEN_TTL_MS).toISOString();
+    await db.query(
+      `insert into magic_link_tokens
+         (token_hash, email, purpose, target_id, expires_at)
+       values ($1, $2, 'edit_profile', $3, $4)`,
+      [tokenHash, email, profileId, expires],
+    );
+    editUrl = `${env.siteUrl}/edit/${token}`;
+  }
+
+  return {
+    folder: folderName,
+    slug,
+    full_name: fullName,
+    email,
+    email_is_placeholder: emailIsPlaceholder,
+    has_bio: !!bio,
+    has_headshot: !!imagePath,
+    resume_count: pdfPaths.length,
+    disciplines,
+    inferred_disciplines: inferredDisciplines,
+    area: matchedArea ?? "",
+    status: canPublish ? "published" : "hidden_draft",
+    missing_required: missingRequired.join("|"),
+    edit_url: editUrl ?? "[dry-run]",
+  };
+}
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+async function main() {
+  let folders = [];
+  try {
+    folders = readdirSync(IMPORTS_DIR).filter((name) => {
+      if (name.startsWith("_")) return false; // skip _results.csv etc.
+      const full = join(IMPORTS_DIR, name);
+      return statSync(full).isDirectory();
+    });
+  } catch (err) {
+    fail(`Could not read ${IMPORTS_DIR}/: ${err.message}`);
+  }
+
+  if (folders.length === 0) {
+    console.log(`No folders found in ${IMPORTS_DIR}/`);
+    return;
+  }
+
+  console.log(
+    `${DRY_RUN ? "[DRY RUN] " : ""}Importing ${folders.length} folder(s) from ${IMPORTS_DIR}/`,
+  );
+
+  const db = new Client({
+    connectionString: env.db,
+    ssl: { rejectUnauthorized: false },
+  });
+  await db.connect();
+
+  const results = [];
+  for (const folder of folders) {
+    try {
+      const result = await importFolder(db, folder);
+      results.push(result);
+      const flag = result.status === "published" ? "✓" : "draft";
+      console.log(
+        `  ${flag} ${folder} -> ${result.slug} (${result.disciplines.length} disciplines${result.inferred_disciplines ? ", inferred" : ""}, ${result.resume_count} resume(s)${result.missing_required ? `, missing: ${result.missing_required}` : ""})`,
+      );
+    } catch (err) {
+      console.error(`  ! ${folder} FAILED: ${err.message}`);
+      results.push({
+        folder,
+        slug: "",
+        status: "error",
+        missing_required: "",
+        edit_url: "",
+        full_name: folder,
+        email: "",
+        email_is_placeholder: false,
+        has_bio: false,
+        has_headshot: false,
+        resume_count: 0,
+        disciplines: [],
+        inferred_disciplines: false,
+        area: "",
+        error: err.message,
+      });
+    }
+  }
+
+  await db.end();
+
+  const headers = [
+    "folder",
+    "slug",
+    "status",
+    "full_name",
+    "email",
+    "email_is_placeholder",
+    "has_bio",
+    "has_headshot",
+    "resume_count",
+    "disciplines",
+    "inferred_disciplines",
+    "area",
+    "missing_required",
+    "edit_url",
+    "error",
+  ];
+  const lines = [headers.join(",")];
+  for (const r of results) {
+    lines.push(
+      headers
+        .map((h) => {
+          if (h === "disciplines") return csvEscape(r.disciplines.join(", "));
+          return csvEscape(r[h]);
+        })
+        .join(","),
+    );
+  }
+  writeFileSync(RESULTS_CSV, lines.join("\n") + "\n");
+
+  const ok = results.filter((r) => r.status !== "error").length;
+  const drafts = results.filter((r) => r.status === "hidden_draft").length;
+  const errors = results.filter((r) => r.status === "error").length;
+  console.log("");
+  console.log(
+    `Done. ${ok} imported (${drafts} as drafts), ${errors} error(s). See ${RESULTS_CSV}.`,
+  );
+  if (DRY_RUN) console.log("(Dry run - no rows actually written. Re-run without --dry-run to import.)");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
