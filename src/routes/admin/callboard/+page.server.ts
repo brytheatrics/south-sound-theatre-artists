@@ -36,8 +36,14 @@ export const load: PageServerLoad = async ({ url }) => {
   if (statusFilter && validStatuses.includes(statusFilter)) {
     query = query.eq("status", statusFilter);
   }
-  const validTypes = ["audition", "designer", "crew", "production", "general"];
-  if (typeFilter && validTypes.includes(typeFilter)) {
+  // Active + inactive post types - admin should be able to filter by
+  // any type that has posts, even if it's been deactivated.
+  const { data: postTypes } = await supabaseAdmin
+    .from("callboard_post_types")
+    .select("slug, label")
+    .order("sort_order");
+  const validTypeSlugs = (postTypes ?? []).map((t) => t.slug);
+  if (typeFilter && validTypeSlugs.includes(typeFilter)) {
     query = query.eq("post_type", typeFilter);
   }
 
@@ -64,6 +70,7 @@ export const load: PageServerLoad = async ({ url }) => {
     total: count ?? 0,
     trashCount: trashCount ?? 0,
     pendingCount: pendingCount ?? 0,
+    postTypes: postTypes ?? [],
     page,
     pageSize: PAGE_SIZE,
     q,

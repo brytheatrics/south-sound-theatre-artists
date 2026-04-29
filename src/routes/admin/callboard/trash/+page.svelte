@@ -16,13 +16,9 @@
   function cancelHardDelete() { pendingHardDeleteForm = null; pendingHardDeleteTitle = ""; }
   function confirmHardDelete() { pendingHardDeleteForm?.requestSubmit(); cancelHardDelete(); }
 
-  const POST_TYPE_LABELS: Record<string, string> = {
-    audition: "Audition",
-    designer: "Designer",
-    crew: "Crew",
-    production: "Production",
-    general: "General",
-  };
+  const POST_TYPE_LABELS = $derived(
+    Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
+  );
 
   function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

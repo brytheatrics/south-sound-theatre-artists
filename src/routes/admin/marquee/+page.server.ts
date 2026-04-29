@@ -8,7 +8,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
 export const load: PageServerLoad = async () => {
-  const [settingsRes, postsRes] = await Promise.all([
+  const [settingsRes, postsRes, typesRes] = await Promise.all([
     supabaseAdmin
       .from("marquee_settings")
       .select("enabled, include_all_callboard, include_callboard_post_ids")
@@ -21,6 +21,7 @@ export const load: PageServerLoad = async () => {
       .eq("published", true)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
+    supabaseAdmin.from("callboard_post_types").select("slug, label"),
   ]);
   if (postsRes.error) throw postsRes.error;
 
@@ -31,6 +32,7 @@ export const load: PageServerLoad = async () => {
       include_callboard_post_ids: [],
     },
     callboardPosts: postsRes.data ?? [],
+    postTypes: typesRes.data ?? [],
   };
 };
 

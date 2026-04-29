@@ -3,15 +3,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const { post, verifiedOrgName } = data;
-
-  const POST_TYPE_LABELS: Record<string, string> = {
-    audition: "Audition",
-    designer: "Designer call",
-    crew: "Crew call",
-    production: "Production announcement",
-    general: "General opportunity",
-  };
+  const { post, verifiedOrgName, typeLabel } = data;
 
   function isClosingSoon(expiresAt: string | null): boolean {
     if (!expiresAt) return false;
@@ -43,7 +35,7 @@
   <!-- MAIN COLUMN -->
   <main class="post-main">
     <div class="post-top">
-      <span class="type-badge">{POST_TYPE_LABELS[post.post_type] ?? post.post_type}</span>
+      <span class="type-badge">{typeLabel}</span>
       {#if post.verified_org_id}
         <span class="verified-badge" title="Verified producing company">&#10003;</span>
         {#if verifiedOrgName}

@@ -4,7 +4,10 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  let postType = $state((form?.values?.postType as string) ?? "audition");
+  // svelte-ignore state_referenced_locally
+  let postType = $state(
+    (form?.values?.postType as string) ?? data.postTypes[0]?.slug ?? "audition",
+  );
   let keyDatesRaw = $state(
     form?.values?.keyDates ? JSON.stringify(form.values.keyDates) : "[]",
   );
@@ -31,7 +34,13 @@
     );
   });
 
-  const showRoles = $derived(["audition", "designer", "crew", "general"].includes(postType));
+  // Show roles input for everything except "production" (which is a
+  // show-announcement, not a position-listing). Custom types Lexi adds
+  // get the roles input by default - useful for workshops needing
+  // facilitators, meetups needing organizers, etc. ticket_url stays
+  // production-only for now since that's a show-announcement-specific
+  // field.
+  const showRoles = $derived(postType !== "production");
   const showTicketUrl = $derived(postType === "production");
 </script>
 
@@ -67,24 +76,20 @@
     <fieldset class="fieldset">
       <legend class="legend"><span class="num">01</span> What kind of post?</legend>
       <div class="type-grid">
-        {#each [
-          { value: "audition", label: "Audition notice", desc: "Open casting call for a show." },
-          { value: "designer", label: "Designer call", desc: "Looking for a scenic, lighting, costume, sound, or other designer." },
-          { value: "crew", label: "Crew call", desc: "Stage manager, ASM, carpenter, stitcher, run crew, etc." },
-          { value: "production", label: "Production announcement", desc: "Announcing a show - dates, tickets, info." },
-          { value: "general", label: "General opportunity", desc: "Workshop, class, staged reading, anything else." },
-        ] as opt (opt.value)}
-          <label class="type-opt" class:on={postType === opt.value}>
+        {#each data.postTypes as t (t.slug)}
+          <label class="type-opt" class:on={postType === t.slug}>
             <input
               type="radio"
               name="post_type"
-              value={opt.value}
-              checked={postType === opt.value}
-              onchange={() => { postType = opt.value; }}
+              value={t.slug}
+              checked={postType === t.slug}
+              onchange={() => { postType = t.slug; }}
               class="sr-only"
             />
-            <span class="type-label">{opt.label}</span>
-            <span class="type-desc">{opt.desc}</span>
+            <span class="type-label">{t.label}</span>
+            {#if t.description}
+              <span class="type-desc">{t.description}</span>
+            {/if}
           </label>
         {/each}
       </div>

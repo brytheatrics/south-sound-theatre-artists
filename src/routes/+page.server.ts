@@ -24,17 +24,10 @@ export type MarqueeItem = {
   href: string;
 };
 
-// Star for "now-playing" / production-style posts, sparkle for everything
-// else. Keeps the marquee visually punctuated without prefixing the post
-// title (titles often already say "Auditions:" / "Now playing:" / etc.,
-// and a prefix would double up).
-const POST_TYPE_GLYPH: Record<string, string> = {
-  audition: "✦",
-  designer: "✦",
-  crew: "✦",
-  production: "★",
-  general: "✦",
-};
+// Glyphs come from callboard_post_types now (Lexi configures per type
+// from /admin/callboard-types). The fallback to "✦" handles posts
+// whose post_type slug was deleted from the types table - rare but
+// possible if a slug was renamed without re-tagging existing posts.
 
 export const load: PageServerLoad = async () => {
   const [countRes, curatedRes, fallbackRes, recentRes, homeRes, marqueeRes] = await Promise.all([
@@ -100,6 +93,16 @@ export const load: PageServerLoad = async () => {
         .order("expires_at", { ascending: true, nullsFirst: false });
       if (!wantAll) q = q.in("id", ids);
       const { data: posts } = await q.limit(30);
+
+      // Pull glyph map from the post types table so admin-added types
+      // get their configured marquee glyph automatically.
+      const { data: typeRows } = await supabaseAdmin
+        .from("callboard_post_types")
+        .select("slug, glyph");
+      const glyphBySlug = new Map<string, string>(
+        (typeRows ?? []).map((t) => [t.slug, t.glyph ?? "✦"]),
+      );
+
       marquee = (posts ?? []).map((p) => {
         // Format: "{Org} - {Title}{deadline or location}"
         const tail = p.deadline_text
@@ -109,7 +112,7 @@ export const load: PageServerLoad = async () => {
           : "";
         return {
           id: p.id,
-          glyph: POST_TYPE_GLYPH[p.post_type] ?? "✦",
+          glyph: glyphBySlug.get(p.post_type) ?? "✦",
           text: `${p.organization_name} - ${p.title}${tail}`,
           href: `/callboard/${p.id}`,
         };

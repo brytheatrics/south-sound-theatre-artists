@@ -20,13 +20,9 @@
     pickedIds = new Set(pickedIds);
   }
 
-  const POST_TYPE_LABELS: Record<string, string> = {
-    audition: "Audition",
-    designer: "Designer",
-    crew: "Crew",
-    production: "Production",
-    general: "General",
-  };
+  const POST_TYPE_LABELS = $derived(
+    Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
+  );
 </script>
 
 <svelte:head><title>Homepage marquee - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>

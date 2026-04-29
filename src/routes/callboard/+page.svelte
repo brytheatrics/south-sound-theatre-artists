@@ -3,22 +3,19 @@
 
   let { data }: { data: PageData } = $props();
 
-  const POST_TYPE_LABELS: Record<string, string> = {
-    audition: "Audition",
-    designer: "Designer",
-    crew: "Crew",
-    production: "Production",
-    general: "General",
-  };
-
-  const FILTER_TABS = [
+  // Both the type-badge map and the filter-strip tabs come from the
+  // admin-editable callboard_post_types table. Lexi can add Workshops /
+  // Meetups / etc. without a code change.
+  const POST_TYPE_LABELS = $derived(
+    Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
+  );
+  const FILTER_TABS = $derived([
     { value: "", label: "All" },
-    { value: "audition", label: "Auditions" },
-    { value: "designer", label: "Designer calls" },
-    { value: "crew", label: "Crew calls" },
-    { value: "production", label: "Production" },
-    { value: "general", label: "General" },
-  ];
+    ...data.postTypes.map((t) => ({
+      value: t.slug,
+      label: t.plural_label ?? t.label,
+    })),
+  ]);
 
   const SORT_OPTS = [
     { value: "deadline", label: "Deadline soonest" },

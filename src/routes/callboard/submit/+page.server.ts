@@ -12,18 +12,25 @@ import { generateToken, hashToken } from "$lib/server/tokens";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
-const VALID_TYPES = ["audition", "designer", "crew", "production", "general"] as const;
-type PostType = (typeof VALID_TYPES)[number];
+type PostType = string;
 
 const VALID_COMP_TYPES = ["paid", "stipend", "volunteer", "none"] as const;
 
 export const load: PageServerLoad = async () => {
-  // Provide areas for the location field hint.
-  const { data: areas } = await supabaseAdmin
-    .from("areas")
-    .select("name")
-    .order("sort_order");
-  return { areas: (areas ?? []).map((a: { name: string }) => a.name) };
+  // Provide areas for the location field hint, plus the active
+  // callboard post types for the radio picker.
+  const [areasRes, typesRes] = await Promise.all([
+    supabaseAdmin.from("areas").select("name").order("sort_order"),
+    supabaseAdmin
+      .from("callboard_post_types")
+      .select("slug, label, plural_label, description, sort_order")
+      .eq("active", true)
+      .order("sort_order"),
+  ]);
+  return {
+    areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
+    postTypes: typesRes.data ?? [],
+  };
 };
 
 type KeyDate = [string, string];
@@ -111,7 +118,16 @@ export const actions: Actions = {
 
     const errors: Record<string, string> = {};
 
-    if (!VALID_TYPES.includes(postType)) errors.post_type = "Choose a post type.";
+    // Validate post_type against the active callboard_post_types table
+    // (since the CHECK constraint was dropped in mig 036). Inactive or
+    // unknown slugs get rejected.
+    const { data: typeRow } = await supabaseAdmin
+      .from("callboard_post_types")
+      .select("slug")
+      .eq("slug", postType)
+      .eq("active", true)
+      .maybeSingle();
+    if (!typeRow) errors.post_type = "Choose a post type.";
     if (!values.title) errors.title = "Required.";
     if (!values.organizationName) errors.organization_name = "Required.";
     if (!values.submitterName) errors.submitter_name = "Required.";

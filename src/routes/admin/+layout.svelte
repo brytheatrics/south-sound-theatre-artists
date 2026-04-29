@@ -39,6 +39,7 @@
 
     // Config / reference data
     { href: "/admin/disciplines", label: "Disciplines", group: true },
+    { href: "/admin/callboard-types", label: "Callboard types" },
     { href: "/admin/blocklist", label: "Blocklist" },
   ];
 

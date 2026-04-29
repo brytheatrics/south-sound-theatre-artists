@@ -47,7 +47,15 @@ export const load: PageServerLoad = async ({ url }) => {
     .lt("expires_at", now)
     .is("deleted_at", null);
 
-  const validTypes = ["audition", "designer", "crew", "production", "general"];
+  // Active post types for the filter strip + slug validation. Comes
+  // from the admin-editable callboard_post_types table.
+  const { data: typesData } = await supabaseAdmin
+    .from("callboard_post_types")
+    .select("slug, label, plural_label, sort_order")
+    .eq("active", true)
+    .order("sort_order");
+  const postTypes = typesData ?? [];
+  const validTypes = postTypes.map((t) => t.slug);
 
   let query = supabaseAdmin
     .from("callboard_posts")
@@ -109,6 +117,7 @@ export const load: PageServerLoad = async ({ url }) => {
       deadline_text: string | null;
       expires_at: string;
     }>,
+    postTypes,
     page,
     pageSize: PAGE_SIZE,
     type,

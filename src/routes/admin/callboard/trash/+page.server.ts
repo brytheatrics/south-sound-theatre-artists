@@ -5,13 +5,19 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
 export const load: PageServerLoad = async () => {
-  const { data, error } = await supabaseAdmin
-    .from("callboard_posts")
-    .select("id, post_type, title, organization_name, submitter_email, deleted_at, status")
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false });
-  if (error) throw error;
-  return { trashed: data ?? [] };
+  const [trashRes, typesRes] = await Promise.all([
+    supabaseAdmin
+      .from("callboard_posts")
+      .select("id, post_type, title, organization_name, submitter_email, deleted_at, status")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false }),
+    supabaseAdmin.from("callboard_post_types").select("slug, label"),
+  ]);
+  if (trashRes.error) throw trashRes.error;
+  return {
+    trashed: trashRes.data ?? [],
+    postTypes: typesRes.data ?? [],
+  };
 };
 
 export const actions: Actions = {

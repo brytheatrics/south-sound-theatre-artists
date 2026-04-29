@@ -34,5 +34,18 @@ export const load: PageServerLoad = async ({ params }) => {
     orgName = org?.name ?? null;
   }
 
-  return { post: data, verifiedOrgName: orgName };
+  // Look up the type's display label from callboard_post_types so the
+  // detail page shows whatever Lexi configured (e.g. "Workshop" rather
+  // than the raw "workshop" slug).
+  const { data: typeRow } = await supabaseAdmin
+    .from("callboard_post_types")
+    .select("label")
+    .eq("slug", data.post_type)
+    .maybeSingle();
+
+  return {
+    post: data,
+    verifiedOrgName: orgName,
+    typeLabel: typeRow?.label ?? data.post_type,
+  };
 };

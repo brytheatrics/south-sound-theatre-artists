@@ -27,13 +27,9 @@
   }
   function cancelReject() { rejectingId = null; rejectReason = ""; pendingRejectForm = null; }
 
-  const POST_TYPE_LABELS: Record<string, string> = {
-    audition: "Audition",
-    designer: "Designer",
-    crew: "Crew",
-    production: "Production",
-    general: "General",
-  };
+  const POST_TYPE_LABELS = $derived(
+    Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
+  );
 
   const STATUS_LABELS: Record<string, string> = {
     pending_email: "Awaiting email",
@@ -106,22 +102,16 @@
     {/each}
   </div>
 
-  <!-- Type filter chips -->
+  <!-- Type filter chips - dynamic from callboard_post_types -->
   <div class="filter-row" data-sveltekit-noscroll data-sveltekit-replacestate>
     <span class="filter-label">Type</span>
-    {#each [
-      { value: "", label: "All" },
-      { value: "audition", label: "Auditions" },
-      { value: "designer", label: "Designer" },
-      { value: "crew", label: "Crew" },
-      { value: "production", label: "Production" },
-      { value: "general", label: "General" },
-    ] as opt (opt.value)}
+    <a class="chip" class:on={data.typeFilter === ""} href={buildUrl({ type: null, page: null })}>All</a>
+    {#each data.postTypes as t (t.slug)}
       <a
         class="chip"
-        class:on={data.typeFilter === opt.value}
-        href={buildUrl({ type: opt.value || null, page: null })}
-      >{opt.label}</a>
+        class:on={data.typeFilter === t.slug}
+        href={buildUrl({ type: t.slug, page: null })}
+      >{t.label}</a>
     {/each}
   </div>
 
