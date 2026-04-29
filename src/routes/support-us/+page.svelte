@@ -1,6 +1,26 @@
 <script lang="ts">
-  import StaticPage from "$lib/components/StaticPage.svelte";
+  import { renderMarkdown } from "$lib/util/markdown";
+  import KofiWidget from "$lib/components/KofiWidget.svelte";
   let { data } = $props();
 </script>
 
-<StaticPage title={data.content.title} bodyMarkdown={data.content.body_markdown} eyebrow="Support us" />
+<svelte:head>
+  <title>{data.content.title ?? "Support us"} - South Sound Theatre Artists</title>
+</svelte:head>
+
+<main>
+  <span class="eyebrow"><span class="num">·</span>Support us</span>
+  <article class="prose">{@html renderMarkdown(data.content.body_markdown)}</article>
+  <KofiWidget />
+</main>
+
+<style>
+  main {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4rem) var(--page-pad-x) 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+</style>
