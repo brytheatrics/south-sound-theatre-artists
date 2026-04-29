@@ -20,7 +20,7 @@ const POST_TYPE_LABEL = {
 };
 
 async function main() {
-  const siteUrl = process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.com";
+  const siteUrl = process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.org";
 
   const db = getDb();
   await db.connect();

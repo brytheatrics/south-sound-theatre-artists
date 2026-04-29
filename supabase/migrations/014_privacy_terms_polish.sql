@@ -1,7 +1,7 @@
 -- 014_privacy_terms_polish.sql
 -- Polish pre-launch privacy + terms. Adds:
 --   - Last-updated date
---   - Admin contact email (lexi@southsoundtheatreartists.com)
+--   - Admin contact email (lexi@southsoundtheatreartists.org)
 --   - Cookies note (privacy)
 --   - Minors clause (terms)
 --   - Governing law (terms)
@@ -22,7 +22,7 @@ update public.site_content set
     '## Where it lives' || E'\n\n' ||
     'Profile data sits in a Supabase Postgres database. Headshots sit on Cloudinary. Outbound email goes through Resend.' || E'\n\n' ||
     '## How to remove it' || E'\n\n' ||
-    'Use your magic-link edit page to unpublish or delete your profile, or email **lexi@southsoundtheatreartists.com** and we''ll handle it.'
+    'Use your magic-link edit page to unpublish or delete your profile, or email **lexi@southsoundtheatreartists.org** and we''ll handle it.'
 where slug = 'privacy';
 
 update public.site_content set
@@ -45,5 +45,5 @@ update public.site_content set
     '## Changes to these terms' || E'\n\n' ||
     'We may update these terms from time to time. Continued use of the site after an update means you accept the new version. Significant changes will be noted on the homepage when reasonable.' || E'\n\n' ||
     '## Contact' || E'\n\n' ||
-    'Questions about these terms? Email **lexi@southsoundtheatreartists.com**.'
+    'Questions about these terms? Email **lexi@southsoundtheatreartists.org**.'
 where slug = 'terms';

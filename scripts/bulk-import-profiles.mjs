@@ -68,7 +68,7 @@ const env = {
   cloudName: process.env.PUBLIC_CLOUDINARY_CLOUD_NAME,
   apiKey: process.env.CLOUDINARY_API_KEY,
   apiSecret: process.env.CLOUDINARY_API_SECRET,
-  siteUrl: process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.com",
+  siteUrl: process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.org",
 };
 
 function fail(msg) {

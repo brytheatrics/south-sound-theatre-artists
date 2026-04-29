@@ -19,7 +19,7 @@ update public.site_content set
   body_markdown =
     '# Get in *touch*.' || E'\n\n' ||
     'Questions about the directory, callboard, or your profile? Drop a note and we''ll get back to you.' || E'\n\n' ||
-    'For now, email **lexi@southsoundtheatreartists.com**. A proper contact form lands in the next update.'
+    'For now, email **lexi@southsoundtheatreartists.org**. A proper contact form lands in the next update.'
 where slug = 'contact';
 
 update public.site_content set

@@ -12,7 +12,7 @@ import { getDb, sendCronEmail, exitOk, exitFail } from "./_lib/cron.mjs";
 
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL;
-  const siteUrl = process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.com";
+  const siteUrl = process.env.PUBLIC_SITE_URL || "https://southsoundtheatreartists.org";
   if (!adminEmail) exitFail("ADMIN_EMAIL is not set");
 
   const db = getDb();
