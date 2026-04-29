@@ -90,7 +90,7 @@
       onclick={advance}
       aria-label={`Show next featured artist (current: ${cur.full_name})`}
     >
-      <span class="name-first">{split.first}</span>{#if split.last}<span class="name-last"> {split.last}</span><span class="name-comma">,</span>{/if}
+      <span class="name-first">{split.first}</span>{#if split.last}{' '}<span class="name-last">{split.last}</span><span class="name-comma">,</span>{/if}
     </button>
 
     <p class="featured-disc">
@@ -249,12 +249,12 @@
     line-height: 0.92;
     letter-spacing: -0.04em;
     /* Lower clamp floor (was 72px) so longer names fit on narrow
-       phones. overflow-wrap as a safety net for truly long single
-       words ("Alexandria") that still overflow at the floor. */
+       phones. word-break: normal prevents breaking inside individual
+       names ("Walters" stays as one word) - long multi-word names
+       wrap at the space between first + last instead. */
     font-size: clamp(48px, 13vw, 200px);
     display: block;
     width: 100%;
-    overflow-wrap: break-word;
     word-break: normal;
   }
   .featured-name:focus-visible {
