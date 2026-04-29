@@ -73,6 +73,15 @@
 {#if form?.addedCategory}<div class="form-ok" role="status">Added category {form.addedCategory}.</div>{/if}
 {#if form?.renamedCategory}<div class="form-ok" role="status">Renamed category to {form.renamedCategory}.</div>{/if}
 {#if form?.removedCategory}<div class="form-ok" role="status">Removed category {form.removedCategory}.</div>{/if}
+{#if form?.renamed}
+  <div class="form-ok" role="status">
+    {#if form?.mergedInto}
+      Merged into {form.mergedInto}. All profiles updated.
+    {:else}
+      Renamed to {form.renamed}. All profiles updated.
+    {/if}
+  </div>
+{/if}
 
 <ConfirmModal
   open={pendingForm !== null}
@@ -157,18 +166,25 @@
     <ul class="rows">
       {#each items as d (d.id)}
         <li class="row">
-          <span class="name">{d.name}</span>
-          <form method="POST" action="?/reorder" class="inline-form" use:enhance={() => { busy = d.id; return async ({ update }) => { await update(); busy = null; }; }}>
+          <form method="POST" action="?/rename" class="rename-form"
+            use:enhance={() => { busy = `rename-${d.id}`; return async ({ update }) => { await update(); busy = null; }; }}>
+            <input type="hidden" name="id" value={d.id} />
+            <input type="text" name="new_name" value={d.name} class="rename-input" />
+            <button type="submit" class="bt-link" disabled={busy === `rename-${d.id}`}>
+              Save name
+            </button>
+          </form>
+          <form method="POST" action="?/reorder" class="inline-form" use:enhance={() => { busy = `sort-${d.id}`; return async ({ update }) => { await update(); busy = null; }; }}>
             <input type="hidden" name="id" value={d.id} />
             <input type="number" name="sort_order" value={d.sort_order} class="num-input" />
-            <button type="submit" class="bt-link" disabled={busy === d.id}>Save</button>
+            <button type="submit" class="bt-link" disabled={busy === `sort-${d.id}`}>Sort</button>
           </form>
-          <form method="POST" action="?/remove" use:enhance={() => { busy = d.id; return async ({ update }) => { await update(); busy = null; }; }}>
+          <form method="POST" action="?/remove" use:enhance={() => { busy = `remove-${d.id}`; return async ({ update }) => { await update(); busy = null; }; }}>
             <input type="hidden" name="id" value={d.id} />
             <button
               type="button"
               class="bt-link warn"
-              disabled={busy === d.id}
+              disabled={busy === `remove-${d.id}`}
               onclick={(e) => askRemove(e, d.name, "discipline")}
             >
               Remove
@@ -201,6 +217,28 @@
   .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--rule-soft); background: var(--bg-raised); gap: 8px; }
   .row:last-child { border-bottom: 0; }
   .name { flex: 1; font-family: var(--font-body); font-size: 14px; color: var(--ink); }
+  .rename-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .rename-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    background: var(--bg);
+    min-width: 0;
+  }
+  .rename-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
   .inline-form { display: inline-flex; align-items: center; gap: 4px; }
   .num-input { width: 4.5rem; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-mono); font-size: 12px; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); }

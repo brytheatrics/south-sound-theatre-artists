@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
   let query = supabaseAdmin
     .from("profiles")
     .select(
-      "id, slug, full_name, email, geographic_area, disciplines, published, trusted, created_at, updated_at, member_since",
+      "id, slug, full_name, email, geographic_area, disciplines, published, trusted, headshot_url, created_at, updated_at, member_since",
       { count: "exact" },
     )
     .is("deleted_at", null);

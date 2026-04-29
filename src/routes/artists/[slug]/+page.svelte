@@ -199,7 +199,7 @@
       {/if}
 
       {#if Array.isArray(p.resumes) && p.resumes.length > 0}
-        <span class="eyebrow"><span class="num">05</span>Resume PDFs</span>
+        <span class="eyebrow"><span class="num">05</span>Resumes</span>
         <ul class="resumes">
           {#each p.resumes as r}
             <li>

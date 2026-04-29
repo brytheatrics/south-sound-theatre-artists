@@ -46,14 +46,14 @@
       if (inputRef) inputRef.value = "";
       return;
     }
-    if (!isPdf(file)) {
-      fail("Resume must be a PDF.");
+    if (!isAcceptedResume(file)) {
+      fail("Resume must be a PDF or Word document (.pdf, .docx, .doc).");
       return;
     }
     if (file.size > MAX_BYTES) {
       fail(
         `That file is ${formatBytes(file.size)} - the limit is ${formatBytes(MAX_BYTES)}. ` +
-          `Try compressing the PDF first.`,
+          `Try compressing the file first.`,
       );
       return;
     }
@@ -150,14 +150,14 @@
       if (inputRef) inputRef.value = "";
       return;
     }
-    if (!isPdf(file)) {
-      fail("Resume must be a PDF.");
+    if (!isAcceptedResume(file)) {
+      fail("Resume must be a PDF or Word document (.pdf, .docx, .doc).");
       return;
     }
     if (file.size > MAX_BYTES) {
       fail(
         `That file is ${formatBytes(file.size)} - the limit is ${formatBytes(MAX_BYTES)}. ` +
-          `Try compressing the PDF first.`,
+          `Try compressing the file first.`,
       );
       return;
     }
@@ -175,9 +175,19 @@
     if (file) await uploadFile(file);
   }
 
-  function isPdf(file: File): boolean {
-    if (file.type === "application/pdf") return true;
-    return file.name.toLowerCase().endsWith(".pdf");
+  // Accept PDFs + Word docs (modern .docx and legacy .doc). Match on
+  // either MIME type or filename extension - mobile browsers sometimes
+  // omit the type for less common formats so the extension is the
+  // reliable signal.
+  function isAcceptedResume(file: File): boolean {
+    const okTypes = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]);
+    if (file.type && okTypes.has(file.type)) return true;
+    const lower = file.name.toLowerCase();
+    return lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".doc");
   }
 
   function formatBytes(bytes: number): string {
@@ -233,7 +243,7 @@
       <input
         bind:this={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
         onchange={onChange}
         disabled={uploading || !newLabel.trim()}
       />
@@ -241,7 +251,7 @@
         {#if uploading}
           Uploading {pendingFileName}... {progress}%
         {:else}
-          + Add resume PDF
+          + Add resume (PDF or Word)
         {/if}
       </span>
     </label>
@@ -260,8 +270,8 @@
 
 <ConfirmModal
   open={pendingFile !== null}
-  title="Heads up about your PDF"
-  body={`Theatre directories like ours are public, and most uploaded resumes have a phone number or email at the top. Your contact form already routes messages without revealing your email - consider removing those from the PDF before uploading. ` +
+  title="Heads up about your resume"
+  body={`Theatre directories like ours are public, and most uploaded resumes have a phone number or email at the top. Your contact form already routes messages without revealing your email - consider removing those from the file before uploading. ` +
     `\n\nUploading: ${pendingFile?.name ?? ""}`}
   confirmLabel="I've checked it, upload"
   cancelLabel="Cancel"

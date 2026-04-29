@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
+  import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
 
   let { data, form } = $props();
   let busyId = $state<string | null>(null);
@@ -83,10 +84,22 @@
       {#each data.profiles as p (p.id)}
         <tr>
           <td data-label="Name">
-            <a href={`/artists/${p.slug}`} target="_blank" rel="noopener">
-              {p.full_name}
-            </a>
-            <div class="email">{p.email}</div>
+            <div class="name-cell">
+              <span class="thumb">
+                <HeadshotPlaceholder
+                  name={p.full_name}
+                  src={p.headshot_url}
+                  ratio="1 / 1"
+                  tone={(data.profiles.indexOf(p) % 4) as 0 | 1 | 2 | 3}
+                />
+              </span>
+              <span class="name-text">
+                <a href={`/artists/${p.slug}`} target="_blank" rel="noopener">
+                  {p.full_name}
+                </a>
+                <div class="email">{p.email}</div>
+              </span>
+            </div>
           </td>
           <td data-label="Slug"><code>/{p.slug}</code></td>
           <td data-label="Disciplines" class="disc">{p.disciplines.slice(0, 3).join(", ")}{p.disciplines.length > 3 ? " +" + (p.disciplines.length - 3) : ""}</td>
@@ -328,6 +341,30 @@
     color: var(--muted);
     font-size: 12px;
     margin-top: 2px;
+  }
+  .name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .thumb {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+  .name-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .name-text a {
+    /* Remove the bold-style from the existing td a rule for the inner
+       case so the text + email stack reads cleanly. */
+    line-height: 1.2;
   }
   td code {
     font-family: var(--font-mono);

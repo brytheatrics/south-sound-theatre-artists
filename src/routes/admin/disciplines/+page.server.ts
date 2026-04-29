@@ -60,6 +60,151 @@ export const actions: Actions = {
     await supabaseAdmin.from("disciplines").delete().eq("id", id);
     return { removed: true };
   },
+
+  // Rename a discipline AND cascade the change to every profile and
+  // pending submission that has the old name in their disciplines /
+  // mentorship arrays. Two cases:
+  //   - newName isn't in the canonical list yet -> simple rename:
+  //     update the discipline row, then text-replace in arrays.
+  //   - newName already exists -> merge: arrays get oldName -> newName
+  //     (deduped), then the old discipline row is deleted.
+  //
+  // The merge case is what saves Lexi from the "delete + add" trap that
+  // left Chris Serface with both 'Actor (Stage)' and 'Actor'.
+  rename: async ({ request }) => {
+    const data = await request.formData();
+    const id = ((data.get("id") as string) ?? "").trim();
+    const newName = ((data.get("new_name") as string) ?? "").trim();
+    if (!id || !newName) return fail(400, { error: "Missing id or new name." });
+
+    const { data: row, error: rowErr } = await supabaseAdmin
+      .from("disciplines")
+      .select("id, name, category")
+      .eq("id", id)
+      .maybeSingle();
+    if (rowErr || !row) return fail(404, { error: "Discipline not found." });
+    if (row.name === newName) return { renamed: newName };
+
+    // Does newName already exist as a different row? If so, this is a
+    // merge: keep the existing newName row, retire the old one.
+    const { data: existing } = await supabaseAdmin
+      .from("disciplines")
+      .select("id")
+      .eq("name", newName)
+      .maybeSingle();
+    const isMerge = !!existing && existing.id !== row.id;
+
+    // Cascade arrays: pull rows that contain the old name, mutate in JS,
+    // write back. Done separately for profiles + pending_submissions so
+    // the TS types stay honest (Supabase rejects dynamic table strings).
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("profiles")
+        .select("id, disciplines")
+        .contains("disciplines", [row.name]);
+      for (const r of rows ?? []) {
+        const next = Array.from(
+          new Set(
+            (r.disciplines as string[]).map((d) =>
+              d === row.name ? newName : d,
+            ),
+          ),
+        );
+        await supabaseAdmin
+          .from("profiles")
+          .update({ disciplines: next })
+          .eq("id", r.id);
+      }
+    }
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("pending_submissions")
+        .select("id, disciplines")
+        .contains("disciplines", [row.name]);
+      for (const r of rows ?? []) {
+        const next = Array.from(
+          new Set(
+            (r.disciplines as string[]).map((d) =>
+              d === row.name ? newName : d,
+            ),
+          ),
+        );
+        await supabaseAdmin
+          .from("pending_submissions")
+          .update({ disciplines: next })
+          .eq("id", r.id);
+      }
+    }
+
+    // Mentorship arrays on profiles only (pending_submissions doesn't
+    // collect mentorship at submit time). Two passes - one per column -
+    // because Supabase's TS types require static select strings.
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("profiles")
+        .select("id, mentorship_offering")
+        .contains("mentorship_offering", [row.name]);
+      for (const r of rows ?? []) {
+        const next = Array.from(
+          new Set(
+            (r.mentorship_offering as string[]).map((d) =>
+              d === row.name ? newName : d,
+            ),
+          ),
+        );
+        await supabaseAdmin
+          .from("profiles")
+          .update({ mentorship_offering: next })
+          .eq("id", r.id);
+      }
+    }
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("profiles")
+        .select("id, mentorship_seeking")
+        .contains("mentorship_seeking", [row.name]);
+      for (const r of rows ?? []) {
+        const next = Array.from(
+          new Set(
+            (r.mentorship_seeking as string[]).map((d) =>
+              d === row.name ? newName : d,
+            ),
+          ),
+        );
+        await supabaseAdmin
+          .from("profiles")
+          .update({ mentorship_seeking: next })
+          .eq("id", r.id);
+      }
+    }
+
+    if (isMerge) {
+      // Existing newName row stays; retire the old one.
+      const { error: delErr } = await supabaseAdmin
+        .from("disciplines")
+        .delete()
+        .eq("id", row.id);
+      if (delErr) {
+        return fail(500, {
+          error:
+            "Cascaded the rename but failed to remove the old row. Try again.",
+        });
+      }
+    } else {
+      // Simple rename of the canonical row.
+      const { error: updErr } = await supabaseAdmin
+        .from("disciplines")
+        .update({ name: newName })
+        .eq("id", row.id);
+      if (updErr) {
+        return fail(500, {
+          error: "Cascaded the rename but failed to update the canonical row.",
+        });
+      }
+    }
+
+    return { renamed: newName, mergedInto: isMerge ? newName : null };
+  },
   reorder: async ({ request }) => {
     const data = await request.formData();
     const id = (data.get("id") as string) ?? "";
