@@ -185,6 +185,29 @@
     </div>
   {/if}
   {#if errors._form}<div class="form-error" role="alert">{errors._form}</div>{/if}
+
+  <!-- Same complete-to-publish surface as /edit/[token]. Admin sees
+       exactly what the artist will be prompted to fill in when they
+       click their invitation link. Profile stays unpublished until
+       these are resolved (whether by admin save here or artist save
+       on the magic-link form). -->
+  {#if data.missingFields.length > 0}
+    <div class="incomplete-banner" role="status">
+      <p class="incomplete-title">
+        <strong>This profile won't be public until these are filled in.</strong>
+      </p>
+      <p class="incomplete-body">
+        The artist sees the same list when they open their edit link.
+        Saving with all required fields filled in auto-publishes the
+        profile.
+      </p>
+      <ul class="incomplete-list">
+        {#each data.missingFields as f (f)}
+          <li>{f}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
 </header>
 
 <form
@@ -511,6 +534,37 @@
     padding: 10px 14px;
     border-radius: var(--radius);
     font-size: 14px;
+  }
+
+  /* Mirrors /edit/[token]'s complete-to-publish gate banner. */
+  .incomplete-banner {
+    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--warn), var(--bg) 60%);
+    border-left: 4px solid var(--warn);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    margin: 1rem 0 0;
+    color: var(--ink);
+  }
+  .incomplete-title {
+    margin: 0 0 6px;
+    font-family: var(--font-body);
+    font-size: 15px;
+  }
+  .incomplete-body {
+    margin: 0 0 8px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .incomplete-list {
+    margin: 0;
+    padding-left: 22px;
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .incomplete-list li {
+    margin: 2px 0;
   }
 
   .ed {

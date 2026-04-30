@@ -67,8 +67,24 @@ export const load: PageServerLoad = async ({ params }) => {
 
   if (!profileRes.data) error(404, "Profile not found.");
 
+  // What's missing for this profile to be publishable? Mirrors the
+  // /edit/[token] complete-to-publish gate so the admin can audit
+  // each profile and see exactly what the artist will be asked to
+  // fill in when they click their invitation link.
+  const _p = profileRes.data;
+  const missingFields: string[] = [];
+  if (!_p.full_name) missingFields.push("Name");
+  if (!_p.geographic_area) missingFields.push("Geographic area");
+  if (!_p.disciplines || _p.disciplines.length === 0) {
+    missingFields.push("At least one discipline");
+  }
+  if (_p.headshot_url && !_p.headshot_consent) {
+    missingFields.push("Headshot rights confirmation");
+  }
+
   return {
     profile: profileRes.data,
+    missingFields,
     areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     disciplines: disciplinesRes.data ?? [],
     disciplineCategories: (categoriesRes.data ?? []).map(
