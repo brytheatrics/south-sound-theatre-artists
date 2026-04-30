@@ -652,6 +652,50 @@ Resolved since the last run-through:
 - **Supabase keepalive** - needs `SUPABASE_URL` +
   `SUPABASE_SERVICE_ROLE_KEY`.
 
+### Polish layer (2026-04-29 evening) — to verify
+
+Not yet manually run-through. Each item shipped via its own commit
+today and needs a sweep before invitations go out. Tick as verified.
+
+- [ ] **Submit form fields admin page** (`/admin/submit-form`): add
+  a test area, rename it, confirm it cascades to a profile that uses
+  it (spot-check `geographic_area` text), then remove. Repeat for
+  unions and ethnicities. Verify "Other" rows are locked.
+- [ ] **Auto-save sort number** on `/admin/submit-form` and
+  `/admin/disciplines`: edit number, tab away, refresh, confirm new
+  position stuck. Empty/unchanged values should NOT fire a request.
+- [ ] **Save banner placement** on `/admin/profiles/[id]/edit`:
+  scroll to bottom, click Save, confirm "Saved." appears next to the
+  button (not 2000px up in the header).
+- [ ] **Mentorship dots** on `/directory` cards: a profile with
+  `mentorship_offering` populated shows a rust dot top-right; hover
+  reveals a styled tooltip listing the disciplines. Same for moss +
+  `mentorship_seeking`. Side-by-side when both arrays populated.
+- [ ] **Discipline display order**: on `/edit/[token]` (or admin
+  edit), reorder via up/down arrows, save, confirm the card teaser
+  on `/directory` matches the new order. "Shows on cards" badge
+  appears only on the top two rows.
+- [ ] **Complete-to-publish gate**: run
+  `node scripts/gate-incomplete-profiles.mjs` (default mode),
+  open an unpublished bulk-import profile's edit link, see the rust
+  banner listing missing fields, fill them in, save, confirm the
+  profile auto-publishes (visible in `/directory` after save).
+  Banner mirrored on `/admin/profiles/[id]/edit`.
+- [ ] **Headshot/photo required**: try saving `/submit` or
+  `/edit/[token]` without a photo, confirm error.
+- [ ] **Awaiting email verification panel** at `/admin`: insert a
+  fake `pending_email` row (or wait for a natural one), see it
+  listed below the main queue, click "Resend verification", confirm
+  the email arrives + `email_log` has a new row.
+- [ ] **Sort tiebreaker** on `/directory?sort=newest`: most recently
+  approved profile appears first within today's date batch (not
+  floating arbitrarily inside it).
+- [ ] **Resume privacy banner** on `/edit/[token]` when an artist
+  already has resumes uploaded: rust panel above the resume list,
+  same redact-phone-and-email advice as the upload modal.
+- [ ] **Mobile body weight**: open the site at 375px width, body
+  copy should read substantial (not "delicate"). Inter Tight 500.
+
 ---
 
 ## Things spawning into background tasks / future sessions
