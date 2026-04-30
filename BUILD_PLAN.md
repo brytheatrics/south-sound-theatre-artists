@@ -51,6 +51,7 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 - **Backup repo + PAT.** Backup cron no-ops cleanly until `BACKUP_REPO` + `BACKUP_REPO_TOKEN` are set.
 - **`ADMIN_GUIDE.md`.** Deferred until closer to launch so Lexi can drive notes from real use of the staging deploy.
 - **Lexi's Ko-fi onboarding.** Sign up at ko-fi.com is done (`ko-fi.com/lexibarnettssta`) but Stripe / PayPal connection + donation tier setup may not be. Until those are in, the embed iframe will show a barebones "Powered by Ko-fi" with no donation form.
+- **Re-hide incomplete bulk-imported profiles.** A one-off script (commit 01a9a5c) unpublished 21 profiles missing required info so the complete-to-publish gate on `/edit/[token]` could surface them properly. Blake re-published them temporarily so the directory looks populated during dev / staging review. **Before sending invitation emails**, re-run `scripts/gate-incomplete-profiles.mjs` (or the equivalent SQL) so those 21 profiles are unpublished again - artists will see the "your profile isn't visible to the public yet" banner when they click their edit link, fill in the missing info, and auto-publish on save.
 
 ---
 
