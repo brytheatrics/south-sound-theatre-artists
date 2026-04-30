@@ -46,7 +46,16 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 - **Ko-fi widget content.** The widget panel is rendering on localhost but missing on the deployed staging site. Likely an adapter-netlify env-var quirk where the function bundle was built before `PUBLIC_KOFI_USERNAME` was set. Will resolve on the next push (which forces a clean rebuild) - intentionally not pushed for now to save build minutes.
 - **DNS cutover.** A records currently still point at Squarespace (existing site). When Lexi approves the staging deploy for launch, Cloudflare A records flip to Netlify's load-balancer IPs and `PUBLIC_SITE_URL` updates to `https://southsoundtheatreartists.org`. Trigger a clear-cache deploy after.
 - **GitHub Actions secrets for crons.** All 6 workflows committed but no-op until secrets are set in repo Settings. List in TEST_CHECKLIST.
-- **Mail-merge launch invitations.** 27 magic-link edit URLs in `imports/Submissions/_results.csv` (or wherever Blake stored the run output) waiting to send. Swap `localhost:5173` for the production URL before merging.
+- **Launch invitations.** Build `scripts/send-launch-invitations.mjs` to bulk-send the `admin_invitation` email template to every imported artist. Behavior:
+  - Recipients: every published profile **except** Lexi and Blake (their profiles are seeded but they don't need an email).
+  - Skips placeholder emails (`@unknown.ssta.local`) with a warning.
+  - Generates a fresh edit token per artist (30-day TTL feels right for launch; long enough to land in a vacation inbox, short enough that token-leak risk stays small) and inserts to `magic_link_tokens`.
+  - Uses `sendEmail` so every send hits `email_log`.
+  - `--dry-run` prints what it would send without sending.
+  - `--slug=foo` filter for sending to a single profile.
+  - Test plan: `--slug=lexi-barnett` and `--slug=blake-r-york` first, confirm both arrive correctly, then run the full batch.
+  - Lexi has set a cutoff date for "email me to be added" submissions; people who emailed her before that date are in the import batch, after that they go through the normal `/submit` flow.
+  - Run **after** `scripts/gate-incomplete-profiles.mjs` (default mode) so incomplete profiles arrive at the "your profile isn't visible yet" banner state.
 - **`ADMIN_PASSWORD` rotation.** The dev placeholder is in Netlify env right now; rotate to a stronger password before public launch and tell Lexi via private channel.
 - **Backup repo + PAT.** Backup cron no-ops cleanly until `BACKUP_REPO` + `BACKUP_REPO_TOKEN` are set.
 - **`ADMIN_GUIDE.md`.** Deferred until closer to launch so Lexi can drive notes from real use of the staging deploy.
