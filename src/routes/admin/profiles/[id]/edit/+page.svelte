@@ -304,6 +304,9 @@
   <section class="row">
     <h2 class="block-h">Area</h2>
     <div class="chip-row">
+      <!-- The areas table already includes an "Other" row (seeded by
+           mig 004), so the loop renders it. We don't add a hardcoded
+           fallback here - that would produce two "Other" chips. -->
       {#each data.areas as a (a.name)}
         <label class="chip-label" title={a.description ?? ""}>
           <input
@@ -316,16 +319,6 @@
           <span class="chip" class:on={area === a.name}>{a.name}</span>
         </label>
       {/each}
-      <label class="chip-label">
-        <input
-          type="radio"
-          name="area"
-          value="Other"
-          checked={area === "Other"}
-          onchange={() => (area = "Other")}
-        />
-        <span class="chip" class:on={area === "Other"}>Other</span>
-      </label>
     </div>
     {#if errors.area}<span class="error">{errors.area}</span>{/if}
     {#if area === "Other"}
