@@ -54,9 +54,10 @@ if (error) throw error;
 const incomplete = data.filter((p) => {
   const isComplete =
     !!p.full_name &&
+    !!p.headshot_url &&
     !!p.geographic_area &&
     (p.disciplines ?? []).length > 0 &&
-    (!p.headshot_url || p.headshot_consent);
+    p.headshot_consent;
   return !isComplete;
 });
 

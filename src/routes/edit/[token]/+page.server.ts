@@ -110,12 +110,13 @@ export const load: PageServerLoad = async ({ params }) => {
   const p = profileRes.data;
   const missingFields: string[] = [];
   if (!p.full_name) missingFields.push("Name");
+  if (!p.headshot_url) missingFields.push("Headshot or photo");
   if (!p.geographic_area) missingFields.push("Geographic area");
   if (!p.disciplines || p.disciplines.length === 0) {
     missingFields.push("At least one discipline");
   }
   if (p.headshot_url && !p.headshot_consent) {
-    missingFields.push("Confirmation that you have rights to your headshot");
+    missingFields.push("Confirmation that you have rights to your photo");
   }
 
   return {
@@ -182,7 +183,9 @@ export const actions: Actions = {
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
-    if (headshotUrl && !headshotConsent) {
+    if (!headshotUrl) {
+      errors.headshot_url = "Add a clear photo of yourself.";
+    } else if (!headshotConsent) {
       errors.headshot_consent = "Confirm rights to use the image.";
     }
     if (disciplines.length === 0) errors.disciplines = "Choose at least one.";
@@ -346,9 +349,10 @@ export const actions: Actions = {
     if (updated && !updated.published) {
       const isComplete =
         !!updated.full_name &&
+        !!updated.headshot_url &&
         !!updated.geographic_area &&
         (updated.disciplines ?? []).length > 0 &&
-        (!updated.headshot_url || updated.headshot_consent);
+        updated.headshot_consent;
       if (isComplete) {
         await supabaseAdmin
           .from("profiles")

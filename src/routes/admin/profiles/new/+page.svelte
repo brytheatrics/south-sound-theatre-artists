@@ -148,7 +148,7 @@
   </fieldset>
 
   <fieldset>
-    <legend>Headshot</legend>
+    <legend>Headshot/photo</legend>
     <HeadshotUpload bind:value={headshotUrl} />
     <input type="hidden" name="headshot_url" value={headshotUrl} />
     <!-- Consent flag is auto-set on the server when a headshot URL is

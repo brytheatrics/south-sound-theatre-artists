@@ -228,10 +228,15 @@
     </fieldset>
 
     <fieldset>
-      <legend>Headshot</legend>
-      <p class="hint">Optional. Helps casting directors put a face to a name.</p>
+      <legend>Headshot/photo <span class="req">*</span></legend>
+      <p class="hint">
+        Required. Doesn't need to be a professional headshot - any clear
+        photo of you works. Casting directors and collaborators rely on
+        a face to put with the name.
+      </p>
       <HeadshotUpload bind:value={headshotUrl} />
       <input type="hidden" name="headshot_url" value={headshotUrl} />
+      {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
       {#if headshotUrl}
         <label class="checkbox" style="margin-top: 0.75rem">
           <input

@@ -254,7 +254,7 @@
   </section>
 
   <section class="row">
-    <h2 class="block-h">Headshot</h2>
+    <h2 class="block-h">Headshot/photo</h2>
     <HeadshotUpload bind:value={headshotUrl} />
     <input type="hidden" name="headshot_url" value={headshotUrl} />
   </section>

@@ -74,6 +74,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const _p = profileRes.data;
   const missingFields: string[] = [];
   if (!_p.full_name) missingFields.push("Name");
+  if (!_p.headshot_url) missingFields.push("Headshot or photo");
   if (!_p.geographic_area) missingFields.push("Geographic area");
   if (!_p.disciplines || _p.disciplines.length === 0) {
     missingFields.push("At least one discipline");

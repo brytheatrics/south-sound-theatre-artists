@@ -210,8 +210,8 @@
           <p class="hint">Large files may take a moment.</p>
         {/if}
       {:else}
-        <p class="status">Click or drop a headshot image</p>
-        <p class="hint">JPEG, PNG, WebP, or HEIC.</p>
+        <p class="status">Click or drop a headshot or photo</p>
+        <p class="hint">Any clear photo works. JPEG, PNG, WebP, or HEIC.</p>
       {/if}
     </label>
     {#if status === "error"}

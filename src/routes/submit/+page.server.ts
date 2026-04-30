@@ -174,8 +174,13 @@ export const actions: Actions = {
     if (!values.fullName) errors.full_name = "Required.";
     if (!isValidEmail(values.email)) errors.email = "Enter a valid email address.";
 
-    // Headshot is optional, but if uploaded, the rights consent is required.
-    if (values.headshotUrl && !values.headshotConsent) {
+    // Headshot/photo is required. Doesn't have to be a professional
+    // headshot - any clear photo of the person is fine - but every
+    // profile in the directory needs a face. If uploaded, the rights
+    // consent is also required.
+    if (!values.headshotUrl) {
+      errors.headshot_url = "Add a clear photo of yourself.";
+    } else if (!values.headshotConsent) {
       errors.headshot_consent = "Please confirm you have rights to use this image.";
     }
 
