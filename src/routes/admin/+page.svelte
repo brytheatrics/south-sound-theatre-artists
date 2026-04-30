@@ -66,6 +66,9 @@
   {#if form?.rejected}
     <div class="form-ok" role="status">Rejected {form.rejected}.</div>
   {/if}
+  {#if form?.resentTo}
+    <div class="form-ok" role="status">Verification email resent to {form.resentTo}.</div>
+  {/if}
 </header>
 
 {#if data.submissions.length === 0}
@@ -218,6 +221,71 @@
       </li>
     {/each}
   </ul>
+{/if}
+
+<!-- Floating submissions: someone hit /submit but never clicked the
+     verification link. Without this surface they're invisible to admin.
+     Resend regenerates the verification token and re-fires the email
+     so it lands in their inbox (or a fresh inbox if they hit the wrong
+     address the first time). -->
+{#if data.awaitingVerification.length > 0}
+  <section class="await-section">
+    <header class="await-hd">
+      <h2 class="await-h">Awaiting email verification</h2>
+      <p class="await-sub">
+        {data.awaitingVerification.length}
+        {data.awaitingVerification.length === 1 ? "submission" : "submissions"}
+        submitted but never clicked the verification link. Resend the email
+        if it might have ended up in spam or the artist took longer than 24
+        hours.
+      </p>
+    </header>
+    <ul class="await-list">
+      {#each data.awaitingVerification as a (a.id)}
+        {@const expired = new Date(a.email_verification_expires_at) < new Date()}
+        <li class="await-row">
+          <div class="await-info">
+            <span class="await-name">{a.full_name}</span>
+            <span class="await-meta">
+              {a.email}
+              <span class="dot" aria-hidden="true">·</span>
+              {a.disciplines?.slice(0, 2).join(" · ") || "—"}
+              <span class="dot" aria-hidden="true">·</span>
+              {a.geographic_area ?? "—"}
+            </span>
+            <span class="await-stamps">
+              <span class="ago">submitted {timeAgo(a.created_at)}</span>
+              <span
+                class="link-state"
+                class:expired
+                title={expired
+                  ? "The original verification link has expired."
+                  : "The original verification link is still valid."}
+              >
+                {expired ? "link expired" : "link valid"}
+              </span>
+            </span>
+          </div>
+          <form
+            method="POST"
+            action="?/resendVerification"
+            use:enhance={() => {
+              busyId = a.id;
+              return async ({ update }) => {
+                await update();
+                busyId = null;
+              };
+            }}
+          >
+            <input type="hidden" name="id" value={a.id} />
+            <button type="submit" class="bt bt-ghost" disabled={busyId === a.id}>
+              {busyId === a.id ? "Sending..." : "Resend verification"}
+            </button>
+          </form>
+        </li>
+      {/each}
+    </ul>
+  </section>
 {/if}
 
 <style>
@@ -510,5 +578,104 @@
     .row-meta {
       white-space: normal;
     }
+  }
+
+  /* ============================================================
+     Awaiting email verification
+     ============================================================ */
+  .await-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+  }
+  .await-hd {
+    margin-bottom: 1rem;
+    max-width: 640px;
+  }
+  .await-h {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 20px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .await-sub {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .await-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-raised);
+  }
+  .await-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    flex-wrap: wrap;
+  }
+  .await-row:last-child {
+    border-bottom: 0;
+  }
+  .await-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 280px;
+  }
+  .await-name {
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  .await-meta {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .await-stamps {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .ago {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .link-state {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--accent), var(--bg) 65%);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+  .link-state.expired {
+    color: var(--muted);
+    background: var(--paper);
+    border-color: var(--rule);
   }
 </style>

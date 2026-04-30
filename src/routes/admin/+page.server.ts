@@ -11,37 +11,52 @@ import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const load: PageServerLoad = async () => {
-  const [submissionsRes, callboardCountRes, orgsCountRes] = await Promise.all([
-    supabaseAdmin
-      .from("pending_submissions")
-      .select(
-        `id, email, full_name, pronouns, bio, disciplines, headshot_url,
-         headshot_consent, geographic_area, city, resumes, resume_data,
-         mentorship_offering, mentorship_seeking,
-         playable_age_min, playable_age_max, languages, unions,
-         instagram_handle, facebook_url, tiktok_handle, linkedin_url,
-         twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
-         created_at`,
-      )
-      .eq("status", "pending_review")
-      .eq("email_verified", true)
-      .order("created_at", { ascending: true }),
-    supabaseAdmin
-      .from("callboard_posts")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending_review")
-      .is("deleted_at", null),
-    supabaseAdmin
-      .from("verified_orgs")
-      .select("*", { count: "exact", head: true })
-      .eq("verified", false)
-      .is("deleted_at", null),
-  ]);
+  const [submissionsRes, awaitingRes, callboardCountRes, orgsCountRes] =
+    await Promise.all([
+      supabaseAdmin
+        .from("pending_submissions")
+        .select(
+          `id, email, full_name, pronouns, bio, disciplines, headshot_url,
+           headshot_consent, geographic_area, city, resumes, resume_data,
+           mentorship_offering, mentorship_seeking,
+           playable_age_min, playable_age_max, languages, unions,
+           instagram_handle, facebook_url, tiktok_handle, linkedin_url,
+           twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
+           created_at`,
+        )
+        .eq("status", "pending_review")
+        .eq("email_verified", true)
+        .order("created_at", { ascending: true }),
+      // Floating submissions: submitted but never clicked the email
+      // verification link. Without this surface they just sit invisible.
+      // We surface them so Lexi can resend the verification email if the
+      // first one got eaten by spam.
+      supabaseAdmin
+        .from("pending_submissions")
+        .select(
+          "id, email, full_name, disciplines, geographic_area, created_at, email_verification_expires_at",
+        )
+        .eq("status", "pending_email")
+        .order("created_at", { ascending: true }),
+      supabaseAdmin
+        .from("callboard_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending_review")
+        .is("deleted_at", null),
+      supabaseAdmin
+        .from("verified_orgs")
+        .select("*", { count: "exact", head: true })
+        .eq("verified", false)
+        .is("deleted_at", null),
+    ]);
   if (submissionsRes.error) throw submissionsRes.error;
+  if (awaitingRes.error) throw awaitingRes.error;
   return {
     submissions: submissionsRes.data ?? [],
+    awaitingVerification: awaitingRes.data ?? [],
     callboardPendingCount: callboardCountRes.count ?? 0,
     orgsPendingCount: orgsCountRes.count ?? 0,
   };
@@ -83,6 +98,61 @@ export const actions: Actions = {
       await rejectOne(id, reason);
     }
     return { rejected: ids.length };
+  },
+
+  // Resend the email-verification link for a 'pending_email' submission.
+  // Mints a fresh 24h verification token, overwrites the row's existing
+  // hash + expiry (the old link becomes invalid), and re-fires the
+  // email_verification template so it lands in the artist's inbox.
+  // Useful when the original verification email got eaten by spam, the
+  // artist's address had a typo, or they just took longer than 24h.
+  resendVerification: async ({ request }) => {
+    const data = await request.formData();
+    const id = ((data.get("id") as string) ?? "").trim();
+    if (!id) return fail(400, { error: "Missing id." });
+
+    const { data: sub } = await supabaseAdmin
+      .from("pending_submissions")
+      .select("id, email, full_name, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (!sub) return fail(404, { error: "Submission not found." });
+    if (sub.status !== "pending_email") {
+      return fail(400, {
+        error: `Already past the verification stage (status=${sub.status}).`,
+      });
+    }
+
+    const newToken = generateToken();
+    const newHash = hashToken(newToken);
+    const newExpires = new Date(Date.now() + VERIFICATION_TTL_MS).toISOString();
+    const { error: updateErr } = await supabaseAdmin
+      .from("pending_submissions")
+      .update({
+        email_verification_token_hash: newHash,
+        email_verification_expires_at: newExpires,
+      })
+      .eq("id", id);
+    if (updateErr) {
+      return fail(500, { error: "Could not refresh the verification token." });
+    }
+
+    const verifyUrl = `${PUBLIC_SITE_URL}/verify/${newToken}`;
+    const sendResult = await sendEmail({
+      to: sub.email,
+      templateSlug: "email_verification",
+      vars: { name: sub.full_name, verify_url: verifyUrl },
+    });
+    if (!sendResult.ok) {
+      console.error(
+        `resendVerification email failed for ${sub.email}: ${sendResult.reason}`,
+      );
+      return fail(500, {
+        error:
+          "Refreshed the token but the email didn't send. Check the email log.",
+      });
+    }
+    return { resentTo: sub.email };
   },
 };
 
