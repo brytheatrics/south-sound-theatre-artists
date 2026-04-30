@@ -23,6 +23,12 @@
     /** Whether to render the "Other" + custom-text input. Defaults to true. */
     showOtherInput?: boolean;
     error?: string;
+    /**
+     * Ordered list of selected names. When provided, hidden inputs are
+     * emitted in this order so the form serializes the user's preferred
+     * display order. Falls back to Set insertion order when omitted.
+     */
+    selectedOrder?: string[];
   };
 
   let {
@@ -35,7 +41,12 @@
     inputName = "disciplines",
     showOtherInput = true,
     error,
+    selectedOrder,
   }: Props = $props();
+
+  // Hidden-input order: caller-controlled if selectedOrder is passed,
+  // otherwise we fall through to Set iteration order.
+  const hiddenOrder = $derived(selectedOrder ?? [...selected]);
 
   let search = $state("");
   let userExpanded = $state<Set<string>>(new Set());
@@ -110,8 +121,10 @@
 
   <!-- Hidden inputs for form submission. The accordion only renders
        inputs for visible items, so we duplicate every selection here so
-       FormData picks them up regardless of which category is collapsed. -->
-  {#each [...selected] as name}
+       FormData picks them up regardless of which category is collapsed.
+       Iterates `hiddenOrder` so callers can control the array order
+       artists see on cards. -->
+  {#each hiddenOrder as name}
     <input type="hidden" name={inputName} value={name} />
   {/each}
 

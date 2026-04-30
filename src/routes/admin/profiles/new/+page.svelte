@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
+  import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
@@ -52,7 +53,10 @@
   );
   let mentorshipOffering = $state<Set<string>>(new Set());
   let mentorshipSeeking = $state<Set<string>>(new Set());
-  let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
+  // Disciplines: ordered array drives display order on cards. Set is
+  // derived for the picker's checked state; toggle appends/splices.
+  let disciplineOrder = $state<string[]>(v.disciplines ?? []);
+  const selectedDisciplines = $derived(new Set(disciplineOrder));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
   let sendLink = $state(v.sendLink ?? true);
@@ -74,9 +78,9 @@
   }
 
   function toggleDiscipline(name: string) {
-    if (selectedDisciplines.has(name)) selectedDisciplines.delete(name);
-    else selectedDisciplines.add(name);
-    selectedDisciplines = new Set(selectedDisciplines);
+    disciplineOrder = disciplineOrder.includes(name)
+      ? disciplineOrder.filter((d) => d !== name)
+      : [...disciplineOrder, name];
   }
 
   function toggleSet(set: Set<string>, value: string): Set<string> {
@@ -176,9 +180,15 @@
       items={data.disciplines}
       categoryOrder={data.disciplineCategories}
       selected={selectedDisciplines}
+      selectedOrder={disciplineOrder}
       onToggle={toggleDiscipline}
       otherValue={disciplineOther}
       onOtherChange={(s) => (disciplineOther = s)}
+    />
+    <DisciplineOrder
+      value={disciplineOrder}
+      otherLabel={disciplineOther}
+      onChange={(next) => (disciplineOrder = next)}
     />
   </fieldset>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
+  import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
@@ -71,7 +72,16 @@
   let twitter = $state(v.twitter ?? "");
   let youtube = $state(v.youtube ?? "");
   let website = $state(v.website ?? "");
-  let selectedDisciplines = $state<Set<string>>(new Set(v.disciplines ?? []));
+  // Disciplines: ordered array is the source of truth (drives card display
+  // order). The Set is derived for the picker's checked state. Toggling
+  // appends on add and splices on remove so user-chosen positions stick.
+  let disciplineOrder = $state<string[]>(v.disciplines ?? []);
+  const selectedDisciplines = $derived(new Set(disciplineOrder));
+  function toggleDiscipline(name: string) {
+    disciplineOrder = disciplineOrder.includes(name)
+      ? disciplineOrder.filter((d) => d !== name)
+      : [...disciplineOrder, name];
+  }
   let disciplineOther = $state(v.disciplineOther ?? "");
   let selectedUnions = $state<Set<string>>(new Set(v.unions ?? []));
   let unionOther = $state(v.unionOther ?? "");
@@ -281,11 +291,16 @@
         items={data.disciplines}
         categoryOrder={data.disciplineCategories}
         selected={selectedDisciplines}
-        onToggle={(n) =>
-          (selectedDisciplines = toggleSet(selectedDisciplines, n))}
+        selectedOrder={disciplineOrder}
+        onToggle={toggleDiscipline}
         otherValue={disciplineOther}
         onOtherChange={(v) => (disciplineOther = v)}
         error={errors.disciplines}
+      />
+      <DisciplineOrder
+        value={disciplineOrder}
+        otherLabel={disciplineOther}
+        onChange={(next) => (disciplineOrder = next)}
       />
     </fieldset>
 

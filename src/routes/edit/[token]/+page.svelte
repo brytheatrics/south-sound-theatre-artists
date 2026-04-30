@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
+  import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
@@ -59,23 +60,32 @@
   let subscribeDigest = $state(data.digestSubscribed);
 
   // Disciplines: walk the array. Anything not in the canonical list becomes
-  // the "Other" + custom-text combo so the picker handles it.
+  // the "Other" + custom-text combo so the picker handles it. Source of
+  // truth is an ordered array since the directory + homepage cards
+  // render the first two entries; users control display order via
+  // DisciplineOrder.
   const canonical = $derived(new Set(data.disciplines.map((d) => d.name)));
-  let selectedDisciplines = $state<Set<string>>(new Set());
+  let disciplineOrder = $state<string[]>([]);
   let disciplineOther = $state("");
   $effect(() => {
-    const set = new Set<string>();
+    const order: string[] = [];
     let other = "";
     for (const d of p.disciplines ?? []) {
-      if (canonical.has(d)) set.add(d);
+      if (canonical.has(d)) order.push(d);
       else {
-        set.add("Other");
+        if (!order.includes("Other")) order.push("Other");
         other = d;
       }
     }
-    selectedDisciplines = set;
+    disciplineOrder = order;
     disciplineOther = other;
   });
+  const selectedDisciplines = $derived(new Set(disciplineOrder));
+  function toggleDiscipline(name: string) {
+    disciplineOrder = disciplineOrder.includes(name)
+      ? disciplineOrder.filter((d) => d !== name)
+      : [...disciplineOrder, name];
+  }
 
   const canonicalUnions = $derived(new Set(data.unions.map((u) => u.name)));
   let selectedUnions = $state<Set<string>>(new Set());
@@ -212,10 +222,16 @@
         items={data.disciplines}
         categoryOrder={data.disciplineCategories}
         selected={selectedDisciplines}
-        onToggle={(n) => (selectedDisciplines = toggleSet(selectedDisciplines, n))}
+        selectedOrder={disciplineOrder}
+        onToggle={toggleDiscipline}
         otherValue={disciplineOther}
         onOtherChange={(v) => (disciplineOther = v)}
         error={errors.disciplines}
+      />
+      <DisciplineOrder
+        value={disciplineOrder}
+        otherLabel={disciplineOther}
+        onChange={(next) => (disciplineOrder = next)}
       />
     </fieldset>
 
