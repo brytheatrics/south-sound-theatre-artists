@@ -209,6 +209,20 @@
 
 <div class="resumes">
   {#if value.length > 0}
+    <!-- Persistent reminder for artists who already have resumes uploaded
+         (bulk import, prior edit). The upload modal already nags about
+         this for new files; this banner covers the existing-resumes
+         case so people can revisit redaction without uploading anything
+         new. Same advice, paper-rust palette. -->
+    <div class="redact-banner" role="status">
+      <strong>Heads up about your resumes</strong>
+      <p>
+        Resume PDFs show on your profile as-is. Most have a phone number
+        or email at the top - if yours do, consider redacting and
+        re-uploading. Your contact form already routes messages without
+        revealing your email.
+      </p>
+    </div>
     <ul class="list">
       {#each value as r, i (r.url)}
         <li class="row">
@@ -285,6 +299,31 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  /* Privacy reminder banner shown above the resume list. Same paper-rust
+     palette as the complete-to-publish gate on /edit/[token] so warning
+     banners look like a coherent family. */
+  .redact-banner {
+    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--warn), var(--bg) 60%);
+    border-left: 4px solid var(--warn);
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 13px;
+  }
+  .redact-banner strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .redact-banner p {
+    margin: 0;
+    color: var(--ink-soft);
+    line-height: 1.5;
   }
   .list {
     list-style: none;

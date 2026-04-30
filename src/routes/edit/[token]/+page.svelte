@@ -147,6 +147,27 @@
     </p>
   </header>
 
+  <!-- Complete-to-publish gate. Bulk-imported profiles ship unpublished
+       when they're missing required info; this banner spells out exactly
+       what the artist needs to fill in. Once they save with everything
+       complete, the action flips published=true automatically. -->
+  {#if data.missingFields.length > 0}
+    <div class="incomplete-banner" role="status">
+      <p class="incomplete-title">
+        <strong>Your profile isn't visible to the public yet.</strong>
+      </p>
+      <p class="incomplete-body">
+        Please fill in the following before saving and your profile will
+        be published immediately:
+      </p>
+      <ul class="incomplete-list">
+        {#each data.missingFields as f (f)}
+          <li>{f}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   {#if errors._form}
     <div class="form-error" role="alert">{errors._form}</div>
   {/if}
@@ -547,6 +568,40 @@
     padding: 12px 16px;
     border-radius: var(--radius);
     margin-bottom: 1.5rem;
+  }
+
+  /* Complete-to-publish gate banner. Warmer rust panel so it reads as
+     "needs attention" without looking like a hard error. */
+  .incomplete-banner {
+    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--warn), var(--bg) 60%);
+    border-left: 4px solid var(--warn);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    margin: 0 0 1.5rem;
+    color: var(--ink);
+  }
+  .incomplete-title {
+    margin: 0 0 6px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .incomplete-body {
+    margin: 0 0 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .incomplete-list {
+    margin: 0;
+    padding-left: 22px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .incomplete-list li {
+    margin: 2px 0;
   }
   .checkbox-grid {
     display: grid;

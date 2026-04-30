@@ -197,6 +197,11 @@ export const actions: Actions = {
         pronouns: pronouns || null,
         bio: bio || null,
         headshot_url: headshotUrl || null,
+        // Admin save implicitly vouches for headshot rights - the
+        // admin-side flow doesn't surface the consent checkbox the way
+        // artist forms do, so we set it true alongside any non-empty
+        // headshot URL. Clears it back when the URL is removed.
+        headshot_consent: !!headshotUrl,
         disciplines: finalDisciplines,
         geographic_area: finalArea,
         city: city || null,

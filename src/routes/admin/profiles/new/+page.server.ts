@@ -77,7 +77,10 @@ export const actions: Actions = {
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
     const bio = ((data.get("bio") as string) ?? "").trim();
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
-    const headshotConsent = data.get("headshot_consent") === "on";
+    // Admin-created profiles auto-confirm consent when a headshot is
+    // present - admin is vouching for rights outside the system, no
+    // need for an extra checkbox. Mirrors the admin profile-edit save.
+    const headshotConsent = !!headshotUrl;
     const area = ((data.get("area") as string) ?? "").trim();
     const areaOther = ((data.get("area_other") as string) ?? "").trim();
     const city = ((data.get("city") as string) ?? "").trim();
@@ -156,7 +159,7 @@ export const actions: Actions = {
         bio: bio || null,
         disciplines: finalDisciplines,
         headshot_url: headshotUrl || null,
-        headshot_consent: !!headshotUrl && headshotConsent,
+        headshot_consent: headshotConsent,
         geographic_area: finalArea,
         city: city || null,
         resumes,

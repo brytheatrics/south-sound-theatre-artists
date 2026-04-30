@@ -43,7 +43,7 @@
   let pronouns = $state(v.pronouns ?? "");
   let bio = $state(v.bio ?? "");
   let headshotUrl = $state(v.headshotUrl ?? "");
-  let headshotConsent = $state(v.headshotConsent ?? false);
+  // headshotConsent removed - auto-set server-side when headshotUrl is present.
   let area = $state(v.area ?? "");
   let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
@@ -151,12 +151,9 @@
     <legend>Headshot</legend>
     <HeadshotUpload bind:value={headshotUrl} />
     <input type="hidden" name="headshot_url" value={headshotUrl} />
-    {#if headshotUrl}
-      <label class="checkbox">
-        <input type="checkbox" name="headshot_consent" bind:checked={headshotConsent} />
-        <span>The artist has confirmed rights to use this image.</span>
-      </label>
-    {/if}
+    <!-- Consent flag is auto-set on the server when a headshot URL is
+         present - admin is vouching for rights outside the system, no
+         need for a manual checkbox. -->
   </fieldset>
 
   <fieldset>

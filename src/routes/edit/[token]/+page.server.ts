@@ -101,9 +101,27 @@ export const load: PageServerLoad = async ({ params }) => {
     : { data: null };
   const digestSubscribed = !!subRes.data && !subRes.data.unsubscribed_at;
 
+  // What's missing for this profile to be publishable? Mirrors the
+  // server-side validation in the save action below. Surfaced to the
+  // page so we can render a "complete to publish" banner upfront for
+  // bulk-imported profiles whose owner is opening their first edit
+  // link. Once they fill these in and save, the action flips
+  // published=true automatically.
+  const p = profileRes.data;
+  const missingFields: string[] = [];
+  if (!p.full_name) missingFields.push("Name");
+  if (!p.geographic_area) missingFields.push("Geographic area");
+  if (!p.disciplines || p.disciplines.length === 0) {
+    missingFields.push("At least one discipline");
+  }
+  if (p.headshot_url && !p.headshot_consent) {
+    missingFields.push("Confirmation that you have rights to your headshot");
+  }
+
   return {
     profile: profileRes.data,
     digestSubscribed,
+    missingFields,
     areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     disciplines: disciplinesRes.data ?? [],
     disciplineCategories: (categoriesRes.data ?? []).map(
@@ -310,6 +328,33 @@ export const actions: Actions = {
       return fail(500, {
         errors: { _form: "Could not save changes. Please try again." },
       });
+    }
+
+    // Auto-publish gate: bulk-imported profiles ship unpublished when
+    // they're missing required info. After this save, refetch the row
+    // and check the publishable bar against actual DB state (untrusted
+    // users' major-field edits go to flagged_edits, not the row, so we
+    // can't trust the form submission alone). Flip published only when
+    // every required field is genuinely present.
+    const { data: updated } = await supabaseAdmin
+      .from("profiles")
+      .select(
+        "full_name, geographic_area, disciplines, headshot_url, headshot_consent, published",
+      )
+      .eq("id", token.target_id)
+      .maybeSingle();
+    if (updated && !updated.published) {
+      const isComplete =
+        !!updated.full_name &&
+        !!updated.geographic_area &&
+        (updated.disciplines ?? []).length > 0 &&
+        (!updated.headshot_url || updated.headshot_consent);
+      if (isComplete) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ published: true })
+          .eq("id", token.target_id);
+      }
     }
 
     let queued = false;
