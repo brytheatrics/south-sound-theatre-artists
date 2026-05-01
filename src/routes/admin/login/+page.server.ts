@@ -1,18 +1,28 @@
 // /admin/login: password entry. On success, fires a 6-digit 2FA code to
 // ADMIN_EMAIL and forwards to /admin/verify.
+//
+// Dev convenience: setting ADMIN_SKIP_2FA=true in .env skips the 2FA
+// step entirely and goes straight to creating a session - lets Blake
+// iterate on admin pages without burning email codes. The bypass is
+// gated on `import.meta.env.DEV`, which Vite hardcodes to false in
+// production builds. So even if the env var leaks into a production
+// environment, the bypass branch can't run.
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { ADMIN_EMAIL } from "$env/static/private";
+import { env as privateEnv } from "$env/dynamic/private";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import {
   checkLoginRateLimit,
   checkPassword,
+  generateSessionToken,
   generateTwoFaCode,
   hashSecret,
   logLoginAttempt,
   SESSION_COOKIE,
+  SESSION_TTL_MS,
   TWOFA_TTL_MS,
 } from "$lib/server/admin-auth";
 
@@ -43,6 +53,32 @@ export const actions: Actions = {
     if (!checkPassword(password)) {
       await logLoginAttempt(ip, false, "bad_password");
       return fail(401, { error: "That password isn't right." });
+    }
+
+    // Dev convenience: skip 2FA when running `pnpm dev` AND the env
+    // flag is opted in. Hard-gated on import.meta.env.DEV, which Vite
+    // hardcodes to false in production builds, so this branch can't
+    // ever run on staging / prod even if the env var leaks.
+    if (import.meta.env.DEV && privateEnv.ADMIN_SKIP_2FA === "true") {
+      const sessionToken = generateSessionToken();
+      const sessionHash = hashSecret(sessionToken);
+      const expires = new Date(Date.now() + SESSION_TTL_MS);
+      await supabaseAdmin.from("admin_sessions").insert({
+        token_hash: sessionHash,
+        email: ADMIN_EMAIL.toLowerCase(),
+        expires_at: expires.toISOString(),
+        ip_address: ip,
+        user_agent: request.headers.get("user-agent") ?? null,
+      });
+      cookies.set(SESSION_COOKIE, sessionToken, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        expires,
+      });
+      await logLoginAttempt(ip, true, "password_ok_2fa_bypassed_DEV");
+      throw redirect(303, "/admin");
     }
 
     // Password is valid - issue a 2FA code and stash a short-lived cookie
