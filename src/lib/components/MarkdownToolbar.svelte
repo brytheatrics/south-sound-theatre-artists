@@ -2,6 +2,11 @@
   // Markdown toolbar for the admin content / template editors.
   // Manipulates the bound textarea via selection ranges and dispatches
   // an `input` event so the parent's bind:value picks up the change.
+  //
+  // Designed for a non-technical operator. Buttons label what they DO
+  // visually, not what they emit. Tooltips spell it out in plain
+  // language. A "?" toggle reveals a quick syntax cheat-sheet for
+  // anyone who wants to learn the underlying markdown.
 
   import { downsizeImage } from "$lib/util/downsizeImage";
 
@@ -13,6 +18,7 @@
   let imageInput: HTMLInputElement | undefined = $state();
   let uploading = $state(false);
   let uploadError = $state("");
+  let helpOpen = $state(false);
 
   function getTextarea(): HTMLTextAreaElement | null {
     return document.getElementById(textareaId) as HTMLTextAreaElement | null;
@@ -113,25 +119,35 @@
 </script>
 
 <div class="tb">
-  <button type="button" class="b" title="Bold (**text**)" onclick={() => wrap("**", "**", "bold")}>
+  <button type="button" class="b" title="Bold — make selected text stand out" onclick={() => wrap("**", "**", "bold")}>
     <strong>B</strong>
   </button>
-  <button type="button" class="b" title="Italic (*text*)" onclick={() => wrap("*", "*", "italic")}>
+  <button type="button" class="b" title="Italic — adds emphasis (renders in moss serif)" onclick={() => wrap("*", "*", "italic")}>
     <em>I</em>
   </button>
+
   <span class="sep" aria-hidden="true"></span>
-  <button type="button" class="b" title="Heading (# text)" onclick={() => prefixLines("## ")}>
-    H
+
+  <button type="button" class="b b-h h1" title="Page title (largest heading) — only one per page, at the very top" onclick={() => prefixLines("# ")}>
+    H1
   </button>
+  <button type="button" class="b b-h h2" title="Section heading — use to start a new section like 'Mission' or 'Our story'" onclick={() => prefixLines("## ")}>
+    H2
+  </button>
+  <button type="button" class="b b-h h3" title="Sub-section heading — use under a section, like a person's name under 'Our team'" onclick={() => prefixLines("### ")}>
+    H3
+  </button>
+
+  <span class="sep" aria-hidden="true"></span>
+
   <button type="button" class="b" title="Bullet list" onclick={() => prefixLines("- ")}>
     •
   </button>
-  <span class="sep" aria-hidden="true"></span>
-  <button type="button" class="b" title="Insert link" onclick={insertLink}>
-    🔗
+  <button type="button" class="b b-text" title="Insert a link to another page or website" onclick={insertLink}>
+    Link
   </button>
-  <button type="button" class="b" title="Upload image" onclick={() => imageInput?.click()} disabled={uploading}>
-    {uploading ? "..." : "🖼"}
+  <button type="button" class="b b-text" title="Upload an image (Cloudinary)" onclick={() => imageInput?.click()} disabled={uploading}>
+    {uploading ? "Uploading..." : "Image"}
   </button>
   <input
     bind:this={imageInput}
@@ -140,10 +156,81 @@
     onchange={onImageChange}
     style="display: none"
   />
+
+  <span class="sep" aria-hidden="true"></span>
+
+  <button type="button" class="b b-help" title="Show what each formatting symbol means" onclick={() => (helpOpen = !helpOpen)} aria-expanded={helpOpen}>
+    {helpOpen ? "Hide help" : "?"}
+  </button>
+
   {#if uploadError}
     <span class="err">{uploadError}</span>
   {/if}
 </div>
+
+{#if helpOpen}
+  <!-- Plain-language reference for what the toolbar actually inserts.
+       Lexi can keep this open while editing or close it once she
+       remembers. Examples are deliberately concrete (the kinds of
+       things she'll actually type) instead of abstract markdown docs. -->
+  <div class="help">
+    <p class="help-lead">
+      What you type → what it looks like. The buttons above do this for you;
+      this panel is just so you understand why the symbols appear.
+    </p>
+    <table class="help-table">
+      <thead>
+        <tr><th>Type this</th><th>You get</th><th>When to use</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>**bold**</code></td>
+          <td><strong>bold</strong></td>
+          <td>A word or phrase you want to stand out.</td>
+        </tr>
+        <tr>
+          <td><code>*italic*</code></td>
+          <td><em class="ex-italic">italic</em></td>
+          <td>Editorial emphasis. Inside body text it renders in moss serif.</td>
+        </tr>
+        <tr>
+          <td><code># Page title</code></td>
+          <td><span class="ex-h1">Page title</span></td>
+          <td>Only at the very top of a page. Big serif headline.</td>
+        </tr>
+        <tr>
+          <td><code>## Section heading</code></td>
+          <td><span class="ex-h2">Section heading</span></td>
+          <td>Each major section ("Mission", "Our team", etc).</td>
+        </tr>
+        <tr>
+          <td><code>### Smaller heading</code></td>
+          <td><span class="ex-h3">Smaller heading</span></td>
+          <td>Sub-section under a section heading. E.g. a person's name under "Our team".</td>
+        </tr>
+        <tr>
+          <td><code>- list item</code></td>
+          <td>• list item</td>
+          <td>Bulleted list. Put each item on its own line, all starting with <code>-</code>.</td>
+        </tr>
+        <tr>
+          <td><code>[link text](url)</code></td>
+          <td><span class="ex-link">link text</span></td>
+          <td>Link to another page or external site.</td>
+        </tr>
+        <tr>
+          <td><code>![alt text](image-url)</code></td>
+          <td><em>image embedded</em></td>
+          <td>Embed an image. Use the Image button above to upload + insert in one step.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="help-tip">
+      <strong>Tip:</strong> blank lines split paragraphs. To start a new
+      paragraph, hit Enter twice.
+    </p>
+  </div>
+{/if}
 
 <style>
   .tb {
@@ -177,6 +264,34 @@
     opacity: 0.5;
     cursor: progress;
   }
+  /* Heading buttons: visually graduated so the H1/H2/H3 hierarchy is
+     skim-readable. H1 = largest type, H3 = smallest. */
+  .b-h {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .b-h.h1 { font-size: 16px; }
+  .b-h.h2 { font-size: 14px; }
+  .b-h.h3 { font-size: 12px; color: var(--ink-soft); }
+  /* Word-buttons: Link, Image — small text instead of emojis so the
+     action is unambiguous on first read. */
+  .b-text {
+    font-size: 13px;
+    padding: 4px 11px;
+    color: var(--ink-soft);
+  }
+  .b-help {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+  }
+  .b-help[aria-expanded="true"] {
+    background: var(--bg-raised);
+    color: var(--ink);
+    border-color: var(--ink);
+  }
   .sep {
     width: 1px;
     height: 18px;
@@ -187,5 +302,102 @@
     color: var(--warn);
     font-size: 12px;
     margin-left: 8px;
+  }
+
+  /* Help panel */
+  .help {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-top: 0;
+    padding: 14px 18px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .help-lead {
+    margin: 0 0 12px;
+    font-style: italic;
+    color: var(--muted);
+  }
+  .help-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 10px;
+  }
+  .help-table th,
+  .help-table td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  .help-table th {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .help-table td:first-child {
+    width: 30%;
+    white-space: nowrap;
+  }
+  .help-table td:nth-child(2) {
+    width: 22%;
+  }
+  .help-table code {
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+  }
+  /* Visual examples in the "You get" column. */
+  .ex-italic {
+    font-family: var(--font-accent);
+    font-style: italic;
+    color: var(--accent);
+  }
+  .ex-h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--ink);
+  }
+  .ex-h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .ex-h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .ex-link {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .help-tip {
+    margin: 8px 0 0;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  .help-tip strong {
+    color: var(--ink);
+  }
+
+  @media (max-width: 540px) {
+    /* Don't hide buttons on mobile, just allow wrap and shrink padding. */
+    .b { padding: 4px 7px; }
+    .help-table td:first-child {
+      white-space: normal;
+    }
   }
 </style>
