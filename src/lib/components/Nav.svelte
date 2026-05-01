@@ -13,11 +13,24 @@
     : "";
 
   type Link = { href: string; label: string };
+  // Primary nav: the three places people come to *do* something.
+  // Reference content (About, Contact, etc.) lives in the hamburger
+  // overflow menu so the header reads cleanly.
   const links: Link[] = [
     { href: "/directory", label: "Directory" },
     { href: "/callboard", label: "Callboard" },
     { href: "/resources", label: "Resources" },
+  ];
+
+  // Hamburger menu items: secondary destinations, organized roughly by
+  // "learn" -> "act" -> "legal".
+  const menuLinks: Link[] = [
     { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact" },
+    { href: "/edit-link", label: "Edit your profile" },
+    { href: "/support-us", label: "Support us" },
+    { href: "/privacy", label: "Privacy" },
+    { href: "/terms", label: "Terms" },
   ];
 
   const path = $derived(page.url.pathname);
@@ -45,6 +58,35 @@
       // Fall through to the default href = /admin.
     }
   }
+
+  // Hamburger menu open state. Close on outside click + Escape so it
+  // behaves like a normal native overflow menu.
+  let menuOpen = $state(false);
+  let menuRoot: HTMLDivElement | undefined = $state();
+
+  function toggleMenu() {
+    menuOpen = !menuOpen;
+  }
+  function closeMenu() {
+    menuOpen = false;
+  }
+  function handleDocClick(e: MouseEvent) {
+    if (!menuRoot) return;
+    if (!menuRoot.contains(e.target as Node)) menuOpen = false;
+  }
+  function handleKey(e: KeyboardEvent) {
+    if (e.key === "Escape") menuOpen = false;
+  }
+
+  $effect(() => {
+    if (!menuOpen) return;
+    document.addEventListener("click", handleDocClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("click", handleDocClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  });
 </script>
 
 <nav class="nv">
@@ -86,6 +128,36 @@
   <a class="nv-cta" href="/submit">
     Submit <span aria-hidden="true">↗</span>
   </a>
+  <div class="nv-menu-wrap" bind:this={menuRoot}>
+    <button
+      type="button"
+      class="nv-menu-btn"
+      onclick={toggleMenu}
+      aria-label="More links"
+      aria-expanded={menuOpen}
+      aria-haspopup="menu"
+    >
+      <span class="nv-menu-bars" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    </button>
+    {#if menuOpen}
+      <div class="nv-menu" role="menu">
+        {#each menuLinks as link (link.href)}
+          <a
+            role="menuitem"
+            href={link.href}
+            class:on={isActive(link.href)}
+            onclick={closeMenu}
+          >
+            {link.label}
+          </a>
+        {/each}
+      </div>
+    {/if}
+  </div>
 </nav>
 
 <style>
@@ -158,6 +230,74 @@
     color: var(--bg);
     border-color: var(--ink);
     text-decoration: none;
+  }
+
+  /* Hamburger overflow menu */
+  .nv-menu-wrap {
+    position: relative;
+  }
+  .nv-menu-btn {
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 7px 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+  }
+  .nv-menu-btn:hover {
+    border-color: var(--ink);
+  }
+  .nv-menu-btn[aria-expanded="true"] {
+    background: var(--paper);
+    border-color: var(--ink);
+  }
+  .nv-menu-bars {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 16px;
+    height: 12px;
+  }
+  .nv-menu-bars span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: currentColor;
+    border-radius: 1px;
+  }
+  .nv-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.25);
+    min-width: 200px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    /* Reset to normal-case inside the menu so links read like body text. */
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .nv-menu a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+  }
+  .nv-menu a:hover,
+  .nv-menu a.on {
+    background: var(--paper);
+    color: var(--ink);
   }
 
   @media (max-width: 640px) {

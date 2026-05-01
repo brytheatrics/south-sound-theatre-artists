@@ -159,11 +159,20 @@ a:hover {
  * preview is a true match for what readers see.
  * =================================================================*/
 .prose {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  /* Block layout (was flex column with gap) so we can float standalone
+     images for image-left team layouts. Vertical rhythm comes from
+     per-element margins below + the .prose > * margin-bottom default.
+     Container width is constrained by the parent (StaticPage main
+     element); paragraphs cap their own line length below. */
+  display: block;
   font-family: var(--font-body);
   color: var(--ink-soft);
+}
+.prose > * {
+  margin-block-end: 1rem;
+}
+.prose > *:last-child {
+  margin-block-end: 0;
 }
 .prose h1 {
   font-family: var(--font-display);
@@ -204,8 +213,27 @@ a:hover {
   font-size: 16px;
   line-height: 1.65;
   color: var(--ink-soft);
+  margin: 0 0 1rem;
+  max-width: 720px;
+}
+.prose h2 {
+  /* Clear preceding floats so a floated team headshot doesn't bleed
+     into the next section's heading. */
+  clear: both;
+}
+/* Standalone image (markdown emits <p><img></p>): float left so the
+   adjacent heading + bio paragraph wrap around it. Used by the team
+   section on /about. Hard cap on width keeps the headshot a portrait
+   tile instead of full-bleed. */
+.prose p:has(> img:only-child) {
+  float: left;
+  max-width: 200px;
+  margin: 0.25rem 1.5rem 0.75rem 0;
+}
+.prose p:has(> img:only-child) img {
+  width: 200px;
+  height: auto;
   margin: 0;
-  max-width: 580px;
 }
 /* Lede: first paragraph after the H1. Serif italic, larger, muted. */
 .prose h1 + p {
@@ -250,9 +278,10 @@ a:hover {
   margin: 1rem 0;
 }
 
-/* Compact prose - smaller scale for the admin live preview pane. */
-.prose-compact {
-  gap: 0.6rem;
+/* Compact prose - smaller scale for the admin live preview pane.
+   Tighter spacing replaces the flex-gap rhythm. */
+.prose-compact > * {
+  margin-block-end: 0.6rem;
 }
 .prose-compact h1 {
   font-size: clamp(26px, 3vw, 36px);

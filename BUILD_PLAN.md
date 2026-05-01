@@ -79,6 +79,7 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 
 **Maintenance (not launch-blocking):**
 - **GitHub Actions Node 20 → 24 migration.** All 6 workflows currently pin `actions/checkout@v4`, `actions/setup-node@v4`, and `pnpm/action-setup@v4`, which run on Node 20. GitHub forces Node 24 by default on **2026-06-02** and removes Node 20 entirely on **2026-09-16**. Bump action versions to whatever `@v5` (or later) tags become stable for all three before September. One-line change per action per workflow; no code changes needed.
+- **Cloudinary headshot orphan cleanup.** Each profile-photo upload creates a new asset (auto-generated public_id). When a user replaces their headshot, the old Cloudinary asset stays around indefinitely — no auto-cleanup. Currently negligible (Free tier is 25GB, headshots ~200KB each, would need 100k+ orphans to be a real problem) but worth a periodic-audit script eventually. Build `scripts/cleanup-orphan-headshots.mjs` that walks Cloudinary's `headshots/` folder, compares to currently-referenced URLs across `profiles`, `pending_submissions`, and parsed-out URLs in `site_content.body_markdown`, and deletes anything not referenced. Run manually so the operator can review before destructive action. Don't auto-delete-on-replace — would break the About page's references to existing profile headshots.
 
 ---
 
