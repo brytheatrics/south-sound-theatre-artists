@@ -77,6 +77,9 @@ Phased implementation plan for South Sound Theatre Artists. See `PRODUCT_SPEC.md
 - **Lexi's Ko-fi onboarding.** Sign up at ko-fi.com is done (`ko-fi.com/lexibarnettssta`) but Stripe / PayPal connection + donation tier setup may not be. Until those are in, the embed iframe will show a barebones "Powered by Ko-fi" with no donation form.
 - **Re-hide incomplete bulk-imported profiles.** A one-off script (commit 01a9a5c) unpublished 21 profiles missing required info so the complete-to-publish gate on `/edit/[token]` could surface them properly. Blake re-published them temporarily so the directory looks populated during dev / staging review. **Before sending invitation emails**, re-run `scripts/gate-incomplete-profiles.mjs` (or the equivalent SQL) so those 21 profiles are unpublished again - artists will see the "your profile isn't visible to the public yet" banner when they click their edit link, fill in the missing info, and auto-publish on save.
 
+**Maintenance (not launch-blocking):**
+- **GitHub Actions Node 20 → 24 migration.** All 6 workflows currently pin `actions/checkout@v4`, `actions/setup-node@v4`, and `pnpm/action-setup@v4`, which run on Node 20. GitHub forces Node 24 by default on **2026-06-02** and removes Node 20 entirely on **2026-09-16**. Bump action versions to whatever `@v5` (or later) tags become stable for all three before September. One-line change per action per workflow; no code changes needed.
+
 ---
 
 ## Tech Stack (settled)
