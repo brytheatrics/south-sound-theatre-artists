@@ -249,8 +249,10 @@
       </tbody>
     </table>
     <p class="help-tip">
-      <strong>Tip:</strong> blank lines split paragraphs. To start a new
-      paragraph, hit Enter twice.
+      <strong>Tip:</strong> hit Enter twice to start a new paragraph
+      (one Enter wraps within the current paragraph, like in a Word
+      document). Headings, lists, and images also start fresh on
+      their own line.
     </p>
   </div>
 {/if}

@@ -14,39 +14,62 @@ export function renderMarkdown(md: string): string {
 
   let html = "";
   let inList = false;
+  // Buffer of consecutive non-empty body lines that belong to the same
+  // paragraph. We flush on a blank line, a heading/list/etc. boundary,
+  // or end-of-input. Matches the standard CommonMark behavior where a
+  // single newline within a paragraph is a soft wrap (continuation),
+  // and a blank line is what actually breaks paragraphs.
+  let paraBuf: string[] = [];
+  function flushPara() {
+    if (paraBuf.length === 0) return;
+    html += `<p>${inline(paraBuf.join(" "))}</p>`;
+    paraBuf = [];
+  }
+  function closeList() {
+    if (inList) {
+      html += "</ul>";
+      inList = false;
+    }
+  }
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) {
-      if (inList) {
-        html += "</ul>";
-        inList = false;
-      }
+      flushPara();
+      closeList();
       continue;
     }
     if (line.startsWith("# ")) {
-      if (inList) { html += "</ul>"; inList = false; }
+      flushPara();
+      closeList();
       html += `<h1>${inline(line.slice(2))}</h1>`;
       continue;
     }
     if (line.startsWith("## ")) {
-      if (inList) { html += "</ul>"; inList = false; }
+      flushPara();
+      closeList();
       html += `<h2>${inline(line.slice(3))}</h2>`;
       continue;
     }
     if (line.startsWith("### ")) {
-      if (inList) { html += "</ul>"; inList = false; }
+      flushPara();
+      closeList();
       html += `<h3>${inline(line.slice(4))}</h3>`;
       continue;
     }
     if (line.startsWith("- ")) {
-      if (!inList) { html += "<ul>"; inList = true; }
+      flushPara();
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
       html += `<li>${inline(line.slice(2))}</li>`;
       continue;
     }
-    if (inList) { html += "</ul>"; inList = false; }
-    html += `<p>${inline(line)}</p>`;
+    closeList();
+    paraBuf.push(line);
   }
-  if (inList) html += "</ul>";
+  flushPara();
+  closeList();
   return html;
 }
 
