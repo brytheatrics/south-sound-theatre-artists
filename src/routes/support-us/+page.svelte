@@ -16,7 +16,9 @@
 
 <style>
   main {
-    max-width: 700px;
+    /* Match StaticPage's bumped width so /support-us reads the same
+       on desktop as /about, /privacy, /terms, /contact. */
+    max-width: 880px;
     margin: 0 auto;
     padding: clamp(2rem, 5vw, 4rem) var(--page-pad-x) 4rem;
     display: flex;
