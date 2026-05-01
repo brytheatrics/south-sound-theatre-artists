@@ -214,7 +214,7 @@ a:hover {
   line-height: 1.65;
   color: var(--ink-soft);
   margin: 0 0 1rem;
-  max-width: 720px;
+  max-width: 880px;
 }
 .prose h2 {
   /* Clear preceding floats so a floated team headshot doesn't bleed
