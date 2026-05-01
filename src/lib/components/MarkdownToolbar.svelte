@@ -18,7 +18,30 @@
   let imageInput: HTMLInputElement | undefined = $state();
   let uploading = $state(false);
   let uploadError = $state("");
-  let helpOpen = $state(false);
+
+  // Help panel: visible by default so the operator sees the key
+  // without having to click anything. After they collapse it once
+  // (because they remember the syntax now), the choice is remembered
+  // in localStorage for next time.
+  const HELP_PREF_KEY = "ssta_markdown_help_open";
+  let helpOpen = $state(true);
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(HELP_PREF_KEY);
+      if (stored === "false") helpOpen = false;
+    } catch {
+      // private mode / blocked storage; default-open is fine.
+    }
+  });
+  function toggleHelp() {
+    helpOpen = !helpOpen;
+    try {
+      window.localStorage.setItem(HELP_PREF_KEY, String(helpOpen));
+    } catch {
+      // ignore - state still works for the session
+    }
+  }
 
   function getTextarea(): HTMLTextAreaElement | null {
     return document.getElementById(textareaId) as HTMLTextAreaElement | null;
@@ -159,8 +182,8 @@
 
   <span class="sep" aria-hidden="true"></span>
 
-  <button type="button" class="b b-help" title="Show what each formatting symbol means" onclick={() => (helpOpen = !helpOpen)} aria-expanded={helpOpen}>
-    {helpOpen ? "Hide help" : "?"}
+  <button type="button" class="b b-help" title="Show what each formatting symbol means" onclick={toggleHelp} aria-expanded={helpOpen}>
+    {helpOpen ? "Hide key" : "Show key"}
   </button>
 
   {#if uploadError}
