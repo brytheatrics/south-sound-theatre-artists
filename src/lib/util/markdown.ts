@@ -14,62 +14,47 @@ export function renderMarkdown(md: string): string {
 
   let html = "";
   let inList = false;
-  // Buffer of consecutive non-empty body lines that belong to the same
-  // paragraph. We flush on a blank line, a heading/list/etc. boundary,
-  // or end-of-input. Matches the standard CommonMark behavior where a
-  // single newline within a paragraph is a soft wrap (continuation),
-  // and a blank line is what actually breaks paragraphs.
-  let paraBuf: string[] = [];
-  function flushPara() {
-    if (paraBuf.length === 0) return;
-    html += `<p>${inline(paraBuf.join(" "))}</p>`;
-    paraBuf = [];
-  }
-  function closeList() {
-    if (inList) {
-      html += "</ul>";
-      inList = false;
-    }
-  }
+  // Each non-empty body line becomes its own paragraph. Blank lines
+  // are visual padding only (skipped). This matches what Word /
+  // Google Docs users expect from hitting Enter: one Enter = new
+  // paragraph. We deliberately diverge from CommonMark here, where
+  // a single newline is a soft wrap inside a paragraph - that
+  // behavior assumes terminal-edited markdown files where lines
+  // are hard-wrapped at 80 cols. Our editor is a soft-wrap
+  // textarea, so single-Enter-as-soft-wrap has no use case.
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) {
-      flushPara();
-      closeList();
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
       continue;
     }
     if (line.startsWith("# ")) {
-      flushPara();
-      closeList();
+      if (inList) { html += "</ul>"; inList = false; }
       html += `<h1>${inline(line.slice(2))}</h1>`;
       continue;
     }
     if (line.startsWith("## ")) {
-      flushPara();
-      closeList();
+      if (inList) { html += "</ul>"; inList = false; }
       html += `<h2>${inline(line.slice(3))}</h2>`;
       continue;
     }
     if (line.startsWith("### ")) {
-      flushPara();
-      closeList();
+      if (inList) { html += "</ul>"; inList = false; }
       html += `<h3>${inline(line.slice(4))}</h3>`;
       continue;
     }
     if (line.startsWith("- ")) {
-      flushPara();
-      if (!inList) {
-        html += "<ul>";
-        inList = true;
-      }
+      if (!inList) { html += "<ul>"; inList = true; }
       html += `<li>${inline(line.slice(2))}</li>`;
       continue;
     }
-    closeList();
-    paraBuf.push(line);
+    if (inList) { html += "</ul>"; inList = false; }
+    html += `<p>${inline(line)}</p>`;
   }
-  flushPara();
-  closeList();
+  if (inList) html += "</ul>";
   return html;
 }
 

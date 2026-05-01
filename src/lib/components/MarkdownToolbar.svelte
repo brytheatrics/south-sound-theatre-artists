@@ -249,10 +249,10 @@
       </tbody>
     </table>
     <p class="help-tip">
-      <strong>Tip:</strong> hit Enter twice to start a new paragraph
-      (one Enter wraps within the current paragraph, like in a Word
-      document). Headings, lists, and images also start fresh on
-      their own line.
+      <strong>Tip:</strong> hit Enter to start a new paragraph. Long
+      sentences wrap to the next line on their own — you don't need
+      to break them by hand. Headings, lists, and images also start
+      fresh on their own line.
     </p>
   </div>
 {/if}
