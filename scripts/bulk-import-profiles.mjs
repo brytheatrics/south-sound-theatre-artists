@@ -496,11 +496,20 @@ async function importFolder(db, folderName) {
   // "ACTOR" both end up as "Actor" in the DB.
   let disciplines = [];
   let inferredDisciplines = false;
+  let unmatchedDisciplines = []; // surfaced in console + results.csv
   if (meta.disciplines) {
     const canonicalLower = new Map(canonical.map((c) => [c.toLowerCase(), c]));
-    disciplines = splitList(meta.disciplines)
-      .map((d) => canonicalLower.get(d.toLowerCase()) ?? null)
-      .filter(Boolean);
+    const supplied = splitList(meta.disciplines);
+    for (const d of supplied) {
+      const hit = canonicalLower.get(d.toLowerCase());
+      if (hit) disciplines.push(hit);
+      else unmatchedDisciplines.push(d);
+    }
+    if (unmatchedDisciplines.length > 0) {
+      console.warn(
+        `  ! ${folderName}: meta.txt disciplines not in canonical list (dropped): ${unmatchedDisciplines.join(", ")}. Add via /admin/disciplines or update meta.txt to match.`,
+      );
+    }
   } else if (bio) {
     disciplines = inferDisciplines(bio, canonical);
     inferredDisciplines = disciplines.length > 0;
@@ -538,6 +547,7 @@ async function importFolder(db, folderName) {
         resume_count: pdfPaths.length,
         disciplines,
         inferred_disciplines: inferredDisciplines,
+        unmatched_disciplines: unmatchedDisciplines.join("|"),
         area: matchedArea ?? "",
         status: "skipped_existing",
         missing_required: "",
@@ -564,6 +574,7 @@ async function importFolder(db, folderName) {
       resume_count: pdfPaths.length,
       disciplines,
       inferred_disciplines: inferredDisciplines,
+      unmatched_disciplines: unmatchedDisciplines.join("|"),
       area: matchedArea ?? "",
       status: "skipped_slug_collision",
       missing_required: "no email to dedupe on",
@@ -683,6 +694,7 @@ async function importFolder(db, folderName) {
     resume_count: pdfPaths.length,
     disciplines,
     inferred_disciplines: inferredDisciplines,
+    unmatched_disciplines: unmatchedDisciplines.join("|"),
     area: matchedArea ?? "",
     status: canPublish ? "published" : "hidden_draft",
     missing_required: missingRequired.join("|"),
@@ -761,6 +773,7 @@ async function main() {
         resume_count: 0,
         disciplines: [],
         inferred_disciplines: false,
+        unmatched_disciplines: "",
         area: "",
         error: err.message,
       });
@@ -781,6 +794,7 @@ async function main() {
     "resume_count",
     "disciplines",
     "inferred_disciplines",
+    "unmatched_disciplines",
     "area",
     "missing_required",
     "edit_url",
