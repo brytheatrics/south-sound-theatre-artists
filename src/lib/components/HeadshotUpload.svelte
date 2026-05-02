@@ -5,6 +5,7 @@
   // POSTs the file directly to Cloudinary using XHR for progress reporting.
 
   import { downsizeImage } from "$lib/util/downsizeImage";
+  import { convertHeicIfNeeded } from "$lib/util/convertHeic";
 
   type Props = {
     value?: string;
@@ -21,7 +22,8 @@
   const SLOW_BYTES = 3 * 1024 * 1024;  // "may take a moment" hint threshold
   const CLOUDINARY_MAX_BYTES = 10 * 1024 * 1024;  // post-downsize fallback cap
 
-  let status: "idle" | "preparing" | "uploading" | "error" = $state("idle");
+  let status: "idle" | "converting" | "preparing" | "uploading" | "error" =
+    $state("idle");
   let progress = $state(0);
   let pendingBytes = $state(0);
   let errorMessage = $state("");
@@ -34,13 +36,33 @@
       return;
     }
 
-    status = "preparing";
-    progress = 0;
     pendingBytes = file.size;
     errorMessage = "";
+    progress = 0;
 
     try {
-      const blob = await downsizeImage(file);
+      // Step 1: HEIC -> JPEG conversion (no-op for non-HEIC files).
+      // Browsers can't canvas-decode HEIC, so without this an iPhone
+      // photo would slip past downsizeImage and either fail at upload
+      // (>10MB) or render incorrectly downstream. heic2any is lazy-
+      // loaded inside the helper so non-HEIC users don't pay for it.
+      let working: File = file;
+      if (isHeic(file)) {
+        status = "converting";
+        try {
+          working = await convertHeicIfNeeded(file);
+        } catch (convErr) {
+          // Conversion can fail on corrupt or unusual HEIC variants.
+          // Fall through with the original file - small HEICs work
+          // server-side via Cloudinary's transformation, and large
+          // ones get caught by the size check below with a clear
+          // error.
+          console.warn("HEIC conversion failed, falling through:", convErr);
+        }
+      }
+
+      status = "preparing";
+      const blob = await downsizeImage(working);
 
       // Downsize is opportunistic - it skips formats the browser can't decode
       // (RAW / DNG / TIFF, sometimes HEIC). For those, the original blob comes
@@ -216,7 +238,7 @@
     <label
       class="dropzone"
       class:drag-active={dragActive}
-      class:disabled={status === "preparing" || status === "uploading"}
+      class:disabled={status === "converting" || status === "preparing" || status === "uploading"}
       ondrop={onDrop}
       ondragover={onDragOver}
       ondragleave={onDragLeave}
@@ -226,9 +248,12 @@
         type="file"
         accept="image/*"
         onchange={onChange}
-        disabled={status === "preparing" || status === "uploading"}
+        disabled={status === "converting" || status === "preparing" || status === "uploading"}
       />
-      {#if status === "preparing"}
+      {#if status === "converting"}
+        <p class="status">Converting HEIC photo...</p>
+        <p class="hint">A few seconds — iPhone HEIC needs to become JPEG.</p>
+      {:else if status === "preparing"}
         <p class="status">Preparing image...</p>
         {#if pendingBytes > SLOW_BYTES}
           <p class="hint">Large files may take a moment.</p>

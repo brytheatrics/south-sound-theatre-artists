@@ -9,6 +9,7 @@
   // anyone who wants to learn the underlying markdown.
 
   import { downsizeImage } from "$lib/util/downsizeImage";
+  import { convertHeicIfNeeded } from "$lib/util/convertHeic";
 
   type Props = {
     textareaId: string;
@@ -97,7 +98,16 @@
     uploading = true;
     uploadError = "";
     try {
-      const blob = await downsizeImage(file);
+      // HEIC -> JPEG first, in case Lexi (or anyone) drags an iPhone
+      // photo into the about page or an email template. Same lazy-
+      // loaded converter the headshot uploader uses.
+      let working: File = file;
+      try {
+        working = await convertHeicIfNeeded(file);
+      } catch (convErr) {
+        console.warn("HEIC conversion failed, falling through:", convErr);
+      }
+      const blob = await downsizeImage(working);
       const sigResp = await fetch("/api/cloudinary/sign-content", { method: "POST" });
       if (!sigResp.ok) throw new Error("Could not start upload.");
       const sig = await sigResp.json();
