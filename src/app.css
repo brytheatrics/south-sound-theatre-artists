@@ -46,6 +46,14 @@
   text-rendering: optimizeLegibility;
 }
 
+/* Dark mode tokens. Applied via either:
+ *   - <html class="mode-dark"> (set by the bootstrap script in app.html
+ *     before paint, or by the runtime ThemeToggle component)
+ *   - <body class="theme-paper mode-dark"> (legacy / direct application)
+ * Both selectors reach the same token block, so the class can live on
+ * either ancestor.
+ */
+html.mode-dark .theme-paper,
 .theme-paper.mode-dark {
   --bg: #2a2d3a;
   --bg-raised: #2f3340;

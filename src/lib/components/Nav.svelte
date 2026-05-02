@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { env } from "$env/dynamic/public";
+  import ThemeToggle from "./ThemeToggle.svelte";
 
   type Props = { isAdmin?: boolean };
   let { isAdmin = false }: Props = $props();
@@ -155,6 +156,8 @@
             {link.label}
           </a>
         {/each}
+        <hr class="menu-rule" />
+        <ThemeToggle />
       </div>
     {/if}
   </div>
@@ -298,6 +301,11 @@
   .nv-menu a.on {
     background: var(--paper);
     color: var(--ink);
+  }
+  .menu-rule {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 6px 0;
   }
 
   @media (max-width: 640px) {
