@@ -53,8 +53,11 @@ const TRUST_ALL = process.argv.includes("--trust-all");
 // Optional --imports-dir <path> override for the source folder. Default
 // is ./imports/ in the repo. Use this to point at OneDrive / Desktop
 // folders without having to copy files around. Folders named "Template"
-// (case-insensitive) are skipped on the assumption that they're working
-// templates, not real submissions.
+// or "Past" (case-insensitive) are skipped: Template = working scaffold,
+// Past = artists already imported, kept on disk for reference. The
+// dedup check still fires for anything in the root, so a forgotten
+// move-to-Past is safely skipped (status='skipped_existing') rather
+// than re-imported as a duplicate.
 const argDirIdx = process.argv.indexOf("--imports-dir");
 const IMPORTS_DIR =
   argDirIdx >= 0 && process.argv[argDirIdx + 1]
@@ -699,6 +702,11 @@ async function main() {
     folders = readdirSync(IMPORTS_DIR).filter((name) => {
       if (name.startsWith("_")) return false; // skip _results.csv etc.
       if (name.toLowerCase() === "template") return false; // working template
+      // "past" folder = artists already imported, kept on disk for
+      // reference. Dedup-by-email check still fires for anything
+      // that wasn't moved here, so a forgotten move-to-past is a
+      // skip-not-duplicate, not a dupe insert.
+      if (name.toLowerCase() === "past") return false;
       const full = join(IMPORTS_DIR, name);
       return statSync(full).isDirectory();
     });

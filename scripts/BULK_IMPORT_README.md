@@ -25,6 +25,15 @@ imports/
 **Folder name = full name.** Use the form they'd want shown publicly
 (`Jane Smith/`, not `jane_smith/`).
 
+**Reserved folder names** are skipped automatically (case-insensitive):
+- `Template/` — working scaffold, not a real submission
+- `Past/` — artists already imported, kept on disk for reference
+- Anything starting with `_` (e.g. `_results.csv`)
+
+The dedup check still fires for everything in the root, so a forgotten
+move-to-`Past/` is safely skipped (`status=skipped_existing`) rather
+than re-imported as a duplicate.
+
 **Image extensions accepted:** `.jpg .jpeg .png .webp .heic`. Only one
 image per folder; the script picks the first one alphabetically.
 
