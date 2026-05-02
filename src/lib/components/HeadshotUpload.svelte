@@ -45,12 +45,27 @@
       // Downsize is opportunistic - it skips formats the browser can't decode
       // (RAW / DNG / TIFF, sometimes HEIC). For those, the original blob comes
       // back unchanged, and if it's over Cloudinary's 10 MB ingest cap the
-      // upload will fail with an unfriendly server error. Catch it up front.
+      // upload will fail with an unfriendly server error. Catch it up front
+      // and steer the user toward the fix - HEIC is the common iPhone case
+      // and benefits from format-specific instructions.
       if (blob.size > CLOUDINARY_MAX_BYTES) {
-        fail(
-          `This image is ${formatBytes(blob.size)}, which is too large to ` +
-            `upload directly. Try saving it as a JPEG or PNG first.`,
-        );
+        const sizeStr = formatBytes(blob.size);
+        if (isHeic(file)) {
+          fail(
+            `This photo is ${sizeStr} and saved as HEIC (the iPhone default ` +
+              `format). Browsers can't auto-resize HEIC, so it's too large ` +
+              `to upload as-is. Quickest fix: open the photo on your iPhone, ` +
+              `tap the Share icon, choose "Save to Files", and pick JPEG. ` +
+              `Or take a screenshot of the photo and upload that. Then try ` +
+              `again.`,
+          );
+        } else {
+          fail(
+            `This photo is ${sizeStr}, larger than the 10 MB upload limit. ` +
+              `Resize it under 10 MB and try again - ` +
+              `squoosh.app is a quick free option.`,
+          );
+        }
         return;
       }
 
@@ -84,7 +99,14 @@
       progress = 0;
       onUpload(result.secure_url, result.public_id);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed.";
+      const raw = err instanceof Error ? err.message : "Upload failed.";
+      // Rewrite Cloudinary's raw size-error text into something
+      // actionable. Keeps everything else as-is so debug info is still
+      // visible for non-size failures.
+      const isSizeError = /size|too large|maximum/i.test(raw);
+      const msg = isSizeError
+        ? `Your photo is too large to upload. Resize it under 10 MB and try again - squoosh.app is a quick free option.`
+        : raw;
       fail(msg);
     }
   }
@@ -167,6 +189,15 @@
     if (file.type.startsWith("image/")) return true;
     const ext = file.name.split(".").pop()?.toLowerCase();
     return !!ext && IMAGE_EXTENSIONS.has(ext);
+  }
+
+  // HEIC detection. file.type can be empty on Windows browsers (no
+  // registered MIME type for the format), so check the extension as a
+  // fallback - same pattern as isLikelyImage above.
+  function isHeic(file: File): boolean {
+    if (file.type === "image/heic" || file.type === "image/heif") return true;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return ext === "heic" || ext === "heif";
   }
 
   function formatBytes(bytes: number): string {
