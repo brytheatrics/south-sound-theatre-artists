@@ -494,6 +494,22 @@ async function importFolder(db, folderName) {
   // Meta values match case-insensitively against the canonical list and
   // are normalised to the canonical capitalisation - so "actor" or
   // "ACTOR" both end up as "Actor" in the DB.
+  // Common shorthand for canonical disciplines. People emailing in
+  // bios won't necessarily spell out "Performer (General)" or
+  // "Educator (General)" - those parens are admin-side schema
+  // bookkeeping, not how artists describe themselves. Map the
+  // intuitive short forms to the canonical names so the meta.txt
+  // doesn't silently drop them.
+  const DISCIPLINE_ALIASES = {
+    performer: "Performer (General)",
+    educator: "Educator (General)",
+    teacher: "Educator (General)",
+    designer: "Designer (General)",
+    technician: "Technician (General)",
+    // Common typos seen during launch import:
+    choreophrapher: "Choreographer",
+  };
+
   let disciplines = [];
   let inferredDisciplines = false;
   let unmatchedDisciplines = []; // surfaced in console + results.csv
@@ -501,10 +517,14 @@ async function importFolder(db, folderName) {
     const canonicalLower = new Map(canonical.map((c) => [c.toLowerCase(), c]));
     const supplied = splitList(meta.disciplines);
     for (const d of supplied) {
-      const hit = canonicalLower.get(d.toLowerCase());
+      const lower = d.toLowerCase();
+      const hit = canonicalLower.get(lower) ?? DISCIPLINE_ALIASES[lower];
       if (hit) disciplines.push(hit);
       else unmatchedDisciplines.push(d);
     }
+    // Dedupe in case the alias resolves to a discipline already in
+    // the list (e.g. "Performer, Performer (General)").
+    disciplines = [...new Set(disciplines)];
     if (unmatchedDisciplines.length > 0) {
       console.warn(
         `  ! ${folderName}: meta.txt disciplines not in canonical list (dropped): ${unmatchedDisciplines.join(", ")}. Add via /admin/disciplines or update meta.txt to match.`,
