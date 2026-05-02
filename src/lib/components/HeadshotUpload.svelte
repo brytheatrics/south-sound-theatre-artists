@@ -52,12 +52,11 @@
         const sizeStr = formatBytes(blob.size);
         if (isHeic(file)) {
           fail(
-            `This photo is ${sizeStr} and saved as HEIC (the iPhone default ` +
-              `format). Browsers can't auto-resize HEIC, so it's too large ` +
-              `to upload as-is. Quickest fix: open the photo on your iPhone, ` +
-              `tap the Share icon, choose "Save to Files", and pick JPEG. ` +
-              `Or take a screenshot of the photo and upload that. Then try ` +
-              `again.`,
+            `This photo is ${sizeStr} and saved in HEIC/HEIF format. ` +
+              `Browsers can't auto-resize this format, so it's too large to ` +
+              `upload as-is. Quickest fix: in your phone's Photos app, share ` +
+              `the photo and choose "Save to Files" as a JPEG. Or take a ` +
+              `screenshot of the photo and upload that. Then try again.`,
           );
         } else {
           fail(
