@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { env } from "$env/dynamic/public";
   import ThemeToggle from "./ThemeToggle.svelte";
+  import LogoMark from "./LogoMark.svelte";
 
   type Props = { isAdmin?: boolean };
   let { isAdmin = false }: Props = $props();
@@ -92,7 +93,7 @@
 
 <nav class="nv">
   <a class="nv-left" href="/" aria-label="South Sound Theatre Artists - home">
-    <img class="nv-logo" src="/logo-short.svg" alt="" aria-hidden="true" />
+    <LogoMark height={32} />
   </a>
   <div class="nv-links" aria-label="Primary">
     {#each links as link (link.href)}
@@ -187,11 +188,6 @@
   }
   .nv-left:hover {
     text-decoration: none;
-  }
-  .nv-logo {
-    height: 32px;
-    width: auto;
-    display: block;
   }
   .nv-links {
     display: flex;

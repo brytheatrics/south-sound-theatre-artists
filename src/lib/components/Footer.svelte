@@ -1,5 +1,6 @@
 <script lang="ts">
   import { renderMarkdownInline } from "$lib/util/markdown";
+  import LogoMark from "./LogoMark.svelte";
 
   type Props = { tagline: string | null };
   let { tagline }: Props = $props();
@@ -10,7 +11,7 @@
   <div class="ft-row">
     <div class="ft-left">
       <a class="ft-mark" href="/" aria-label="South Sound Theatre Artists - home">
-        <img class="ft-logo" src="/logo-short.svg" alt="" aria-hidden="true" />
+        <LogoMark height={24} />
       </a>
       {#if tagline}
         <span class="ft-tag">{@html renderMarkdownInline(tagline)}</span>
@@ -64,11 +65,6 @@
     align-items: center;
     color: var(--ink);
     text-decoration: none;
-  }
-  .ft-logo {
-    height: 24px;
-    width: auto;
-    display: block;
   }
   .ft-center {
     justify-self: center;
