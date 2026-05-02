@@ -130,6 +130,74 @@ function convertDocxToPdf(docxPath) {
   }
 }
 
+// Cloudinary's free-tier image upload caps at 10 MB per request. Phone
+// cameras emit 13-20 MB JPEGs, so over-cap files would 400 the upload
+// without any auto-fix. This downsizes oversized headshots in place
+// (writes a sibling .resized.jpg, returns its path) using PowerShell +
+// System.Drawing, mirroring the docx-to-pdf approach above. Only fires
+// when the source file is >9 MB.
+const CLOUDINARY_IMAGE_CAP_BYTES = 9 * 1024 * 1024; // 9MB safety margin
+function ensureImageUnderCap(imagePath) {
+  let stats;
+  try {
+    stats = statSync(imagePath);
+  } catch {
+    return imagePath;
+  }
+  if (stats.size <= CLOUDINARY_IMAGE_CAP_BYTES) return imagePath;
+  if (process.platform !== "win32") {
+    console.warn(
+      `  ! ${basename(imagePath)}: file is ${(stats.size / 1024 / 1024).toFixed(1)}MB, over the 10MB Cloudinary cap. Auto-resize needs Windows; pre-resize manually and rerun.`,
+    );
+    return imagePath; // let the upload fail loudly
+  }
+  const out = imagePath.replace(/\.[^.]+$/, ".resized.jpg");
+  if (existsSync(out)) return out; // already resized in a prior run
+  // Down-sample the long edge to 2000px and re-encode as JPEG quality
+  // 85. That's the same target the browser-side downsizeImage util uses
+  // and it lands well under the cap for any normal phone photo.
+  const ps = `
+    $ErrorActionPreference = 'Stop'
+    Add-Type -AssemblyName System.Drawing
+    $img = [System.Drawing.Image]::FromFile([string]'${imagePath.replace(/'/g, "''")}')
+    try {
+      $maxEdge = 2000
+      $ratio = [Math]::Min($maxEdge / $img.Width, $maxEdge / $img.Height)
+      if ($ratio -gt 1) { $ratio = 1 }
+      $newW = [int]($img.Width * $ratio)
+      $newH = [int]($img.Height * $ratio)
+      $resized = New-Object System.Drawing.Bitmap $newW, $newH
+      $g = [System.Drawing.Graphics]::FromImage($resized)
+      $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $g.DrawImage($img, 0, 0, $newW, $newH)
+      $jpegEncoder = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
+      $encParams = New-Object System.Drawing.Imaging.EncoderParameters 1
+      $encParams.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [int64]85)
+      $resized.Save([string]'${out.replace(/'/g, "''")}', $jpegEncoder, $encParams)
+      $g.Dispose(); $resized.Dispose()
+    } finally {
+      $img.Dispose()
+    }
+  `;
+  try {
+    execFileSync("powershell.exe", ["-NoProfile", "-Command", ps], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    if (!existsSync(out)) return imagePath;
+    const before = (stats.size / 1024 / 1024).toFixed(1);
+    const after = (statSync(out).size / 1024 / 1024).toFixed(1);
+    console.log(
+      `  i ${basename(imagePath)}: resized for upload (${before}MB -> ${after}MB)`,
+    );
+    return out;
+  } catch (err) {
+    console.warn(
+      `  ! ${basename(imagePath)}: auto-resize failed (${err.message?.slice(0, 200)}); upload will likely error`,
+    );
+    return imagePath;
+  }
+}
+
 // Canonical SSTA areas. Loose-matched against the meta.txt area value.
 // Exact list comes from the DB at runtime.
 
@@ -620,7 +688,10 @@ async function importFolder(db, folderName) {
 
   let headshotUrl = null;
   if (imagePath && !DRY_RUN) {
-    headshotUrl = await uploadToCloudinary(imagePath, {
+    // Cloudinary's 10MB cap is on the inbound payload, not the
+    // post-transformation output, so we have to resize before uploading.
+    const sized = ensureImageUnderCap(imagePath);
+    headshotUrl = await uploadToCloudinary(sized, {
       folder: "headshots",
       resourceType: "image",
       transformation: "c_limit,w_1200,h_1200,q_auto,f_auto",
