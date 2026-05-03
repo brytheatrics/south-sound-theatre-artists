@@ -29,10 +29,12 @@
   <span class="eyebrow"><span class="num">·</span>Admin · calendar sources</span>
   <h1 class="h1-display">Calendar sources.</h1>
   <p class="lede">
-    {data.sources.length} source{data.sources.length === 1 ? "" : "s"} are
-    auto-pulled into <code>/calendar</code>. Each is read once per
-    <code>cadence_days</code> (default 30), with HTML-hash caching so
-    unchanged pages don't burn API tokens.
+    {data.autoSources.length} auto-pulled, {data.manualSources.length} manual.
+    Auto sources are read by the cron once per <code>cadence_days</code>
+    (default 30), with HTML-hash caching so unchanged pages don't burn API
+    tokens. Manual sources don't get cron'd - the entries below are
+    reference cards so Lexi knows where to check for new shows on
+    <a href="/admin/calendar/new">/admin/calendar/new</a>.
   </p>
 </header>
 
@@ -47,12 +49,17 @@
   </div>
 {/if}
 
+<h2 class="section-h">
+  Auto-pulled <span class="section-count">{data.autoSources.length}</span>
+</h2>
+
 <div class="src-list">
-  {#each data.sources as s (s.id)}
+  {#each data.autoSources as s (s.id)}
     <article class="src-row" class:inactive={!s.active}>
       <div class="src-name">
-        <h2>{s.org_name}</h2>
+        <h3>{s.org_name}</h3>
         <code class="src-slug">{s.org_slug}</code>
+        {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
       </div>
 
       <div class="src-status">
@@ -89,6 +96,42 @@
             {busy === s.id ? "Refreshing..." : "Refresh now"}
           </button>
         </form>
+      </div>
+    </article>
+  {/each}
+</div>
+
+<h2 class="section-h section-manual">
+  Manual entry <span class="section-count">{data.manualSources.length}</span>
+</h2>
+<p class="section-help">
+  Lexi maintains these by hand from <a href="/admin/calendar/new">/admin/calendar/new</a>.
+  Each card below is a reference - the URL is where to check for new shows,
+  the notes explain how the org publishes their schedule.
+</p>
+
+<div class="src-list">
+  {#each data.manualSources as s (s.id)}
+    <article class="src-row src-manual">
+      <div class="src-name">
+        <h3>{s.org_name}</h3>
+        <code class="src-slug">{s.org_slug}</code>
+        {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
+      </div>
+
+      <div class="src-status">
+        <span class="status-pill st-manual">manual entry</span>
+      </div>
+
+      <div class="src-url">
+        <a href={s.source_url} target="_blank" rel="noopener">{s.source_url}</a>
+        {#if s.notes}
+          <div class="src-notes">{s.notes}</div>
+        {/if}
+      </div>
+
+      <div class="src-actions">
+        <a class="bt bt-ghost" href="/admin/calendar/new">+ Add show</a>
       </div>
     </article>
   {/each}
@@ -148,10 +191,49 @@
     border: 1px solid var(--accent);
   }
 
+  .section-h {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.5rem;
+    color: var(--ink);
+  }
+  .section-h:first-of-type { margin-top: 0.5rem; }
+  .section-manual { color: var(--muted); }
+  .section-count {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0 0.5rem;
+    background: var(--paper-2);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    vertical-align: middle;
+  }
+  .section-help {
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    margin: 0 0 1rem;
+    max-width: 60ch;
+  }
   .src-list {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .src-row.src-manual {
+    background: var(--paper);
+    border-style: dashed;
+  }
+  .src-area {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: var(--paper-2);
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
   }
   .src-row {
     display: grid;
@@ -166,7 +248,7 @@
   .src-row.inactive {
     opacity: 0.55;
   }
-  .src-name h2 {
+  .src-name h3 {
     font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 600;
@@ -201,6 +283,11 @@
   .status-pill.st-error {
     background: #f9e0d4;
     color: var(--error);
+  }
+  .status-pill.st-manual {
+    background: var(--paper-2);
+    color: var(--muted);
+    border: 1px dashed var(--rule);
   }
   .status-meta {
     display: block;

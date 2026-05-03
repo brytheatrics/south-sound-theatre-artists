@@ -19,11 +19,27 @@ export const load: PageServerLoad = async () => {
     .select(
       `id, org_slug, org_name, source_url, adapter, cadence_days, active,
        last_status, last_show_count, last_checked_at, last_successful_at,
-       last_error, cooldown_until, notes, updated_at`,
+       last_error, cooldown_until, notes, updated_at, area_id`,
     )
     .order("org_name");
   if (error) throw error;
-  return { sources: sources ?? [] };
+
+  const { data: areas } = await supabaseAdmin
+    .from("areas")
+    .select("id, name, sort_order")
+    .order("sort_order");
+  const areaNameById = new Map((areas ?? []).map((a) => [a.id, a.name]));
+
+  const enriched = (sources ?? []).map((s) => ({
+    ...s,
+    area_name: s.area_id ? areaNameById.get(s.area_id) ?? null : null,
+    is_manual: s.adapter === "manual",
+  }));
+
+  return {
+    autoSources: enriched.filter((s) => !s.is_manual),
+    manualSources: enriched.filter((s) => s.is_manual),
+  };
 };
 
 export const actions: Actions = {

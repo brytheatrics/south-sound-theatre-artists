@@ -59,17 +59,19 @@ async function main() {
   await db.connect();
 
   try {
+    // Cron only runs adapters that actually fetch + extract. Manual
+    // entries (adapter='manual') stay in event_sources for admin
+    // visibility but are skipped here so we don't waste API tokens
+    // hitting unscrapeable / placeholder pages.
     let where, params;
     if (args.orgSlug) {
-      where = `active = true and org_slug = $1`;
+      where = `active = true and adapter <> 'manual' and org_slug = $1`;
       params = [args.orgSlug];
     } else if (args.force) {
-      where = `active = true`;
+      where = `active = true and adapter <> 'manual'`;
       params = [];
     } else {
-      // Cadence-aware: include rows that have never run, OR whose last
-      // run was longer ago than cadence_days.
-      where = `active = true and (
+      where = `active = true and adapter <> 'manual' and (
                  last_checked_at is null
                  or last_checked_at < now() - (cadence_days * interval '1 day')
                )`;

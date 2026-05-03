@@ -80,6 +80,47 @@ const SOURCES = [
     notes: "Arts People; stable code." },
 ];
 
+// Manual-entry orgs: not auto-pulled by the cron. Lexi maintains them
+// from /admin/calendar. The source_url here is just where she checks
+// for new shows; cron skips these rows entirely (filtered by
+// adapter='manual'). Some are Phase 5 candidates (will move to
+// auto-pull when their platform adapter is built).
+const MANUAL_SOURCES = [
+  // Truly manual (low cadence / unscrapeable / scattered data)
+  { slug: "theatrebattery", name: "Theatre Battery", area: "South King County",
+    url: "https://www.theatrebattery.org/",
+    notes: "1 show/year (Kent). Schedule on homepage. Often only opening date posted until close to show. Tickets via Stranger Tickets." },
+  { slug: "newmuses", name: "New Muses Theatre Company", area: "Tacoma / Pierce County",
+    url: "https://www.newmuses.com/",
+    notes: "1-3 shows/year (Tacoma). Weebly site with no season index - check the 'Plays & Events' submenu in the homepage nav for current shows." },
+  { slug: "toyboat", name: "Toy Boat Theatre", area: "Tacoma / Pierce County",
+    url: "https://sites.google.com/site/toyboattheatreco/home",
+    notes: "Very low cadence (~1 show every couple years). Google Sites Classic - login-walled. Easier to monitor their Theatre Puget Sound directory page or social media for announcements." },
+  { slug: "screamingbutterflies", name: "Screaming Butterflies Productions", area: "Tacoma / Pierce County",
+    url: "http://screamingbutterfliestheatre.org/",
+    notes: "~3 shows/year (Tacoma). Mostly staged readings. Dates often only month-precision until close to show; check social posts for specific dates." },
+  { slug: "nwcenter", name: "Northwest Center Theatre", area: "South Pierce",
+    url: "https://northwestcenterthe.wixsite.com/nwctheatre",
+    notes: "Brand new org (Puyallup). Primary presence is Facebook (@nwct_official). Check their FB page for season announcements." },
+  { slug: "stringshadow", name: "String & Shadow Puppet Theater", area: "Olympia / Thurston County",
+    url: "https://www.stringandshadow.com/",
+    notes: "Touring company. Tour dates scattered across partner venues (Finn River, state parks, libraries). Check their homepage for current production then each partner venue's calendar for dates." },
+
+  // Phase 5 candidates (will auto-pull when the relevant adapter is built)
+  { slug: "centerstage", name: "Centerstage Theatre", area: "South King County",
+    url: "https://centerstagetheatre.com/current-season/",
+    notes: "Federal Way. PHASE 5: will auto-pull via OvationTix adapter (account 36978). Until then, check /current-season for show titles and ci.ovationtix.com/36978/ for performance dates." },
+  { slug: "rentoncivic", name: "Renton Civic Theatre", area: "South King County",
+    url: "https://www.rentoncivictheatre.org/season-2026",
+    notes: "Renton. PHASE 5: will auto-pull via Next.js JSON endpoint probe. Until then, check /season-2026 for the season + events.rentoncivictheatre.org for performance dates." },
+  { slug: "dukesbay", name: "Dukesbay Productions", area: "Tacoma / Pierce County",
+    url: "https://dukesbay.org/shows/",
+    notes: "Tacoma. PHASE 5: will auto-pull via Eventbrite organizer feed. 1-3 shows/year. Until then, check /shows/ for titles and follow each show's Eventbrite link for performance dates." },
+  { slug: "bpa", name: "Bainbridge Performing Arts", area: "Gig Harbor / Kitsap",
+    url: "https://www.bainbridgeperformingarts.org/events",
+    notes: "Bainbridge Island. PHASE 5: will auto-pull via Squarespace ?format=json adapter (cleanest data source in the entire audit). Until then, check /events for the schedule." },
+];
+
 function parseArgs() {
   return { dryRun: process.argv.includes("--dry-run") };
 }
@@ -99,26 +140,34 @@ async function main() {
   const areasRes = await db.query(`select id, name from public.areas`);
   const areaIdByName = new Map(areasRes.rows.map((r) => [r.name, r.id]));
 
+  const all = [
+    ...SOURCES.map((s) => ({ ...s, adapter: "ai-generic" })),
+    ...MANUAL_SOURCES.map((s) => ({ ...s, adapter: "manual" })),
+  ];
+
   console.log(
-    `Seeding ${SOURCES.length} event_sources rows${args.dryRun ? " (DRY RUN)" : ""}`,
+    `Seeding ${all.length} event_sources rows (${SOURCES.length} auto, ${MANUAL_SOURCES.length} manual)${args.dryRun ? " (DRY RUN)" : ""}`,
   );
 
   let inserted = 0;
   let updated = 0;
-  for (const s of SOURCES) {
+  for (const s of all) {
     const areaId = areaIdByName.get(s.area);
     if (!areaId) {
       console.error(`  !  ${s.slug}: area "${s.area}" not found in areas table; skipping`);
       continue;
     }
     if (args.dryRun) {
-      console.log(`  [dry] ${s.slug} (${s.area}) -> ${s.url}`);
+      console.log(`  [dry] ${s.slug} (${s.adapter}, ${s.area}) -> ${s.url}`);
       continue;
     }
+    // Manual rows don't get cadence_days reset on update - and we don't
+    // overwrite adapter on update either, so a row already promoted from
+    // 'manual' to a real adapter (e.g. 'ovationtix') won't be reverted.
     const res = await db.query(
       `insert into public.event_sources
          (org_slug, org_name, source_url, adapter, cadence_days, notes, area_id, active)
-       values ($1, $2, $3, 'ai-generic', 30, $4, $5, true)
+       values ($1, $2, $3, $4, 30, $5, $6, true)
        on conflict (org_slug) do update
          set org_name = excluded.org_name,
              source_url = excluded.source_url,
@@ -126,14 +175,14 @@ async function main() {
              area_id = excluded.area_id,
              updated_at = now()
        returning (xmax = 0) as inserted`,
-      [s.slug, s.name, s.url, s.notes, areaId],
+      [s.slug, s.name, s.url, s.adapter, s.notes, areaId],
     );
     if (res.rows[0].inserted) {
       inserted++;
-      console.log(`  +  ${s.slug} (${s.area}): inserted`);
+      console.log(`  +  ${s.slug} (${s.adapter}, ${s.area}): inserted`);
     } else {
       updated++;
-      console.log(`  ~  ${s.slug} (${s.area}): updated`);
+      console.log(`  ~  ${s.slug} (${s.adapter}, ${s.area}): updated`);
     }
   }
 
