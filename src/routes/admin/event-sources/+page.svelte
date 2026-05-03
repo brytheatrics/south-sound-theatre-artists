@@ -4,6 +4,81 @@
   let busy = $state<string | null>(null);
   let savingId = $state<string | null>(null);
 
+  // Per-row local state for the logo upload control inside the public-edit
+  // disclosure. Keyed by source id so multiple rows can be uploading at once.
+  let logoUrls = $state<Record<string, string>>({});
+  let uploadingId = $state<string | null>(null);
+  let uploadProgress = $state(0);
+  let uploadError = $state<string | null>(null);
+
+  function getLogoValue(s: { id: string; logo_url: string | null }): string {
+    return logoUrls[s.id] ?? s.logo_url ?? "";
+  }
+
+  async function uploadLogo(id: string, file: File) {
+    uploadingId = id;
+    uploadProgress = 0;
+    uploadError = null;
+    try {
+      const sigResp = await fetch("/api/cloudinary/sign-logo", { method: "POST" });
+      if (!sigResp.ok) throw new Error("Could not start the upload.");
+      const sig = await sigResp.json();
+
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", sig.api_key);
+      fd.append("timestamp", String(sig.timestamp));
+      fd.append("signature", sig.signature);
+      fd.append("folder", sig.folder);
+      fd.append("transformation", sig.transformation);
+
+      const result = await xhrUpload(
+        `https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
+        fd,
+        (pct) => (uploadProgress = pct),
+      );
+      if (!result.secure_url) throw new Error("Upload finished but no URL came back.");
+      logoUrls = { ...logoUrls, [id]: result.secure_url };
+    } catch (err) {
+      uploadError = err instanceof Error ? err.message : "Upload failed.";
+    } finally {
+      uploadingId = null;
+      uploadProgress = 0;
+    }
+  }
+
+  function xhrUpload(
+    url: string,
+    body: FormData,
+    onProgress: (pct: number) => void,
+  ): Promise<{ secure_url: string }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) resolve(res);
+          else reject(new Error(res?.error?.message || `Upload failed (${xhr.status}).`));
+        } catch {
+          reject(new Error("Upload failed: response could not be read."));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed: network error."));
+      xhr.send(body);
+    });
+  }
+
+  function onLogoFileChange(id: string, e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) uploadLogo(id, file);
+    // Clear input value so re-selecting the same file fires onchange again.
+    (e.target as HTMLInputElement).value = "";
+  }
+
   function fmtRel(iso: string | null): string {
     if (!iso) return "never";
     const ms = Date.now() - new Date(iso).getTime();
@@ -57,18 +132,39 @@
         />
       </label>
       <label class="pe-field">
-        <span class="pe-label">Logo URL</span>
+        <span class="pe-label">Logo</span>
         <div class="pe-logo-row">
           <input
             name="logo_url"
             type="url"
-            placeholder="https://..."
-            value={s.logo_url ?? ""}
+            placeholder="Paste a URL or upload a file →"
+            value={getLogoValue(s)}
+            oninput={(e) => (logoUrls = { ...logoUrls, [s.id]: (e.target as HTMLInputElement).value })}
           />
-          {#if s.logo_url}
-            <img class="pe-logo-preview" src={s.logo_url} alt="" />
+          <label class="pe-upload-btn" class:disabled={uploadingId === s.id}>
+            {uploadingId === s.id ? `Uploading… ${uploadProgress}%` : "Upload"}
+            <input
+              type="file"
+              accept="image/*"
+              onchange={(e) => onLogoFileChange(s.id, e)}
+              disabled={uploadingId === s.id}
+            />
+          </label>
+          {#if getLogoValue(s)}
+            <img class="pe-logo-preview" src={getLogoValue(s)} alt="" />
           {/if}
         </div>
+        {#if uploadingId === s.id || (uploadError && uploadingId === null)}
+          {#if uploadingId === s.id}
+            <div class="pe-progress">
+              <div class="pe-progress-fill" style:width="{uploadProgress}%"></div>
+            </div>
+          {/if}
+        {/if}
+        <span class="pe-logo-hint">
+          PNG with transparency works best. Cloudinary auto-resizes to 400px max edge.
+          {#if uploadError}<span class="pe-error">{uploadError}</span>{/if}
+        </span>
       </label>
       <div class="pe-actions">
         <button type="submit" class="bt bt-pri" disabled={savingId === s.id}>
@@ -530,6 +626,48 @@
     border-radius: var(--radius);
     padding: 3px;
     flex: 0 0 auto;
+  }
+  .pe-upload-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    min-width: 90px;
+  }
+  .pe-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .pe-upload-btn.disabled { cursor: progress; opacity: 0.7; }
+  .pe-upload-btn input[type="file"] { display: none; }
+  .pe-progress {
+    margin-top: 0.4rem;
+    width: 100%;
+    height: 3px;
+    background: var(--paper);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .pe-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.15s;
+  }
+  .pe-logo-hint {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .pe-error {
+    display: block;
+    color: var(--error);
+    margin-top: 0.2rem;
   }
   .pe-actions {
     display: flex;

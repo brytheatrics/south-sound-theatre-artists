@@ -50,6 +50,16 @@ export function signContentUpload(): SignedUpload {
 }
 
 /**
+ * Signed upload for theatre / org logos shown on /theatres + /admin
+ * event-sources cards. Smaller max-edge than headshots (these display
+ * in 64x64 thumbnails) and f_auto so PNGs with transparency keep their
+ * alpha channel instead of getting JPEG'd against a black background.
+ */
+export function signLogoUpload(): SignedUpload {
+  return signFolder("logos", "c_limit,w_400,h_400,q_auto,f_auto");
+}
+
+/**
  * Signed upload for resume PDFs. PDFs are not images, so they go in as
  * Cloudinary's `raw` resource type (no image transformations). The
  * client posts to `/raw/upload` instead of `/image/upload`.
