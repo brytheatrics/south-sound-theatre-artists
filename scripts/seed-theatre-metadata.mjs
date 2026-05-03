@@ -68,6 +68,7 @@ const METADATA = [
     description: "Independent Tacoma theatre company that reimagines classic stories for modern audiences, with a focus on social-justice themes.",
     public_email: null,
     logo_url: "https://static.wixstatic.com/media/6503a1_1d13751794584cec95495a2c191bcd49~mv2.png",
+    logo_bg: "ink",
     _note: "/contact page exposes only a web form, no email address." },
   { slug: "dukesbay",
     homepage_url: "https://dukesbay.org/",
@@ -117,7 +118,8 @@ const METADATA = [
     homepage_url: "https://evergreenplayhouse.com/",
     description: "Community theatre in Centralia, established in 1959 and operating continuously ever since.",
     public_email: "theevergreenplayhouse@gmail.com",
-    logo_url: "https://images.squarespace-cdn.com/content/v1/65da9ad03d7f7d3fb99d4ade/465d568d-740c-48bf-8b39-5d8b39e0a426/EP+Script+Logo_wh+.png" },
+    logo_url: "https://images.squarespace-cdn.com/content/v1/65da9ad03d7f7d3fb99d4ade/465d568d-740c-48bf-8b39-5d8b39e0a426/EP+Script+Logo_wh+.png",
+    logo_bg: "ink" },
   { slug: "olt",
     homepage_url: "https://olympialittletheater.org/",
     description: "Olympia Little Theatre, founded 1939 - the oldest live theatre in Olympia and one of the oldest in Washington State.",
@@ -159,6 +161,7 @@ const METADATA = [
     description: "Experimental, site-responsive theatre company in Kent. Builds a custom performance space for each production through community partnerships.",
     public_email: "theatrebattery@gmail.com",
     logo_url: "https://images.squarespace-cdn.com/content/v1/5f272221cfd0ad73288402f4/02719f20-4044-4f7e-8b96-3acd7bb473b9/tempImagebk0FFh.gif",
+    logo_bg: "ink",
     _note: "Email surfaced from external listings, not the contact page." },
   { slug: "centerstage",
     homepage_url: "https://centerstagetheatre.com/",
@@ -169,7 +172,8 @@ const METADATA = [
     homepage_url: "https://www.rentoncivictheatre.org/",
     description: "Renton Civic Theatre, founded 1987, produces musicals and plays in a restored 1923 movie house in downtown Renton.",
     public_email: "boxoffice@rentoncivictheatre.org",
-    logo_url: "https://www.rentoncivictheatre.org/api/media/file/RCT-Logo-WhtYlw.svg" },
+    logo_url: "https://www.rentoncivictheatre.org/api/media/file/RCT-Logo-WhtYlw.svg",
+    logo_bg: "ink" },
 
   // === Gig Harbor / Kitsap ===
   { slug: "jewelbox",
@@ -228,7 +232,7 @@ async function main() {
     const setClauses = [];
     const values = [m.slug];
     let i = 2;
-    const fields = ["description", "homepage_url", "public_email", "logo_url"];
+    const fields = ["description", "homepage_url", "public_email", "logo_url", "logo_bg"];
     for (const f of fields) {
       if (m[f] === undefined) continue;
       if (args.overwrite) {
