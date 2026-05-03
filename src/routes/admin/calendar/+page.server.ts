@@ -1,8 +1,15 @@
 // /admin/calendar: searchable list of all productions, with status
 // filter (pending_review / approved / rejected), area filter, and source
 // filter (auto-pop'd via cron vs. manually added). Mirrors the admin
-// callboard page structure. Soft-delete here goes to a 30-day trash
-// like the callboard / profiles flows.
+// callboard page structure.
+//
+// Soft-delete (deleted_at) on productions is *permanent* unless restored
+// from the trash UI - intentionally different from profiles /
+// callboard_posts / verified_orgs which the stale-cleanup cron purges
+// after 30 days. Reason: the calendar-sync cron uses deleted_at as the
+// "don't re-pull this" sentinel, so if the row got hard-deleted the
+// next sync would re-create it. Keeping the row around forever (with
+// deleted_at set) is the cheap fix.
 
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";

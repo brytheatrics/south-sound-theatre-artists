@@ -230,9 +230,13 @@
       Move to trash
     </button>
   {:else}
-    <p class="confirm-text">Move this production + all its performances to the 30-day trash?
+    <p class="confirm-text">Move this production + all its performances to the trash?
       {#if data.sourceInfo}
-        Auto-pop'd rows also get admin-locked so the cron won't recreate them.
+        Soft-deleted productions stay in the trash permanently — that's
+        what stops the cron from re-pulling this show next month.
+      {:else}
+        Soft-deleted productions stay in the trash permanently. (No
+        restore-from-trash UI yet; ping the dev if you need to undo.)
       {/if}
     </p>
     <div class="actions">
