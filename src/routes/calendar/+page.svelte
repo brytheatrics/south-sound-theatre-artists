@@ -165,9 +165,26 @@
   // performance bucketing so the highlight always agrees with which
   // cell a "today" performance falls into.
   const todayKey = $derived(pacificDateKey(new Date().toISOString()));
+  // YYYY-MM slice of today, for "is the user looking at the current month"
+  const currentMonthIso = $derived(todayKey.slice(0, 7));
+  const isCurrentMonth = $derived(data.monthIso === currentMonthIso);
 
   const sortedDateKeys = $derived(
     Array.from(byDate.keys()).sort(),
+  );
+
+  // List view starts at today when the user is on the current month
+  // (rolling the page-down). For past or future months, every date
+  // bucket renders so the user can scroll the whole month.
+  const listDateKeys = $derived(
+    isCurrentMonth ? sortedDateKeys.filter((k) => k >= todayKey) : sortedDateKeys,
+  );
+
+  // True when the list is empty *because* it's only-future-filtered:
+  // there are performances earlier in the month, but none from today on.
+  // Drives a friendlier empty-state copy ("Nothing else this month").
+  const allUpcomingPlayedAlready = $derived(
+    isCurrentMonth && listDateKeys.length === 0 && sortedDateKeys.length > 0,
   );
 </script>
 
@@ -288,6 +305,7 @@
           class="day"
           class:other-month={!cell.inMonth}
           class:today={cell.key === todayKey}
+          class:past={cell.inMonth && cell.key < todayKey}
         >
           <div class="day-num">{cell.day}</div>
           {#if byDate.has(cell.key)}
@@ -330,7 +348,15 @@
 
   <!-- LIST VIEW (always rendered; CSS shows on mobile or when view=list) -->
   <section class="list-wrap" class:hidden-on-grid={data.view === "grid"}>
-    {#each sortedDateKeys as key (key)}
+    {#if allUpcomingPlayedAlready}
+      <div class="empty empty-only-past">
+        <p>Everything scheduled for {data.monthLabel} has already played.</p>
+        <a class="bt bt-ghost" href={buildUrl({ month: data.nextMonthIso })}>
+          See next month →
+        </a>
+      </div>
+    {/if}
+    {#each listDateKeys as key (key)}
       <div class="day-group" class:today-group={key === todayKey}>
         <h2 class="day-heading">{fmtDateLong(key)}</h2>
         <ul class="perf-list">
@@ -525,6 +551,14 @@
     color: var(--muted);
   }
   .empty p { margin: 0 0 1rem; font-size: 1.125rem; }
+  /* Softer treatment when the list is empty *because* everything's
+     already played - this isn't a "no results" state, it's a "you've
+     reached the end of this month" state. */
+  .empty-only-past {
+    padding: 2rem var(--page-pad-x);
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .empty-only-past p { font-size: 1rem; font-style: italic; }
   .bt-ghost {
     display: inline-block;
     padding: 0.5rem 1rem;
@@ -572,6 +606,19 @@
   }
   .day.other-month { background: var(--paper); color: var(--muted); }
   .day.other-month .day-num { opacity: 0.4; }
+  /* Past days within the displayed month dim back to roughly the
+     other-month treatment so the eye lands on today + future. The
+     pills inside also fade so they read as "already played" rather
+     than "currently bookable". today + past is impossible (today is
+     never < todayKey) so the .today rule below still wins for today. */
+  .day.past {
+    background: var(--paper);
+  }
+  .day.past .day-num { opacity: 0.5; }
+  .day.past .perf-pill,
+  .day.past .perf-pill-link {
+    opacity: 0.55;
+  }
   .day.today { box-shadow: inset 0 0 0 2px var(--accent); }
   .day-num {
     font-family: var(--font-mono);
