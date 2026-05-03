@@ -25,7 +25,7 @@ export const load: PageServerLoad = async () => {
            playable_age_min, playable_age_max, languages, unions,
            instagram_handle, facebook_url, tiktok_handle, linkedin_url,
            twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
-           created_at`,
+           is_minor, guardian_email, guardian_name, created_at`,
         )
         .eq("status", "pending_review")
         .eq("email_verified", true)
@@ -207,6 +207,11 @@ async function approveOne(
       pronouns: sub.pronouns,
       ethnicities: sub.ethnicities,
       email: sub.email,
+      // Carry the minor / guardian flags through so the profile renders
+      // correctly (suppressed headshot, contact-form notice, admin badge).
+      is_minor: sub.is_minor ?? false,
+      guardian_email: sub.guardian_email ?? null,
+      guardian_name: sub.guardian_name ?? null,
       published: true,
     })
     .select("id, slug")

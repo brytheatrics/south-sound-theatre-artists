@@ -71,6 +71,9 @@ type Values = {
   pronouns: string;
   headshotUrl: string;
   headshotConsent: boolean;
+  isMinor: boolean;
+  guardianEmail: string;
+  guardianName: string;
   area: string;
   areaOther: string;
   city: string;
@@ -138,6 +141,9 @@ export const actions: Actions = {
       pronouns: ((data.get("pronouns") as string) ?? "").trim(),
       headshotUrl: ((data.get("headshot_url") as string) ?? "").trim(),
       headshotConsent: data.get("headshot_consent") === "on",
+      isMinor: data.get("is_minor") === "on",
+      guardianEmail: ((data.get("guardian_email") as string) ?? "").trim().toLowerCase(),
+      guardianName: ((data.get("guardian_name") as string) ?? "").trim(),
       area: ((data.get("area") as string) ?? "").trim(),
       areaOther: ((data.get("area_other") as string) ?? "").trim(),
       city: ((data.get("city") as string) ?? "").trim(),
@@ -174,14 +180,27 @@ export const actions: Actions = {
     if (!values.fullName) errors.full_name = "Required.";
     if (!isValidEmail(values.email)) errors.email = "Enter a valid email address.";
 
-    // Headshot/photo is required. Doesn't have to be a professional
-    // headshot - any clear photo of the person is fine - but every
-    // profile in the directory needs a face. If uploaded, the rights
-    // consent is also required.
-    if (!values.headshotUrl) {
-      errors.headshot_url = "Add a clear photo of yourself.";
-    } else if (!values.headshotConsent) {
-      errors.headshot_consent = "Please confirm you have rights to use this image.";
+    // Minor profiles: parent / guardian email is required and is the
+    // address everything else routes through (verification, magic links,
+    // contact-form messages). Guardian name is optional but recommended.
+    if (values.isMinor) {
+      if (!isValidEmail(values.guardianEmail)) {
+        errors.guardian_email = "Parent or guardian email is required.";
+      } else if (values.guardianEmail === values.email) {
+        errors.guardian_email = "Use a different email for the parent or guardian.";
+      }
+    }
+
+    // Headshot/photo: normally required for adult profiles. For minor
+    // profiles we suppress it on the public profile so we don't ask for
+    // one at submit time either. (If the parent uploads anyway it's
+    // stored but never displayed; the column still gets set to null.)
+    if (!values.isMinor) {
+      if (!values.headshotUrl) {
+        errors.headshot_url = "Add a clear photo of yourself.";
+      } else if (!values.headshotConsent) {
+        errors.headshot_consent = "Please confirm you have rights to use this image.";
+      }
     }
 
     if (values.disciplines.length === 0) errors.disciplines = "Choose at least one.";
@@ -286,18 +305,30 @@ export const actions: Actions = {
     const tokenHash = hashToken(verificationToken);
     const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS).toISOString();
 
+    // For minors, the contact email of record IS the guardian's. The
+    // 'email' column is what we send verification to + what magic links
+    // route to + what the contact form forwards to. Storing guardian_email
+    // separately lets us *show* it on /admin and route it correctly even
+    // if the artist's own email later gets added.
+    const contactEmail = values.isMinor ? values.guardianEmail : values.email;
+
     const { error: insertErr } = await supabaseAdmin
       .from("pending_submissions")
       .insert({
-        email: values.email,
+        email: contactEmail,
         email_verified: false,
         email_verification_token_hash: tokenHash,
         email_verification_expires_at: expiresAt,
         full_name: values.fullName,
         bio: values.bio || null,
         disciplines,
-        headshot_url: values.headshotUrl || null,
-        headshot_consent: values.headshotConsent,
+        // Minors don't show a headshot publicly. Stash whatever was
+        // uploaded as null so it can't leak via a stale row.
+        headshot_url: values.isMinor ? null : (values.headshotUrl || null),
+        headshot_consent: values.isMinor ? false : values.headshotConsent,
+        is_minor: values.isMinor,
+        guardian_email: values.isMinor ? values.guardianEmail : null,
+        guardian_name: values.isMinor ? (values.guardianName || null) : null,
         geographic_area: area,
         city: values.city || null,
         resumes: values.resumes,
@@ -331,13 +362,16 @@ export const actions: Actions = {
 
     // Fire the verification email. We don't roll the insert back if this
     // fails - the row exists, the user sees the success page, and the admin
-    // can reach out manually. Failures are captured in email_log.
+    // can reach out manually. Failures are captured in email_log. For
+    // minor profiles the guardian gets the email, not the artist.
     const verifyUrl = `${PUBLIC_SITE_URL}/verify/${verificationToken}`;
     const sendResult = await sendEmail({
-      to: values.email,
+      to: contactEmail,
       templateSlug: "email_verification",
       vars: {
-        name: values.fullName,
+        name: values.isMinor && values.guardianName
+          ? values.guardianName
+          : values.fullName,
         verify_url: verifyUrl,
       },
     });

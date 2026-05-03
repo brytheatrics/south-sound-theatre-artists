@@ -101,7 +101,14 @@
 <article class="profile">
   <div class="hero">
     <div class="head">
-      <HeadshotPlaceholder name={p.full_name} src={p.headshot_url} ratio="3 / 4" />
+      <!-- Minor profiles don't display a headshot publicly. The
+           placeholder shows initials, same as a profile that simply
+           hasn't uploaded one. -->
+      <HeadshotPlaceholder
+        name={p.full_name}
+        src={p.is_minor ? null : p.headshot_url}
+        ratio="3 / 4"
+      />
     </div>
     <div class="meta">
       <span class="eyebrow"><span class="num">·</span>Profile</span>
@@ -109,6 +116,11 @@
         <span class="first">{split.first}</span>{#if split.last}<span class="serif-it last">&nbsp;{split.last}</span>{/if}
       </h1>
       {#if p.pronouns}<p class="pronouns">{p.pronouns}</p>{/if}
+      {#if p.is_minor}
+        <p class="minor-flag" aria-label="Parent or guardian managed">
+          ◐ Parent / guardian managed profile
+        </p>
+      {/if}
 
       <p class="disc">
         {p.disciplines.join(" · ")}
@@ -329,14 +341,26 @@
 
       {#if form?.sent}
         <p class="lede">
-          Message sent. {split.first} will reply directly from their own
-          email - no need to come back here.
+          {#if p.is_minor}
+            Message sent. {p.guardian_name ? p.guardian_name : `${split.first}'s parent or guardian`} will see it and decide whether to reply.
+          {:else}
+            Message sent. {split.first} will reply directly from their own
+            email - no need to come back here.
+          {/if}
         </p>
       {:else}
-        <p class="lede">
-          Your message goes straight to {split.first}'s inbox. Their email
-          is never shown here, but their reply will come from it.
-        </p>
+        {#if p.is_minor}
+          <p class="lede">
+            {split.first} is under 18, so messages route to
+            {p.guardian_name ? p.guardian_name : "their parent or guardian"}.
+            Their address is never shown here.
+          </p>
+        {:else}
+          <p class="lede">
+            Your message goes straight to {split.first}'s inbox. Their email
+            is never shown here, but their reply will come from it.
+          </p>
+        {/if}
 
         <form
           method="POST"
@@ -459,6 +483,15 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
+  }
+  .minor-flag {
+    margin: 0.5rem 0 0;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
   }
   .disc {
     margin: 0;

@@ -24,6 +24,9 @@
     pronouns?: string;
     headshotUrl?: string;
     headshotConsent?: boolean;
+    isMinor?: boolean;
+    guardianEmail?: string;
+    guardianName?: string;
     area?: string;
     areaOther?: string;
     city?: string;
@@ -59,6 +62,9 @@
   let pronouns = $state(v.pronouns ?? "");
   let headshotUrl = $state(v.headshotUrl ?? "");
   let headshotConsent = $state(v.headshotConsent ?? false);
+  let isMinor = $state(v.isMinor ?? false);
+  let guardianEmail = $state(v.guardianEmail ?? "");
+  let guardianName = $state(v.guardianName ?? "");
   let area = $state(v.area ?? "");
   let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
@@ -207,6 +213,57 @@
         {#if errors.email}<span class="error">{errors.email}</span>{/if}
       </label>
 
+      <!-- Under-18 toggle. When checked, parent / guardian fields appear
+           and become required, the headshot fieldset is hidden, and all
+           email routing (verification, magic links, contact form) goes
+           to the guardian email instead of the artist's. -->
+      <label class="checkbox minor-toggle">
+        <input
+          type="checkbox"
+          name="is_minor"
+          bind:checked={isMinor}
+        />
+        <span>This artist is under 18 (parent or guardian managed profile).</span>
+      </label>
+
+      {#if isMinor}
+        <div class="minor-block">
+          <p class="hint">
+            For artists under 18 we list the profile but route all contact
+            and edits through a parent or guardian. Their headshot won't be
+            shown publicly.
+          </p>
+          <label class="field">
+            <span>Parent or guardian email <span class="req">*</span></span>
+            <input
+              name="guardian_email"
+              type="email"
+              autocomplete="email"
+              bind:value={guardianEmail}
+              aria-invalid={!!errors.guardian_email}
+            />
+            <span class="hint">
+              Required. The edit link and any contact-form messages go here.
+            </span>
+            {#if errors.guardian_email}<span class="error">{errors.guardian_email}</span>{/if}
+          </label>
+          <label class="field">
+            <span>Parent or guardian name</span>
+            <input
+              name="guardian_name"
+              type="text"
+              autocomplete="name"
+              bind:value={guardianName}
+              placeholder="Optional"
+            />
+            <span class="hint">
+              Optional. Shown to anyone using the contact form: "Messages
+              go to {guardianName || "[parent / guardian]"}."
+            </span>
+          </label>
+        </div>
+      {/if}
+
       <label class="field">
         <span>Profile URL <span class="req">*</span></span>
         <div class="slug-row">
@@ -227,33 +284,45 @@
       </label>
     </fieldset>
 
-    <fieldset>
-      <legend>Headshot/photo <span class="req">*</span></legend>
-      <p class="hint">
-        Required. Doesn't need to be a professional headshot - any clear
-        photo of you works. Casting directors and collaborators rely on
-        a face to put with the name.
-      </p>
-      <HeadshotUpload bind:value={headshotUrl} />
-      <input type="hidden" name="headshot_url" value={headshotUrl} />
-      {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
-      {#if headshotUrl}
-        <label class="checkbox" style="margin-top: 0.75rem">
-          <input
-            type="checkbox"
-            name="headshot_consent"
-            bind:checked={headshotConsent}
-          />
-          <span>
-            I confirm I have the rights to use this image, including any
-            photographer credit if applicable.
-          </span>
-        </label>
-        {#if errors.headshot_consent}
-          <span class="error">{errors.headshot_consent}</span>
+    {#if !isMinor}
+      <fieldset>
+        <legend>Headshot/photo <span class="req">*</span></legend>
+        <p class="hint">
+          Required. Doesn't need to be a professional headshot - any clear
+          photo of you works. Casting directors and collaborators rely on
+          a face to put with the name.
+        </p>
+        <HeadshotUpload bind:value={headshotUrl} />
+        <input type="hidden" name="headshot_url" value={headshotUrl} />
+        {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
+        {#if headshotUrl}
+          <label class="checkbox" style="margin-top: 0.75rem">
+            <input
+              type="checkbox"
+              name="headshot_consent"
+              bind:checked={headshotConsent}
+            />
+            <span>
+              I confirm I have the rights to use this image, including any
+              photographer credit if applicable.
+            </span>
+          </label>
+          {#if errors.headshot_consent}
+            <span class="error">{errors.headshot_consent}</span>
+          {/if}
         {/if}
-      {/if}
-    </fieldset>
+      </fieldset>
+    {:else}
+      <!-- For minor profiles we don't collect or display a headshot. The
+           directory tile will use the typographic placeholder. -->
+      <fieldset class="minor-headshot-stub">
+        <legend>Headshot/photo</legend>
+        <p class="hint">
+          For minor profiles we don't show a headshot publicly. The
+          directory tile will display initials instead.
+        </p>
+      </fieldset>
+    {/if}
 
     <fieldset>
       <legend>Bio</legend>
@@ -780,6 +849,29 @@
   .checkbox input {
     margin: 4px 0 0;
     accent-color: var(--accent);
+  }
+  /* Minor toggle: subtle box around the checkbox so it reads as a
+     "mode-changing" question, not an afterthought. The block beneath
+     opens up when checked. */
+  .minor-toggle {
+    margin: 0.75rem 0 0;
+    padding: 10px 12px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+  }
+  .minor-block {
+    margin-top: 0.5rem;
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+    background: color-mix(in oklch, var(--accent), var(--bg) 92%);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .minor-headshot-stub {
+    opacity: 0.7;
   }
   .union-desc {
     color: var(--muted);

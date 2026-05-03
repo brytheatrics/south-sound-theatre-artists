@@ -97,6 +97,11 @@
                 <a href={`/artists/${p.slug}`} target="_blank" rel="noopener">
                   {p.full_name}
                 </a>
+                {#if p.is_minor}
+                  <span class="minor-pill" title="Parent or guardian managed (under-18 artist).{p.guardian_name ? ' Contact: ' + p.guardian_name : ''}">
+                    MINOR
+                  </span>
+                {/if}
                 <div class="email">{p.email}</div>
               </span>
             </div>
@@ -365,6 +370,20 @@
     /* Remove the bold-style from the existing td a rule for the inner
        case so the text + email stack reads cleanly. */
     line-height: 1.2;
+  }
+  .minor-pill {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 1px 6px;
+    background: color-mix(in oklch, var(--accent), var(--bg) 80%);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 100px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+    align-self: flex-start;
   }
   td code {
     font-family: var(--font-mono);

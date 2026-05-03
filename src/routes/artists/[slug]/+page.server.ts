@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
        playable_age_min, playable_age_max, languages, unions, ethnicities,
        headshot_url, instagram_handle, facebook_url, tiktok_handle,
        linkedin_url, twitter_handle, youtube_url, website_url, member_since,
-       updated_at, published`,
+       updated_at, published, is_minor, guardian_name`,
     )
     .eq("slug", params.slug)
     .is("deleted_at", null);

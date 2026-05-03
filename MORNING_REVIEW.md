@@ -73,6 +73,31 @@ likely to need a tweak before the meeting.
 - Production text format: "{Org} - {Title}, May 7 - 24" (auto-formats
   same-month, cross-month, and "opens X" when no end date is set).
 
+### 7. Minor profile system
+- New "This artist is under 18" toggle on `/submit`. When checked:
+  - Parent / guardian email becomes required (separate from artist email).
+  - Optional parent / guardian name field.
+  - Headshot upload is hidden — minor profiles don't display a headshot
+    publicly. The directory tile + profile page show a typographic
+    placeholder instead (same as a profile that simply doesn't have one).
+  - All email routing — verification, magic-link edits, contact form —
+    goes to the guardian. The artist's email isn't stored.
+- Public profile page at `/artists/{slug}`:
+  - "◐ Parent / guardian managed profile" pill near the name.
+  - Headshot suppressed, falls back to placeholder.
+  - Contact form copy adapts: "Sara is under 18, so messages route to
+    [Guardian Name / their parent or guardian]."
+- Admin queue:
+  - `/admin/profiles` shows a small "MINOR" pill next to the name with a
+    tooltip showing the guardian name.
+  - Approval flow carries `is_minor` / `guardian_email` / `guardian_name`
+    through from `pending_submissions` to `profiles`.
+- Migration `054_profiles_minor.sql` adds the columns + a CHECK
+  constraint that requires `guardian_email` whenever `is_minor=true`.
+- Did NOT build: an auto-graduate-at-18 flow. We don't store a birth
+  date (intentional — keeps minor PII off the system). Lexi or the
+  guardian flips `is_minor=false` manually when the artist turns 18.
+
 ## Needs your eyes
 *(Anything I made a judgment call on or that benefits from your review.)*
 
@@ -105,6 +130,14 @@ likely to need a tweak before the meeting.
   "Northwest Theatre Lab" (nwtheatrelab.com) that may be the rebrand,
   or may be unrelated. Worth asking Lexi which one she means before
   including in /theatres.
+- **Minor profile copy.** The contact-form notice ("Sara is under 18,
+  so messages route to [Guardian / their parent or guardian]") and the
+  "◐ Parent / guardian managed profile" pill on the public profile
+  read OK to me, but Lexi might want softer language. They live in
+  `src/routes/artists/[slug]/+page.svelte`.
+- **Minor toggle copy on /submit.** "This artist is under 18 (parent
+  or guardian managed profile)." Plus the explanatory paragraph
+  underneath. Editable in `src/routes/submit/+page.svelte`.
 
 ## Fallbacks I had to use
 *(Theatres I couldn't find a logo / email for, etc.)*
@@ -148,6 +181,18 @@ notes, etc.)*
 ## What didn't get done
 *(Filled in if anything has to defer.)*
 
+- **Auto-graduate-at-18 for minor profiles.** We don't store a birth
+  date intentionally (keeps minor PII off the system). Plan: when the
+  artist turns 18, Lexi flips `is_minor=false` from `/admin/profiles/{id}/edit`
+  and (optionally) updates the contact email to the artist's. The edit
+  UI doesn't currently expose `is_minor` — that's a small follow-up.
+- **/admin/event-sources edit form for the new theatre metadata.** The
+  seed script populates `description` / `homepage_url` / `public_email` /
+  `logo_url` for all 26 orgs, but Lexi can't currently edit those fields
+  from the admin panel. For launch, edits would happen via re-running
+  the seed with `--overwrite`. A future tweak: add the four fields to
+  the admin event-sources card.
+
 ---
 
-*Last updated: in progress.*
+*Last updated: overnight pass complete.*
