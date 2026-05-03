@@ -9,7 +9,12 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import { fail } from "@sveltejs/kit";
 import pg from "pg";
 import { syncEventSource } from "../../../../scripts/_lib/calendar-sync.mjs";
-import { SUPABASE_DB_URL, ANTHROPIC_API_KEY } from "$env/static/private";
+// Dynamic (not static) so the build doesn't fail when ANTHROPIC_API_KEY
+// isn't set on the deploy target. The admin "Pull now" button gracefully
+// errors at runtime with a clear message if the key is missing - the
+// monthly cron runs in GitHub Actions where the secret is set, so
+// auto-pulls work regardless of whether Netlify has the key.
+import { env as privateEnv } from "$env/dynamic/private";
 
 const { Client } = pg;
 
@@ -128,7 +133,7 @@ export const actions: Actions = {
   },
 
   refresh: async ({ request }) => {
-    if (!ANTHROPIC_API_KEY) return fail(500, { error: "ANTHROPIC_API_KEY not configured" });
+    if (!privateEnv.ANTHROPIC_API_KEY) return fail(500, { error: "ANTHROPIC_API_KEY not configured" });
     const fd = await request.formData();
     const sourceId = String(fd.get("id") ?? "");
     if (!sourceId) return fail(400, { error: "missing source id" });
@@ -136,7 +141,7 @@ export const actions: Actions = {
     // Use direct pg connection so the lib's queries (parameterised SQL)
     // can run unchanged. Supabase JS client's promise model is
     // incompatible with the lib's interface.
-    const db = new Client({ connectionString: SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
+    const db = new Client({ connectionString: privateEnv.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
     await db.connect();
     try {
       const sourceRes = await db.query(
