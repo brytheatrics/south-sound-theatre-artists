@@ -61,13 +61,17 @@ export const load: LayoutServerLoad = async ({ url, locals }) => {
 };
 
 async function loadNavLabels(): Promise<NavLabels> {
+  // Each landing page has a single site_content row where title = nav
+  // label and body_markdown = the page's masthead lede. Pre-057 these
+  // were two separate rows (nav.callboard etc.), but that confused the
+  // admin content editor.
   const { data } = await supabaseAdmin
     .from("site_content")
     .select("slug, title")
-    .in("slug", ["nav.directory", "nav.calendar", "nav.callboard", "nav.resources"]);
+    .in("slug", ["directory", "calendar", "callboard", "resources"]);
   const out: NavLabels = { ...NAV_LABEL_DEFAULTS };
   for (const r of data ?? []) {
-    const key = r.slug.replace(/^nav\./, "") as keyof NavLabels;
+    const key = r.slug as keyof NavLabels;
     if (r.title && key in out) out[key] = r.title;
   }
   return out;

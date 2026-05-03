@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from "./$types";
+  import { renderMarkdownInline } from "$lib/util/markdown";
 
   let { data }: { data: PageData } = $props();
 
@@ -205,10 +206,7 @@
       {data.totalUpcoming === 1 ? "performance" : "performances"},<br />
       across the South Sound.
     </h1>
-    <p class="lede">
-      Plays, musicals, staged readings, and special events. Dates can change —
-      please confirm with the theatre's website before heading out.
-    </p>
+    <p class="lede">{@html renderMarkdownInline(data.lede)}</p>
   </div>
   <div class="masthead-meta">
     <a class="meta-cta" href="/calendar/submit">Post a performance &rarr;</a>

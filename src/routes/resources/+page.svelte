@@ -14,11 +14,7 @@
 <header class="hd">
   <span class="eyebrow"><span class="num">·</span>Resources</span>
   <h1 class="h1-display">Resources.</h1>
-  <p class="lede">
-    A hand-curated library of links the South Sound theatre community
-    might find useful. If something's missing,
-    <a href="/contact">let us know</a>.
-  </p>
+  <p class="lede">{@html renderMarkdownInline(data.lede)}</p>
 </header>
 
 <!-- Featured: theatres directory. Sits above the regular resource

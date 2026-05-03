@@ -22,7 +22,7 @@ export type TheatreRow = {
 export const load: PageServerLoad = async ({ url }) => {
   const areaFilter = url.searchParams.get("area") ?? "";
 
-  const [{ data: sources, error }, { data: areas }] = await Promise.all([
+  const [{ data: sources, error }, { data: areas }, { data: contentRow }] = await Promise.all([
     supabaseAdmin
       .from("event_sources")
       .select(
@@ -35,6 +35,11 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("areas")
       .select("id, name, sort_order")
       .order("sort_order"),
+    supabaseAdmin
+      .from("site_content")
+      .select("body_markdown")
+      .eq("slug", "theatres")
+      .maybeSingle(),
   ]);
   if (error) throw error;
 
@@ -77,5 +82,6 @@ export const load: PageServerLoad = async ({ url }) => {
     total: rows.length,
     areaOptions: (areas ?? []).map((a) => a.name),
     activeArea: areaFilter,
+    lede: contentRow?.body_markdown ?? "",
   };
 };

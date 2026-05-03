@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from "./$types";
+  import { renderMarkdownInline } from "$lib/util/markdown";
 
   let { data }: { data: PageData } = $props();
 
@@ -84,12 +85,7 @@
       {data.totalActive === 1 ? "call" : "calls"},<br />
       across the South Sound.
     </h1>
-    <p class="lede">
-      Auditions, designer and crew calls, and other opportunities for the South
-      Sound theatre community. Posting is free - anyone can submit, and verified
-      companies post immediately. Looking for upcoming shows? See
-      <a href="/calendar">What's Playing</a>.
-    </p>
+    <p class="lede">{@html renderMarkdownInline(data.lede)}</p>
   </div>
   <div class="masthead-meta">
     <a class="meta-cta" href="/callboard/submit">Post a call &rarr;</a>

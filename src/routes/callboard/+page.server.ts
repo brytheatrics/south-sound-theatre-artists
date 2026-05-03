@@ -117,10 +117,18 @@ export const load: PageServerLoad = async ({ url }) => {
     .eq("status", "approved")
     .is("deleted_at", null);
 
+  // Masthead lede - editable from /admin/content row 'callboard'.
+  const { data: contentRow } = await supabaseAdmin
+    .from("site_content")
+    .select("body_markdown")
+    .eq("slug", "callboard")
+    .maybeSingle();
+
   return {
     posts: (data ?? []) as CallboardPost[],
     total: count ?? 0,
     totalActive: totalActive ?? 0,
+    lede: contentRow?.body_markdown ?? "",
     closingSoon: (closingSoon ?? []) as Array<{
       id: string;
       title: string;

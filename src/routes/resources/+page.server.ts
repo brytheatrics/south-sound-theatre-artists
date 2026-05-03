@@ -13,7 +13,7 @@ export type Resource = {
 };
 
 export const load: PageServerLoad = async () => {
-  const [catsRes, resourcesRes] = await Promise.all([
+  const [catsRes, resourcesRes, contentRes] = await Promise.all([
     supabaseAdmin
       .from("resource_categories")
       .select("id, name, description, sort_order")
@@ -24,6 +24,11 @@ export const load: PageServerLoad = async () => {
       .eq("published", true)
       .is("deleted_at", null)
       .order("sort_order"),
+    supabaseAdmin
+      .from("site_content")
+      .select("body_markdown")
+      .eq("slug", "resources")
+      .maybeSingle(),
   ]);
 
   const categories = catsRes.data ?? [];
@@ -46,5 +51,8 @@ export const load: PageServerLoad = async () => {
     });
   }
 
-  return { groups: grouped.filter((g) => g.resources.length > 0) };
+  return {
+    groups: grouped.filter((g) => g.resources.length > 0),
+    lede: contentRes.data?.body_markdown ?? "",
+  };
 };

@@ -3,6 +3,7 @@
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
   import MentorshipDots from "$lib/components/MentorshipDots.svelte";
+  import { renderMarkdownInline } from "$lib/util/markdown";
 
   let { data } = $props();
 
@@ -140,9 +141,7 @@
       {data.total}
       <span class="serif-it">artists</span>.
     </h1>
-    <p class="lede">
-      Browse, filter, and reach out. No account needed.
-    </p>
+    <p class="lede">{@html renderMarkdownInline(data.lede)}</p>
   </div>
   <div class="hd-meta">
     <a class="meta-cta" href="/submit">Submit your profile &rarr;</a>

@@ -207,7 +207,15 @@ export const load: PageServerLoad = async ({ url }) => {
     .gte("performs_at", new Date().toISOString())
     .eq("cancelled", false);
 
+  // Masthead lede - editable from /admin/content row 'calendar'.
+  const { data: contentRow } = await supabaseAdmin
+    .from("site_content")
+    .select("body_markdown")
+    .eq("slug", "calendar")
+    .maybeSingle();
+
   return {
+    lede: contentRow?.body_markdown ?? "",
     performances,
     categories,
     activeCats,

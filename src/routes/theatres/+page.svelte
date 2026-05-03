@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { renderMarkdownInline } from "$lib/util/markdown";
+
   let { data } = $props();
 
   // Logo cell background colours are FIXED (don't follow the theme
@@ -30,11 +32,7 @@
       <span class="serif-it">{data.total}</span>
       {data.total === 1 ? "theatre" : "theatres"},<br />across the South Sound.
     </h1>
-    <p class="lede">
-      Every company on our calendar lives here — from year-round
-      professional houses to one-show-a-summer outdoor companies. Click into a
-      theatre's site for tickets, season info, or to reach their team directly.
-    </p>
+    <p class="lede">{@html renderMarkdownInline(data.lede)}</p>
   </div>
   <div class="masthead-meta">
     <a class="meta-cta" href="/calendar">See What's Playing &rarr;</a>

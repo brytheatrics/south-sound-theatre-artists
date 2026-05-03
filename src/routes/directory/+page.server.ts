@@ -134,7 +134,7 @@ export const load: PageServerLoad = async ({ url }) => {
     noAgeCount = nac ?? 0;
   }
 
-  const [areasRes, disciplinesRes, categoriesRes, unionsRes] = await Promise.all([
+  const [areasRes, disciplinesRes, categoriesRes, unionsRes, contentRes] = await Promise.all([
     supabaseAdmin.from("areas").select("name, description").order("sort_order"),
     supabaseAdmin
       .from("disciplines")
@@ -145,9 +145,15 @@ export const load: PageServerLoad = async ({ url }) => {
       .select("name")
       .order("sort_order"),
     supabaseAdmin.from("unions").select("name").order("sort_order"),
+    supabaseAdmin
+      .from("site_content")
+      .select("body_markdown")
+      .eq("slug", "directory")
+      .maybeSingle(),
   ]);
 
   return {
+    lede: contentRes.data?.body_markdown ?? "",
     profiles: data ?? [],
     total,
     page,
