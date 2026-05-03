@@ -196,6 +196,10 @@
       from each company's published season.
     </p>
   </div>
+  <div class="masthead-meta">
+    <a class="meta-cta" href="/calendar/submit">Post a performance &rarr;</a>
+    <span class="meta-stat">{data.totalUpcoming} upcoming</span>
+  </div>
 </header>
 
 <!-- CATEGORY FILTER STRIP -->
@@ -353,8 +357,33 @@
   .masthead {
     padding: clamp(2rem, 5vw, 4rem) var(--page-pad-x) clamp(1rem, 3vw, 2rem);
     border-bottom: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
   .masthead-body { max-width: 880px; }
+  .masthead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 0.5rem;
+  }
+  .meta-cta {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    text-decoration: none;
+  }
+  .meta-cta:hover { background: var(--accent); text-decoration: none; }
+  .meta-stat {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
   .eyebrow {
     display: inline-block;
     font-family: var(--font-mono);
