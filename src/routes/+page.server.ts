@@ -70,7 +70,10 @@ export const load: PageServerLoad = async () => {
       .maybeSingle(),
     supabaseAdmin
       .from("marquee_settings")
-      .select("enabled, include_all_callboard, include_callboard_post_ids")
+      .select(
+        `enabled, include_all_callboard, include_callboard_post_ids,
+         include_all_calendar, include_calendar_production_ids`,
+      )
       .eq("id", 1)
       .maybeSingle(),
   ]);
@@ -79,14 +82,22 @@ export const load: PageServerLoad = async () => {
   if (fallbackRes.error) throw fallbackRes.error;
   if (recentRes.error) throw recentRes.error;
 
-  // Marquee assembly: pull approved + published callboard posts based on
-  // the admin's settings, project them into compact ticker strings.
+  // Marquee assembly: pull approved + published callboard posts +
+  // upcoming calendar productions based on admin settings, project them
+  // into compact ticker strings, interleave so the same ticker carries
+  // both opportunities and shows.
   const marqueeSettings = marqueeRes.data;
   let marquee: MarqueeItem[] = [];
   if (marqueeSettings?.enabled) {
-    const ids = (marqueeSettings.include_callboard_post_ids ?? []) as string[];
-    const wantAll = marqueeSettings.include_all_callboard;
-    if (wantAll || ids.length > 0) {
+    const callboardIds = (marqueeSettings.include_callboard_post_ids ?? []) as string[];
+    const wantAllCallboard = marqueeSettings.include_all_callboard;
+    const calendarIds = (marqueeSettings.include_calendar_production_ids ?? []) as string[];
+    const wantAllCalendar = marqueeSettings.include_all_calendar;
+
+    let callboardItems: MarqueeItem[] = [];
+    let calendarItems: MarqueeItem[] = [];
+
+    if (wantAllCallboard || callboardIds.length > 0) {
       let q = supabaseAdmin
         .from("callboard_posts")
         .select("id, post_type, title, organization_name, deadline_text, expires_at, location")
@@ -94,7 +105,7 @@ export const load: PageServerLoad = async () => {
         .eq("published", true)
         .is("deleted_at", null)
         .order("expires_at", { ascending: true, nullsFirst: false });
-      if (!wantAll) q = q.in("id", ids);
+      if (!wantAllCallboard) q = q.in("id", callboardIds);
       const { data: posts } = await q.limit(30);
 
       // Pull glyph map from the post types table so admin-added types
@@ -106,7 +117,7 @@ export const load: PageServerLoad = async () => {
         (typeRows ?? []).map((t) => [t.slug, t.glyph ?? "✦"]),
       );
 
-      marquee = (posts ?? []).map((p) => {
+      callboardItems = (posts ?? []).map((p) => {
         // Format: "{Org} - {Title}{deadline or location}"
         const tail = p.deadline_text
           ? `, ${p.deadline_text}`
@@ -114,13 +125,44 @@ export const load: PageServerLoad = async () => {
           ? `, ${p.location}`
           : "";
         return {
-          id: p.id,
+          id: `cb-${p.id}`,
           glyph: glyphBySlug.get(p.post_type) ?? "✦",
           text: `${p.organization_name} - ${p.title}${tail}`,
           href: `/callboard/${p.id}`,
         };
       });
     }
+
+    if (wantAllCalendar || calendarIds.length > 0) {
+      // Only show productions whose run hasn't ended yet. Sort by run_start
+      // so "opens this weekend" surfaces above "opens in two months".
+      const today = new Date().toISOString().slice(0, 10);
+      let pq = supabaseAdmin
+        .from("productions")
+        .select("id, title, organization_name, run_start, run_end")
+        .eq("status", "approved")
+        .is("deleted_at", null)
+        .or(`run_end.is.null,run_end.gte.${today}`)
+        .order("run_start", { ascending: true, nullsFirst: false });
+      if (!wantAllCalendar) pq = pq.in("id", calendarIds);
+      const { data: productions } = await pq.limit(30);
+
+      calendarItems = (productions ?? []).map((p) => {
+        const runFmt = formatRunWindow(p.run_start, p.run_end);
+        const tail = runFmt ? `, ${runFmt}` : "";
+        return {
+          id: `cal-${p.id}`,
+          glyph: "▦",
+          text: `${p.organization_name} - ${p.title}${tail}`,
+          href: `/calendar`,
+        };
+      });
+    }
+
+    // Interleave callboard + calendar so the marquee mixes them rather
+    // than running all of one then all of the other. If either source is
+    // empty the result is just the non-empty one.
+    marquee = interleave(callboardItems, calendarItems);
   }
 
   // Curated rotation has priority. Fall back to a date-seeded shuffle of
@@ -154,6 +196,49 @@ export const load: PageServerLoad = async () => {
     marquee,
   };
 };
+
+// Interleave two arrays element-by-element so the marquee alternates
+// callboard / calendar / callboard / calendar instead of grouping them.
+// Whatever runs longer fills the tail.
+function interleave<T>(a: T[], b: T[]): T[] {
+  const out: T[] = [];
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    if (i < a.length) out.push(a[i]);
+    if (i < b.length) out.push(b[i]);
+  }
+  return out;
+}
+
+// Compact run-window label for the marquee. Examples:
+//   "May 7 - 24"
+//   "May 30 - Jun 7"
+//   "opens May 7"   (no end)
+//   ""              (no start, even if end is set - too ambiguous)
+function formatRunWindow(start: string | null, end: string | null): string {
+  if (!start) return "";
+  const s = parseDateOnly(start);
+  if (!s) return "";
+  if (!end) return `opens ${monthDay(s)}`;
+  const e = parseDateOnly(end);
+  if (!e) return monthDay(s);
+  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+    return `${monthDay(s)} - ${e.getDate()}`;
+  }
+  return `${monthDay(s)} - ${monthDay(e)}`;
+}
+
+function parseDateOnly(s: string): Date | null {
+  // YYYY-MM-DD as UTC noon to avoid TZ wobble flipping the day.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
+}
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthDay(d: Date): string {
+  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
 
 function pickDailyFeatured<T>(items: T[], seed: string, n: number): T[] {
   if (items.length <= n) return items;

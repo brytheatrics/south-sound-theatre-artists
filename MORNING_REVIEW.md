@@ -50,6 +50,29 @@ likely to need a tweak before the meeting.
   was replaced with the lighter text-only style to match callboard;
   Directory got a "Submit your profile →" CTA it didn't have before.
 
+### 5. /theatres directory page
+- New public page at `/theatres` listing every theatre we track,
+  grouped by area, with logos / descriptions / homepage links / contact
+  emails. Cards fall back gracefully when a field is missing (logo →
+  typographic monogram, description → just name + area).
+- Migration `052_theatre_metadata.sql` adds 4 columns to `event_sources`
+  (`description`, `homepage_url`, `public_email`, `logo_url`).
+- Linked from `/resources` as a featured card at the top, and from the
+  hamburger menu.
+- Seed populated for all 26 theatres (see "Editorial drafts" + "Needs
+  your eyes" below for confidence flags).
+
+### 6. Calendar productions in the homepage marquee
+- The scrolling ticker on the homepage now mixes callboard posts with
+  upcoming calendar productions. Callboard / calendar items interleave
+  so the same ticker carries both opportunities and shows.
+- Migration `053_marquee_calendar.sql` adds two columns to
+  `marquee_settings` (`include_all_calendar`, `include_calendar_production_ids`).
+- `/admin/marquee` has a new "Calendar productions" block mirroring the
+  callboard block: cycle-all by default, or hand-pick specific shows.
+- Production text format: "{Org} - {Title}, May 7 - 24" (auto-formats
+  same-month, cross-month, and "opens X" when no end date is set).
+
 ## Needs your eyes
 *(Anything I made a judgment call on or that benefits from your review.)*
 
@@ -58,9 +81,55 @@ likely to need a tweak before the meeting.
   calls, talent opportunities" / "Add an upcoming show to the calendar").
   Tweak in `Nav.svelte` (`submitOptions`) if any of those don't sound
   right.
+- **/theatres descriptions for 26 orgs.** I generated 1-2 sentence
+  factual blurbs from each org's site. They need a Lexi pass for
+  voice / length / accuracy before launch. Edit in
+  `scripts/seed-theatre-metadata.mjs` then re-run
+  `node scripts/seed-theatre-metadata.mjs --overwrite` to push changes
+  back. (Default mode preserves admin overrides via COALESCE; overwrite
+  mode is needed when you want to *replace* values.)
+- **Bremerton Community Theatre URL changed.** Their old domain
+  `bremertoncommunitytheatre.org` redirects to `bctshows.com`. I
+  switched the homepage URL but did NOT touch their `source_url` (the
+  scraper uses an arts-people path that's still valid). Verify the
+  cron still picks them up next sync.
+- **Mustard Seed lives at oslc.com/mustardseed/, not
+  mustardseedtheater.com.** The original URL didn't resolve. I updated
+  `homepage_url` to the church-hosted page but kept `source_url`
+  pointing at csstix where their actual ticketing happens.
+- **ManeStage was tagged Sumner; actual address is Puyallup.**
+  Description corrected. Their `area_id` still points at "South Pierce"
+  which is correct for both.
+- **Northwest Center Theatre — likely defunct or renamed.** The Wix
+  URL is empty/dormant. There's a separate active org named
+  "Northwest Theatre Lab" (nwtheatrelab.com) that may be the rebrand,
+  or may be unrelated. Worth asking Lexi which one she means before
+  including in /theatres.
 
 ## Fallbacks I had to use
 *(Theatres I couldn't find a logo / email for, etc.)*
+
+**Logos missing — falls back to typographic monogram on /theatres:**
+- Tacoma Little Theatre, Mustard Seed, Toy Boat, Olympia Family Theater,
+  Bremerton Community Theatre, Auburn Community Players.
+- The remaining logos are third-party CDN paths (Wix, Squarespace,
+  Weebly, WordPress upload dirs). They render today but could rotate
+  out of existence. If you want resilience, mirror them to Cloudinary —
+  there's a `logo_url` column to point at the new copy.
+
+**Emails missing:**
+- Tacoma Little Theatre, Mustard Seed, Harlequin, Toy Boat, Auburn
+  Community Players, Northwest Center Theatre, Screaming Butterflies.
+  None of these orgs publish a public-facing alias on their own site.
+  Cards on /theatres just hide the Email link gracefully when no
+  address is set.
+
+**Confidence flags (email format inferred, please confirm):**
+- `boxoffice@lakewoodplayhouse.org` (their site uses an obfuscation widget)
+- `info@dukesbay.org` (sourced from a third-party directory)
+- `theatrebattery@gmail.com` (sourced from external listings)
+- `oltadmin@olympialittletheatre.org` for Olympia Little Theatre — note
+  the spelling mismatch with their site domain `olympialittletheater.org`
 
 ## Editorial drafts
 *(AI-generated copy that needs a human pass before launch — descriptions,
@@ -70,6 +139,11 @@ notes, etc.)*
   scan recommended in case any wording feels off — they live in
   `scripts/seed-event-sources.mjs` and surface in `/admin/calendar` ->
   per-source view.
+- **Theatre descriptions on /theatres.** All 26 generated from their
+  own websites — facts only (year founded, where they perform, signature
+  output) — but the voice is mine, not Lexi's. Worth a 5-minute pass on
+  `scripts/seed-theatre-metadata.mjs` to tighten or rewrite where
+  needed, then re-run with `--overwrite`.
 
 ## What didn't get done
 *(Filled in if anything has to defer.)*

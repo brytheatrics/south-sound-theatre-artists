@@ -6,23 +6,47 @@
   // Local state mirrors the saved settings so toggling cycle-all updates
   // the picker visibility without a round-trip.
   /* svelte-ignore state_referenced_locally */
-  let cycleAll = $state(data.settings.include_all_callboard);
+  let cycleAllCallboard = $state(data.settings.include_all_callboard);
+  /* svelte-ignore state_referenced_locally */
+  let cycleAllCalendar = $state(data.settings.include_all_calendar ?? true);
   /* svelte-ignore state_referenced_locally */
   let enabled = $state(data.settings.enabled);
   /* svelte-ignore state_referenced_locally */
-  let pickedIds = $state<Set<string>>(
+  let pickedPostIds = $state<Set<string>>(
     new Set(data.settings.include_callboard_post_ids ?? []),
+  );
+  /* svelte-ignore state_referenced_locally */
+  let pickedProductionIds = $state<Set<string>>(
+    new Set(data.settings.include_calendar_production_ids ?? []),
   );
 
   function togglePost(id: string) {
-    if (pickedIds.has(id)) pickedIds.delete(id);
-    else pickedIds.add(id);
-    pickedIds = new Set(pickedIds);
+    if (pickedPostIds.has(id)) pickedPostIds.delete(id);
+    else pickedPostIds.add(id);
+    pickedPostIds = new Set(pickedPostIds);
+  }
+  function toggleProduction(id: string) {
+    if (pickedProductionIds.has(id)) pickedProductionIds.delete(id);
+    else pickedProductionIds.add(id);
+    pickedProductionIds = new Set(pickedProductionIds);
   }
 
   const POST_TYPE_LABELS = $derived(
     Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
   );
+
+  function fmtRunWindow(start: string | null, end: string | null): string {
+    if (!start) return "";
+    const s = new Date(start + "T12:00:00Z");
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const fmt = (d: Date) => `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    if (!end) return `opens ${fmt(s)}`;
+    const e = new Date(end + "T12:00:00Z");
+    if (s.getUTCMonth() === e.getUTCMonth() && s.getUTCFullYear() === e.getUTCFullYear()) {
+      return `${fmt(s)} - ${e.getUTCDate()}`;
+    }
+    return `${fmt(s)} - ${fmt(e)}`;
+  }
 </script>
 
 <svelte:head><title>Homepage marquee - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
@@ -31,8 +55,9 @@
   <span class="eyebrow"><span class="num">·</span>Admin · marquee</span>
   <h1 class="h1-display">Homepage marquee.</h1>
   <p class="lede">
-    The scrolling ticker below the spotlight on the homepage. Cycle through
-    every open callboard post or pick a specific subset to feature.
+    The scrolling ticker below the spotlight on the homepage. Mixes open
+    callboard posts and upcoming calendar productions; you can either
+    cycle through everything in each category or hand-pick a subset.
   </p>
 </header>
 
@@ -51,27 +76,27 @@
   <div class="cb-block">
     <span class="block-label">Callboard posts</span>
     <p class="hint">
-      What scrolls in the marquee. Each item links back to its callboard
+      Open auditions and crew calls. Each item links back to its callboard
       post.
     </p>
 
     <label class="check">
-      <input type="checkbox" name="include_all_callboard" bind:checked={cycleAll} />
+      <input type="checkbox" name="include_all_callboard" bind:checked={cycleAllCallboard} />
       <span>Cycle through <strong>all</strong> open callboard posts</span>
     </label>
 
-    {#if !cycleAll}
+    {#if !cycleAllCallboard}
       {#if data.callboardPosts.length === 0}
         <p class="cb-empty">No approved callboard posts to choose from yet.</p>
       {:else}
         <div class="cb-list">
           {#each data.callboardPosts as p (p.id)}
-            <label class="cb-row" class:on={pickedIds.has(p.id)}>
+            <label class="cb-row" class:on={pickedPostIds.has(p.id)}>
               <input
                 type="checkbox"
                 name="post_id"
                 value={p.id}
-                checked={pickedIds.has(p.id)}
+                checked={pickedPostIds.has(p.id)}
                 onchange={() => togglePost(p.id)}
               />
               <span class="cb-type">{POST_TYPE_LABELS[p.post_type] ?? p.post_type}</span>
@@ -79,6 +104,46 @@
               <span class="cb-org">{p.organization_name}</span>
               {#if p.deadline_text}
                 <span class="cb-deadline">{p.deadline_text}</span>
+              {/if}
+            </label>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  </div>
+
+  <hr class="rule" />
+
+  <div class="cb-block">
+    <span class="block-label">Calendar productions</span>
+    <p class="hint">
+      Upcoming and currently-running shows. Each item links to the calendar.
+    </p>
+
+    <label class="check">
+      <input type="checkbox" name="include_all_calendar" bind:checked={cycleAllCalendar} />
+      <span>Cycle through <strong>all</strong> upcoming productions</span>
+    </label>
+
+    {#if !cycleAllCalendar}
+      {#if data.productions.length === 0}
+        <p class="cb-empty">No approved productions to choose from yet.</p>
+      {:else}
+        <div class="cb-list">
+          {#each data.productions as p (p.id)}
+            <label class="cb-row" class:on={pickedProductionIds.has(p.id)}>
+              <input
+                type="checkbox"
+                name="production_id"
+                value={p.id}
+                checked={pickedProductionIds.has(p.id)}
+                onchange={() => toggleProduction(p.id)}
+              />
+              <span class="cb-type">SHOW</span>
+              <span class="cb-title">{p.title}</span>
+              <span class="cb-org">{p.organization_name}</span>
+              {#if p.run_start}
+                <span class="cb-deadline">{fmtRunWindow(p.run_start, p.run_end)}</span>
               {/if}
             </label>
           {/each}
