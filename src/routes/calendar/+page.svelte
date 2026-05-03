@@ -192,8 +192,8 @@
       across the South Sound.
     </h1>
     <p class="lede">
-      Plays, musicals, staged readings, and special events. Updated automatically
-      from each company's published season.
+      Plays, musicals, staged readings, and special events. Dates can change —
+      please confirm with the theatre's website before heading out.
     </p>
   </div>
   <div class="masthead-meta">
