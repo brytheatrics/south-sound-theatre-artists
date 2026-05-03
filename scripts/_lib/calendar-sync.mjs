@@ -330,6 +330,15 @@ async function getDefaultCategoryId(db) {
 async function upsertProductionWithPerformances(db, source, show, defaultCategoryId) {
   const orgName = source.org_name;
 
+  // Normalise title to ALL CAPS for consistent display on the calendar.
+  // Different orgs publish with mixed conventions ("ANNIE" vs "Wait Until
+  // Dark"); uppercasing at write-time is cheap and gives the calendar a
+  // unified look without per-render CSS that would also affect the user's
+  // copy-paste experience. Manual entries through other paths preserve
+  // their entered case.
+  const title = String(show.title ?? "").toUpperCase().trim();
+  if (!title) return; // skip empty titles after normalisation
+
   // Try to find existing by source_id + lower(title) + run_start within ~30 days
   const findRes = await db.query(
     `select id from public.productions
@@ -338,7 +347,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
         and (run_start is null or run_start between ($3::date - interval '30 days') and ($3::date + interval '30 days'))
         and deleted_at is null
       limit 1`,
-    [source.id, show.title, show.run_start],
+    [source.id, title, show.run_start],
   );
 
   let productionId;
@@ -357,7 +366,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
         where id = $1`,
       [
         productionId,
-        show.title,
+        title,
         orgName,
         show.run_start,
         show.run_end,
@@ -380,7 +389,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
        values ($1, $2, $3, $4, $5, $6, $7, 'approved')
        returning id`,
       [
-        show.title,
+        title,
         orgName,
         show.run_start,
         show.run_end,

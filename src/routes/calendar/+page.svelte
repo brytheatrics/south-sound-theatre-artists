@@ -292,11 +292,25 @@
           {#if byDate.has(cell.key)}
             <div class="day-perfs">
               {#each byDate.get(cell.key) ?? [] as p (p.id)}
-                <div class="perf-pill" title={p.production.title + ' — ' + p.production.organization_name}>
-                  <span class="perf-time">{fmtTime(p.performs_at)}</span>
-                  <span class="perf-title">{p.production.title}</span>
-                  <span class="perf-org">{p.production.organization_name}</span>
-                </div>
+                {#if p.production.detail_url}
+                  <a
+                    class="perf-pill perf-pill-link"
+                    href={p.production.detail_url}
+                    target="_blank"
+                    rel="noopener"
+                    title={p.production.title + ' — ' + p.production.organization_name + ' (opens in a new tab)'}
+                  >
+                    <span class="perf-time">{fmtTime(p.performs_at)}</span>
+                    <span class="perf-title">{p.production.title}</span>
+                    <span class="perf-org">{p.production.organization_name}</span>
+                  </a>
+                {:else}
+                  <div class="perf-pill" title={p.production.title + ' — ' + p.production.organization_name}>
+                    <span class="perf-time">{fmtTime(p.performs_at)}</span>
+                    <span class="perf-title">{p.production.title}</span>
+                    <span class="perf-org">{p.production.organization_name}</span>
+                  </div>
+                {/if}
               {/each}
             </div>
           {/if}
@@ -567,6 +581,23 @@
     font-size: 0.72rem;
     line-height: 1.25;
     overflow: hidden;
+    color: var(--ink);
+    text-decoration: none;
+    transition: background 0.12s, border-left-width 0.12s;
+  }
+  /* When the pill is a link, make the affordance visible: cursor change,
+     subtle hover paint, and a thicker accent rule. */
+  .perf-pill-link {
+    cursor: pointer;
+  }
+  .perf-pill-link:hover {
+    background: var(--paper-2);
+    border-left-width: 4px;
+    text-decoration: none;
+  }
+  .perf-pill-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   .perf-time {
     font-family: var(--font-mono);
