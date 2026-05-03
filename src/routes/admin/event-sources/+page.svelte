@@ -114,11 +114,25 @@
   function statusClass(status: string | null): string {
     return status ? `st-${status}` : "st-pending";
   }
+
+  // Friendly labels for the status pill. The raw values come from the
+  // sync script (ok, unchanged, empty, error) but those read like dev
+  // shorthand to Lexi - swap to plain English at render time.
+  function statusLabel(status: string | null): string {
+    switch (status) {
+      case "ok": return "Updated";
+      case "unchanged": return "No changes";
+      case "empty": return "Nothing found";
+      case "error": return "Pull failed";
+      case "manual": return "Manual entry";
+      default: return "Not yet pulled";
+    }
+  }
 </script>
 
 {#snippet publicEdit(s: { id: string; org_slug: string; description: string | null; homepage_url: string | null; logo_url: string | null; logo_bg: string })}
   <details class="public-edit">
-    <summary>Edit public details (description / homepage / logo)</summary>
+    <summary>Edit public details — description, homepage, logo</summary>
     <form
       method="POST"
       action="?/updatePublic"
@@ -138,7 +152,7 @@
           name="description"
           rows="2"
           maxlength="500"
-          placeholder="1-2 sentence public-facing description (shown on /theatres)"
+          placeholder="1-2 sentence description, shown on the public Theatres page"
           value={s.description ?? ""}
         ></textarea>
       </label>
@@ -185,7 +199,7 @@
           </div>
         {/if}
         <span class="pe-logo-hint">
-          PNG with transparency works best. Cloudinary auto-resizes to 400px max edge.
+          PNG files with transparent backgrounds look best. Files get auto-resized.
           {#if uploadError}<span class="pe-error">{uploadError}</span>{/if}
         </span>
       </label>
@@ -193,10 +207,9 @@
       <fieldset class="pe-bg-field">
         <legend class="pe-label">Logo background</legend>
         <p class="pe-bg-hint">
-          Pick a tile colour that contrasts with the logo's foreground.
-          White-on-transparent logos need an ink or moss tile; black logos
-          look best on paper or white. The choice stays the same in dark
-          mode (so a tile you picked for a white logo doesn't flip back).
+          Pick a tile colour that makes the logo readable. White logos
+          need a dark tile (Ink or Moss); black or coloured logos usually
+          look best on Paper, Cream, or White.
         </p>
         <div class="pe-swatches">
           {#each LOGO_BG_OPTIONS as opt (opt.value)}
@@ -233,15 +246,15 @@
 </svelte:head>
 
 <header class="hd">
-  <span class="eyebrow"><span class="num">·</span>Admin · calendar sources</span>
-  <h1 class="h1-display">Calendar sources.</h1>
+  <span class="eyebrow"><span class="num">·</span>Admin · theatres</span>
+  <h1 class="h1-display">Theatres on the calendar.</h1>
   <p class="lede">
-    {data.autoSources.length} auto-pulled, {data.manualSources.length} manual.
-    Auto sources are read by the cron once per <code>cadence_days</code>
-    (default 30), with HTML-hash caching so unchanged pages don't burn API
-    tokens. Manual sources don't get cron'd - the entries below are
-    reference cards so Lexi knows where to check for new shows on
-    <a href="/admin/calendar/new">/admin/calendar/new</a>.
+    Every theatre we list. The site automatically pulls upcoming shows
+    from {data.autoSources.length} of them on the 1st of each month.
+    The other {data.manualSources.length} you add by hand because their
+    site doesn't list shows in a way we can read automatically. Edit
+    each theatre's public details (description, homepage, logo) by
+    clicking the row.
   </p>
 </header>
 
@@ -250,9 +263,9 @@
 {/if}
 {#if form?.refreshed}
   <div class="form-ok" role="status">
-    Refreshed <strong>{form.refreshed}</strong>:
-    {form.result?.status} - {form.result?.showCount} shows, {form.result?.performanceCount} performances ($
-    {form.result?.cost?.toFixed(4)})
+    Pulled fresh from <strong>{form.refreshed}</strong>:
+    {form.result?.showCount} {form.result?.showCount === 1 ? "show" : "shows"},
+    {form.result?.performanceCount} {form.result?.performanceCount === 1 ? "performance" : "performances"}.
   </div>
 {/if}
 {#if form?.savedPublic}
@@ -262,22 +275,32 @@
 {/if}
 {#if form?.activeSet}
   <div class="form-ok" role="status">
-    {form.activeSet.slug} is now {form.activeSet.active ? "active" : "disabled"}
+    <strong>{form.activeSet.slug}</strong> is now {form.activeSet.active ? "active" : "disabled"}.
     {form.activeSet.active
-      ? "- the cron will sync it on its next run."
-      : "- the cron will skip it. Existing shows stay live."}.
+      ? "Their next monthly pull will include them again."
+      : "We'll stop pulling from them. Their existing shows stay on the calendar."}
   </div>
 {/if}
 {#if form?.adapterSet}
   <div class="form-ok" role="status">
-    {form.adapterSet.slug} is now
-    {form.adapterSet.adapter === "manual" ? "manual entry" : "auto-pulled"}.
+    <strong>{form.adapterSet.slug}</strong> is now
+    {form.adapterSet.adapter === "manual"
+      ? "set to manual entry — add shows by hand from / admin/calendar/new."
+      : "set to automatic — we'll pull from them on the next monthly sync."}
   </div>
 {/if}
 
 <h2 class="section-h">
-  Auto-pulled <span class="section-count">{data.autoSources.length}</span>
+  Pulled automatically <span class="section-count">{data.autoSources.length}</span>
 </h2>
+<p class="section-help">
+  These theatres list their shows in a way we can read. Once a month
+  the site visits each one's website, finds the upcoming shows, and
+  adds them to the calendar. You usually don't need to do anything
+  here — but you can edit a theatre's public details (description,
+  logo, homepage), trigger a one-off pull, or disable a theatre that's
+  been giving us junk.
+</p>
 
 <div class="src-list">
   {#each data.autoSources as s (s.id)}
@@ -289,9 +312,10 @@
       </div>
 
       <div class="src-status">
-        <span class="status-pill {statusClass(s.last_status)}">{s.last_status ?? "pending"}</span>
+        <span class="status-pill {statusClass(s.last_status)}">{statusLabel(s.last_status)}</span>
         <span class="status-meta">
-          {s.last_show_count ?? 0} shows · checked {fmtRel(s.last_checked_at)}
+          {s.last_show_count ?? 0} {s.last_show_count === 1 ? "show" : "shows"}
+          · last checked {fmtRel(s.last_checked_at)}
         </span>
         {#if s.last_error}
           <div class="status-error">{s.last_error}</div>
@@ -319,7 +343,7 @@
         >
           <input type="hidden" name="id" value={s.id} />
           <button type="submit" class="bt bt-ghost" disabled={busy === s.id}>
-            {busy === s.id ? "Refreshing..." : "Refresh now"}
+            {busy === s.id ? "Pulling..." : "Pull now"}
           </button>
         </form>
         <form method="POST" action="?/setActive" use:enhance>
@@ -329,8 +353,8 @@
             type="submit"
             class="bt bt-ghost"
             title={s.active
-              ? "Disable - cron will skip this source. Existing shows stay live."
-              : "Re-enable cron syncing for this source."}
+              ? "Disable — we stop pulling new shows from this theatre. Their existing shows stay on the calendar."
+              : "Re-enable — start pulling new shows from this theatre on the next monthly sync."}
           >
             {s.active ? "Disable" : "Enable"}
           </button>
@@ -341,9 +365,9 @@
           <button
             type="submit"
             class="bt bt-ghost"
-            title="Convert to manual entry - cron stops touching it, Lexi adds shows by hand."
+            title="Switch to adding shows by hand. We stop pulling automatically — useful when a theatre's site keeps giving us junk."
           >
-            Make manual
+            Add by hand
           </button>
         </form>
       </div>
@@ -353,12 +377,14 @@
 </div>
 
 <h2 class="section-h section-manual">
-  Manual entry <span class="section-count">{data.manualSources.length}</span>
+  Added by hand <span class="section-count">{data.manualSources.length}</span>
 </h2>
 <p class="section-help">
-  Lexi maintains these by hand from <a href="/admin/calendar/new">/admin/calendar/new</a>.
-  Each card below is a reference - the URL is where to check for new shows,
-  the notes explain how the org publishes their schedule.
+  These theatres post their schedule somewhere we can't read automatically
+  (Facebook events, image-only flyers, behind a login, etc.). Click the
+  link in each card to see what the theatre currently has running, then
+  use <a href="/admin/calendar/new">+ Add show</a> to enter it. The notes
+  on each card explain where to look on that theatre's site.
 </p>
 
 <div class="src-list">
@@ -371,7 +397,7 @@
       </div>
 
       <div class="src-status">
-        <span class="status-pill st-manual">manual entry</span>
+        <span class="status-pill st-manual">Added by hand</span>
       </div>
 
       <div class="src-url">
@@ -390,8 +416,8 @@
             type="submit"
             class="bt bt-ghost"
             title={s.active
-              ? "Hide this source from /admin/calendar/new and /theatres."
-              : "Re-enable this source."}
+              ? "Hide this theatre from the Theatres page and from /admin/calendar/new."
+              : "Show this theatre again."}
           >
             {s.active ? "Disable" : "Enable"}
           </button>
@@ -402,9 +428,9 @@
           <button
             type="submit"
             class="bt bt-ghost"
-            title="Convert back to auto-pull. The cron will start syncing this source on its next run."
+            title="Try pulling automatically again. We'll attempt to read their site on the next monthly sync."
           >
-            Make auto
+            Try auto-pull
           </button>
         </form>
       </div>

@@ -57,23 +57,24 @@
   <p class="lede">
     {data.production.organization_name}
     {#if data.sourceInfo}
-      · auto-pop'd from <a href={data.sourceInfo.source_url} target="_blank" rel="noopener">{data.sourceInfo.org_name} ({data.sourceInfo.org_slug})</a>
+      · pulled automatically from <a href={data.sourceInfo.source_url} target="_blank" rel="noopener">{data.sourceInfo.org_name}</a>
     {:else}
-      · manual entry
+      · added by hand
     {/if}
   </p>
   {#if data.sourceInfo}
     {#if data.production.admin_edited_at}
       <p class="info-soft">
-        🔒 <strong>Admin-locked.</strong> The cron skips this row on every sync —
-        your edits below will stick. Click <em>Re-enable auto-sync</em> at the
-        bottom if you want this row to follow the source again.
+        🔒 <strong>Your edits are locked in.</strong> The next monthly
+        sync will leave this show alone, so anything you change here
+        sticks. Use <em>Re-enable auto-sync</em> at the bottom if you'd
+        rather let the theatre's site overwrite your edits next month.
       </p>
     {:else}
       <p class="warn-soft">
-        ⚠ Auto-pop'd by the cron. Saving here marks this row as
-        admin-locked, after which the cron will skip it on every sync
-        (so your edits stick). Until you save, the cron is in charge.
+        ⚠ This show was pulled automatically. Saving any edit here will
+        lock them in, so the next monthly sync won't overwrite what you
+        change. Until you hit save, the next sync can still update this row.
       </p>
     {/if}
   {/if}

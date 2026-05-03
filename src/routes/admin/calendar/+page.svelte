@@ -46,13 +46,15 @@
   <span class="eyebrow"><span class="num">·</span>Admin · calendar</span>
   <h1 class="h1-display">Calendar productions.</h1>
   <p class="lede">
-    Performances surfaced at <code>/calendar</code>. Auto-pop'd entries
-    (16 orgs via the cron) refresh on their own; manual entries persist
-    forever. {data.pendingCount > 0 ? `${data.pendingCount} pending review.` : ""}
+    Every show on the public calendar. Most are pulled automatically
+    from theatre websites once a month; the rest you've added by hand.
+    {data.pendingCount > 0
+      ? `${data.pendingCount} ${data.pendingCount === 1 ? "production needs" : "productions need"} review.`
+      : ""}
   </p>
   <div class="hd-actions">
     <a class="bt bt-pri" href="/admin/calendar/new">+ Add production</a>
-    <a class="bt bt-ghost" href="/admin/event-sources">Manage sources →</a>
+    <a class="bt bt-ghost" href="/admin/event-sources">Manage theatres →</a>
   </div>
 </header>
 
