@@ -67,6 +67,7 @@ export const actions: Actions = {
           name: org.name,
           org_name: org.name,
           callboard_url: `${PUBLIC_SITE_URL}/callboard`,
+          calendar_url: `${PUBLIC_SITE_URL}/calendar`,
         },
       });
     }
