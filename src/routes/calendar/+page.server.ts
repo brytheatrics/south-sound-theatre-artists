@@ -20,6 +20,8 @@ export type Performance = {
     run_end: string | null;
     category_slug: string | null;
     category_name: string | null;
+    area_id: string | null;
+    area_name: string | null;
   };
 };
 
@@ -28,6 +30,12 @@ export type Category = {
   slug: string;
   name: string;
   default_visible: boolean;
+  sort_order: number;
+};
+
+export type Area = {
+  id: string;
+  name: string;
   sort_order: number;
 };
 
@@ -74,6 +82,23 @@ export const load: PageServerLoad = async ({ url }) => {
     ? catParam.split(",").map((s) => s.trim()).filter(Boolean)
     : categories.filter((c) => c.default_visible).map((c) => c.slug);
 
+  // ---- Areas -------------------------------------------------------
+  const { data: areaData } = await supabaseAdmin
+    .from("areas")
+    .select("id, name, sort_order")
+    .order("sort_order");
+  const areas = (areaData ?? []) as Area[];
+
+  // Active areas filter: explicit ?areas=name1,name2 if given (URL-decoded),
+  // else null = "show all" (no filter applied).
+  const areaParam = params.get("areas");
+  const activeAreaNames: string[] | null = areaParam
+    ? areaParam.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+  const activeAreaIds: string[] | null = activeAreaNames
+    ? areas.filter((a) => activeAreaNames.includes(a.name)).map((a) => a.id)
+    : null;
+
   // ---- Performances in this month ---------------------------------
   const { data: perfRows } = await supabaseAdmin
     .from("performances")
@@ -92,7 +117,7 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, category_id`,
+         status, deleted_at, category_id, source_id`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
@@ -102,20 +127,39 @@ export const load: PageServerLoad = async ({ url }) => {
   }
 
   const categoriesById = new Map(categories.map((c) => [c.id, c]));
+  const areasById = new Map(areas.map((a) => [a.id, a]));
+
+  // event_sources -> area_id mapping (small table, fetch all once and
+  // join in memory to avoid nested-select complexity).
+  const { data: sourceRows } = await supabaseAdmin
+    .from("event_sources")
+    .select("id, area_id");
+  const sourceAreaById = new Map(
+    (sourceRows ?? []).map((s) => [s.id, s.area_id]),
+  );
 
   // Stitch + filter
   const performances: Performance[] = perfs
     .map((p) => {
       const prod = productionsMap.get(p.production_id);
       if (!prod) return null;
+
       const cat = prod.category_id ? categoriesById.get(prod.category_id) : undefined;
       const slug = cat?.slug ?? null;
-      // Filter by active categories. Uncategorised entries fall through
-      // when "production" is in the active list (sensible default).
-      const isVisible = slug
+      // Category filter: uncategorised entries fall through when
+      // "production" is in the active list (sensible default).
+      const passesCategory = slug
         ? activeCats.includes(slug)
         : activeCats.includes("production");
-      if (!isVisible) return null;
+      if (!passesCategory) return null;
+
+      // Resolve area through the source. Productions with no source
+      // (manual entries when that path exists) have no area; those pass
+      // the area filter only when the filter is unset (show-all default).
+      const areaId = prod.source_id ? sourceAreaById.get(prod.source_id) : null;
+      if (activeAreaIds && (!areaId || !activeAreaIds.includes(areaId))) return null;
+      const area = areaId ? areasById.get(areaId) : undefined;
+
       return {
         id: p.id,
         performs_at: p.performs_at,
@@ -129,6 +173,8 @@ export const load: PageServerLoad = async ({ url }) => {
           run_end: prod.run_end,
           category_slug: slug,
           category_name: cat?.name ?? null,
+          area_id: areaId ?? null,
+          area_name: area?.name ?? null,
         },
       };
     })
@@ -149,6 +195,8 @@ export const load: PageServerLoad = async ({ url }) => {
     performances,
     categories,
     activeCats,
+    areas,
+    activeAreas: activeAreaNames, // null = show all
     view,
     monthIso: monthIso(monthStart),
     monthLabel: monthStart.toLocaleString("en-US", {

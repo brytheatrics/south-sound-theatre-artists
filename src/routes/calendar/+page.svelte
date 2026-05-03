@@ -9,6 +9,7 @@
       month: data.monthIso,
       view: data.view === "list" ? "list" : null,
       cats: serializeCats(data.activeCats, data.categories),
+      areas: serializeAreas(data.activeAreas, data.areas),
     };
     const merged = { ...base, ...overrides };
     const p = new URLSearchParams();
@@ -37,6 +38,36 @@
     if (set.has(slug)) set.delete(slug);
     else set.add(slug);
     return Array.from(set);
+  }
+
+  // Areas: null = show all (default). Empty array = show none. A list of
+  // names = filter to those.
+  function serializeAreas(active: string[] | null, all: PageData["areas"]) {
+    if (active === null) return null; // show all
+    if (active.length === 0) return null; // empty also collapses to all
+    if (active.length === all.length) return null; // selecting all = no filter
+    return active.join(",");
+  }
+
+  function toggleArea(name: string): string[] | null {
+    // If null (show-all), clicking a chip means "filter to just that area"
+    // — but functionally we treat "everything except this one off" as
+    // unintuitive, so a single-click flips into single-area mode.
+    const allNames = data.areas.map((a) => a.name);
+    const current = data.activeAreas ?? allNames;
+    const set = new Set(current);
+    if (set.has(name)) set.delete(name);
+    else set.add(name);
+    if (set.size === 0) return []; // explicitly empty -> server treats as "show all"
+    if (set.size === allNames.length) return null; // all selected -> show all
+    return Array.from(set);
+  }
+
+  // For chip "on" rendering: a chip is on when areas filter is null
+  // (everything visible) OR when its name is in the active list.
+  function areaIsOn(name: string): boolean {
+    if (data.activeAreas === null) return true;
+    return data.activeAreas.includes(name);
   }
 
   // ---- Pacific-time helpers --------------------------------------
@@ -179,6 +210,29 @@
       {cat.name}
     </a>
   {/each}
+</div>
+
+<!-- AREA FILTER STRIP -->
+<div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
+  <span class="filter-label eyebrow">Area</span>
+  {#each data.areas as area (area.id)}
+    <a
+      class="chip"
+      class:on={areaIsOn(area.name)}
+      href={buildUrl({ areas: serializeAreas(toggleArea(area.name), data.areas) })}
+    >
+      {area.name}
+    </a>
+  {/each}
+  {#if data.activeAreas !== null}
+    <a
+      class="chip chip-clear"
+      href={buildUrl({ areas: null })}
+      title="Show all areas"
+    >
+      Show all
+    </a>
+  {/if}
 </div>
 
 <!-- SECONDARY: month nav + view toggle -->
@@ -354,6 +408,16 @@
     background: var(--accent);
     border-color: var(--accent);
     color: white;
+  }
+  .chip.chip-clear {
+    color: var(--muted);
+    font-style: italic;
+    border-style: dashed;
+  }
+  .chip.chip-clear:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+    border-style: solid;
   }
 
   /* SECONDARY ROW */
