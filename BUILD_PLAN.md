@@ -131,7 +131,7 @@ Rate limiting: 5 password attempts per IP per 15 minutes on the admin login endp
 | `announcement_banner` | Optional site-wide banner with date range |
 | `disciplines` | Editable list of discipline tags. ~140 entries across 13 categories |
 | `discipline_categories` | Categories that group disciplines. Admin-managed at `/admin/disciplines` |
-| `areas` | Region chips (`Tacoma area`, `Olympia area`, etc.) with `description` for hover tooltips |
+| `areas` | Region chips (`Tacoma / Pierce County`, `South Pierce`, `Olympia / Thurston County`, `South King County`, `Gig Harbor / Kitsap`, `Other`) with `description` for hover tooltips. Realigned to the v2.x audit taxonomy in mig 045. |
 | `unions` | Reference list with descriptions |
 | `admin_sessions` | Admin login sessions (token_hash, expires_at, last_used_at) |
 | `admin_login_attempts` | Rate-limit tracking (5 fails / 15 min / IP) |

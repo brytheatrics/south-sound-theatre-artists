@@ -21,40 +21,42 @@ const { Client } = pg;
 // Each source is tagged with the area name from the `areas` table; the
 // seed resolves area_id at insert time so this file stays human-readable.
 const SOURCES = [
-  // Tacoma / Pierce
-  { slug: "tlt", name: "Tacoma Little Theatre", area: "Tacoma area",
+  // Tacoma / Pierce County
+  { slug: "tlt", name: "Tacoma Little Theatre", area: "Tacoma / Pierce County",
     url: "https://www.tacomalittletheatre.com/blog/tag/2025-2026",
     notes: "Annual blog-tag slug; update to /blog/tag/<season-year> each year." },
-  { slug: "lakewood", name: "Lakewood Playhouse", area: "Tacoma area",
+  { slug: "lakewood", name: "Lakewood Playhouse", area: "Tacoma / Pierce County",
     url: "https://www.lakewoodplayhouse.org/season-87.html",
     notes: "Annual season number; update /season-N.html each year." },
-  { slug: "tmp", name: "Tacoma Musical Playhouse", area: "Tacoma area",
+  { slug: "tmp", name: "Tacoma Musical Playhouse", area: "Tacoma / Pierce County",
     url: "https://www.tmp.org/season-and-show-tickets",
     notes: "Stable URL." },
-  { slug: "manestage", name: "ManeStage Theatre Company", area: "Tacoma area",
-    url: "https://www.manestagetheatre.com/buy-tickets",
-    notes: "Sumner / South Pierce. /buy-tickets is the canonical schedule page (not /current-season)." },
-  { slug: "mustardseed", name: "Mustard Seed Theater Company", area: "Tacoma area",
+  { slug: "mustardseed", name: "Mustard Seed Theater Company", area: "Tacoma / Pierce County",
     url: "https://mustardseedtheater.csstix.com/",
     notes: "CSSTix root - lists current event automatically." },
 
-  // Olympia / Thurston
-  { slug: "harlequin", name: "Harlequin Productions", area: "Olympia area",
+  // South Pierce (Puyallup / Sumner)
+  { slug: "manestage", name: "ManeStage Theatre Company", area: "South Pierce",
+    url: "https://www.manestagetheatre.com/buy-tickets",
+    notes: "Sumner. /buy-tickets is the canonical schedule page (not /current-season)." },
+
+  // Olympia / Thurston County
+  { slug: "harlequin", name: "Harlequin Productions", area: "Olympia / Thurston County",
     url: "https://harlequinproductions.org/season/",
     notes: "Stable URL - /season/ redirects to current year automatically." },
-  { slug: "tao", name: "Theater Artists Olympia", area: "Olympia area",
+  { slug: "tao", name: "Theater Artists Olympia", area: "Olympia / Thurston County",
     url: "https://www.olytheater.com/calendar",
     notes: "Stable URL. Wix Events per-performance listing." },
-  { slug: "animalfire", name: "Animal Fire Theatre", area: "Olympia area",
+  { slug: "animalfire", name: "Animal Fire Theatre", area: "Olympia / Thurston County",
     url: "https://animalfiretheatre.com/",
     notes: "Stable URL - homepage hero. Single annual production." },
-  { slug: "evergreen", name: "Evergreen Playhouse", area: "Olympia area",
+  { slug: "evergreen", name: "Evergreen Playhouse", area: "Olympia / Thurston County",
     url: "https://app.arts-people.com/index.php?ticketing=tep",
     notes: "Centralia (Lewis County). Arts People stable code." },
-  { slug: "olt", name: "Olympia Little Theatre", area: "Olympia area",
+  { slug: "olt", name: "Olympia Little Theatre", area: "Olympia / Thurston County",
     url: "https://app.arts-people.com/index.php?ticketing=olylt",
     notes: "Arts People; stable code." },
-  { slug: "oft", name: "Olympia Family Theater", area: "Olympia area",
+  { slug: "oft", name: "Olympia Family Theater", area: "Olympia / Thurston County",
     url: "https://app.arts-people.com/index.php?ticketing=olyft",
     notes: "Arts People; stable code." },
 
