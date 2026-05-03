@@ -36,7 +36,11 @@
   const playable = $derived(fmtAge(p.playable_age_min, p.playable_age_max));
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
 
-  let showContact = $state(false);
+  // Default open when ?contact=1 is in the URL, used by the
+  // Contact button on /mentorship and other landing pages that
+  // want to deep-link straight into the contact form.
+  /* svelte-ignore state_referenced_locally */
+  let showContact = $state(page.url.searchParams.get("contact") === "1");
   let shareToast = $state<string | null>(null);
 
   async function shareProfile() {

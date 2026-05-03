@@ -45,6 +45,7 @@
   const menuLinks: Link[] = [
     { href: "/about", label: "About" },
     { href: "/theatres", label: "Theatres" },
+    { href: "/mentorship", label: "Mentorship" },
     { href: "/contact", label: "Contact" },
     { href: "/edit-link", label: "Edit your profile" },
     { href: "/support-us", label: "Support us" },
