@@ -9,7 +9,7 @@ export type Resource = {
   title: string;
   url: string;
   description: string | null;
-  category_id: string | null;
+  category_ids: string[];
 };
 
 export const load: PageServerLoad = async () => {
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async () => {
       .order("sort_order"),
     supabaseAdmin
       .from("resources")
-      .select("id, title, url, description, category_id, sort_order")
+      .select("id, title, url, description, category_ids, sort_order")
       .eq("published", true)
       .is("deleted_at", null)
       .order("sort_order"),
@@ -34,13 +34,20 @@ export const load: PageServerLoad = async () => {
   const categories = catsRes.data ?? [];
   const resources = (resourcesRes.data ?? []) as Resource[];
 
-  // Group resources under their category in display order. Resources
-  // without a category fall under an "Other" bucket inserted last.
+  // Group resources under their category in display order. A resource
+  // tagged with multiple categories appears under each one (intentional:
+  // a grant database that's useful for both producers and artists is
+  // worth surfacing on both lines, not duplicated as separate rows).
+  // Resources with no categories fall under an "Other" bucket last.
   const grouped = categories.map((c) => ({
     ...c,
-    resources: resources.filter((r) => r.category_id === c.id),
+    resources: resources.filter(
+      (r) => Array.isArray(r.category_ids) && r.category_ids.includes(c.id),
+    ),
   }));
-  const orphans = resources.filter((r) => !r.category_id);
+  const orphans = resources.filter(
+    (r) => !Array.isArray(r.category_ids) || r.category_ids.length === 0,
+  );
   if (orphans.length > 0) {
     grouped.push({
       id: "_orphans",

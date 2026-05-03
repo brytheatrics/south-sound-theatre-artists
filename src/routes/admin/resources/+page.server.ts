@@ -16,7 +16,7 @@ export const load: PageServerLoad = async () => {
     supabaseAdmin
       .from("resources")
       .select(
-        "id, title, url, description, category_id, sort_order, published, deleted_at",
+        "id, title, url, description, category_ids, sort_order, published, deleted_at",
       )
       .is("deleted_at", null)
       .order("sort_order"),
@@ -83,7 +83,14 @@ export const actions: Actions = {
     const title = clean(data.get("title"));
     const url = clean(data.get("url"));
     const description = clean(data.get("description")) || null;
-    const categoryId = clean(data.get("category_id")) || null;
+    // Multi-select: each picked category posts a separate `category_id`
+    // field (the form renders one checkbox per category, all sharing
+    // that field name). Empty selection = empty array = "Other" bucket
+    // on the public page.
+    const categoryIds = data
+      .getAll("category_id")
+      .map((v) => String(v).trim())
+      .filter((v) => /^[0-9a-f-]{36}$/i.test(v));
     const sort = intOrDefault(data.get("sort_order"), 100);
     const published = data.get("published") === "on";
 
@@ -96,7 +103,7 @@ export const actions: Actions = {
       title,
       url,
       description,
-      category_id: categoryId,
+      category_ids: categoryIds,
       sort_order: sort,
       published,
     };

@@ -5,14 +5,20 @@
 
   // Group resources by category for the listing - mirrors what the
   // public page does, makes it easy to spot which category an entry
-  // belongs to.
+  // belongs to. A resource tagged with multiple categories appears in
+  // each one. The admin list dedupe-via-id-on-render isn't a problem
+  // because grouped sections are rendered separately.
   /* svelte-ignore state_referenced_locally */
   const grouped = $derived(() => {
     const out = data.categories.map((c) => ({
       ...c,
-      resources: data.resources.filter((r) => r.category_id === c.id),
+      resources: data.resources.filter(
+        (r) => Array.isArray(r.category_ids) && r.category_ids.includes(c.id),
+      ),
     }));
-    const orphans = data.resources.filter((r) => !r.category_id);
+    const orphans = data.resources.filter(
+      (r) => !Array.isArray(r.category_ids) || r.category_ids.length === 0,
+    );
     if (orphans.length > 0) {
       out.push({ id: "_orphans", name: "Uncategorized", description: null, sort_order: 999, resources: orphans });
     }
@@ -47,15 +53,17 @@
       <span>URL</span>
       <input name="url" type="url" placeholder="https://" required />
     </label>
-    <label class="field">
-      <span>Category</span>
-      <select name="category_id">
-        <option value="">— Uncategorized —</option>
+    <fieldset class="cat-fieldset">
+      <legend>Categories <span class="muted">(pick one or more, or none for Uncategorized)</span></legend>
+      <div class="cat-chips">
         {#each data.categories as c (c.id)}
-          <option value={c.id}>{c.name}</option>
+          <label class="cat-chip">
+            <input type="checkbox" name="category_id" value={c.id} />
+            <span>{c.name}</span>
+          </label>
         {/each}
-      </select>
-    </label>
+      </div>
+    </fieldset>
     <label class="field">
       <span>Description (optional, supports inline markdown)</span>
       <textarea name="description" rows="2"></textarea>
@@ -85,15 +93,22 @@
             <label class="field"><span>Title</span><input name="title" type="text" value={r.title} required /></label>
             <label class="field"><span>URL</span><input name="url" type="url" value={r.url} required /></label>
           </div>
-          <label class="field">
-            <span>Category</span>
-            <select name="category_id">
-              <option value="" selected={!r.category_id}>— Uncategorized —</option>
+          <fieldset class="cat-fieldset">
+            <legend>Categories</legend>
+            <div class="cat-chips">
               {#each data.categories as c (c.id)}
-                <option value={c.id} selected={r.category_id === c.id}>{c.name}</option>
+                <label class="cat-chip">
+                  <input
+                    type="checkbox"
+                    name="category_id"
+                    value={c.id}
+                    checked={Array.isArray(r.category_ids) && r.category_ids.includes(c.id)}
+                  />
+                  <span>{c.name}</span>
+                </label>
               {/each}
-            </select>
-          </label>
+            </div>
+          </fieldset>
           <label class="field">
             <span>Description</span>
             <textarea name="description" rows="2">{r.description ?? ""}</textarea>
@@ -170,12 +185,52 @@
   .row-card { background: var(--bg-raised); }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field span { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-  .field input, .field textarea, .field select { padding: 8px 12px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg); }
-  .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .field input, .field textarea { padding: 8px 12px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg); }
+  .field input:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
   .row { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end; }
   .two-col { grid-template-columns: 2fr 1fr; }
   .check { display: flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 13px; color: var(--ink); padding-bottom: 8px; }
   .check input[type="checkbox"] { accent-color: var(--accent); }
+  /* Multi-select category chips: each chip is a checkbox-label.
+     Visible state is driven by :has() so the underlying checkbox stays
+     keyboard-accessible. */
+  .cat-fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .cat-fieldset legend {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .cat-fieldset legend .muted {
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    background: var(--bg);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .cat-chip input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
+  .cat-chip:hover { border-color: var(--ink); color: var(--ink); }
+  .cat-chip:has(input:checked) {
+    background: color-mix(in oklch, var(--accent), var(--bg) 85%);
+    border-color: var(--accent);
+    color: var(--ink);
+  }
   .actions { display: flex; gap: 8px; align-items: center; }
   .bt { font-family: var(--font-body); font-size: 14px; padding: 9px 16px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; }
   .bt-pri { background: var(--ink); color: var(--bg); }
