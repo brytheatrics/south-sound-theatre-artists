@@ -1,18 +1,24 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import SchedulePatternEditor from "$lib/components/SchedulePatternEditor.svelte";
   let { data, form } = $props();
 
-  // Form state for the performances editor (optional). Submitter can
-  // leave empty - admin can flesh out during review if they prefer.
+  // Form state. Performances are required (server-side validated).
+  // Bind run dates to local state so the SchedulePatternEditor expands
+  // against live values as the user types.
+  let runStart = $state(((form?.values as Record<string, string> | undefined) ?? {}).runStart ?? "");
+  let runEnd = $state(((form?.values as Record<string, string> | undefined) ?? {}).runEnd ?? "");
   let perfs = $state<Array<{ wallClock: string; note: string }>>([]);
 
   function addPerf() {
-    const v = (form?.values as Record<string, string> | undefined) ?? {};
-    const seedDate = v.runStart ?? new Date().toISOString().slice(0, 10);
+    const seedDate = runStart || new Date().toISOString().slice(0, 10);
     perfs = [...perfs, { wallClock: `${seedDate}T19:30`, note: "" }];
   }
   function removePerf(i: number) {
     perfs = perfs.filter((_, j) => j !== i);
+  }
+  function applyGenerated(generated: Array<{ wallClock: string; note: string }>) {
+    perfs = generated;
   }
 
   let busy = $state(false);
@@ -79,12 +85,12 @@
   <div class="row-2">
     <label class="field">
       <span>Run start <em>required</em></span>
-      <input name="run_start" type="date" required value={v.runStart ?? ""} />
+      <input name="run_start" type="date" required bind:value={runStart} />
       {#if errs.run_start}<span class="err">{errs.run_start}</span>{/if}
     </label>
     <label class="field">
       <span>Run end <em>required</em></span>
-      <input name="run_end" type="date" required value={v.runEnd ?? ""} />
+      <input name="run_end" type="date" required bind:value={runEnd} />
       {#if errs.run_end}<span class="err">{errs.run_end}</span>{/if}
     </label>
   </div>
@@ -125,8 +131,15 @@
     Times in Pacific. List every public performance.
   </p>
 
+  <SchedulePatternEditor
+    {runStart}
+    {runEnd}
+    existingCount={perfs.length}
+    onApply={applyGenerated}
+  />
+
   {#if perfs.length === 0}
-    <p class="empty-perfs">No performances added yet — click the button below.</p>
+    <p class="empty-perfs">No performances added yet — use the pattern generator above or click the button below.</p>
   {/if}
 
   <ul class="perf-list">

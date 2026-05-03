@@ -1,12 +1,36 @@
-// /admin/calendar/new: create a manual production. After save, redirects
-// to the edit page where the admin can add per-date performances.
+// /admin/calendar/new: create a manual production with its performances
+// in one shot. Mirrors the schedule-pattern-editor + per-row editor
+// from /admin/calendar/[id]/edit so admin gets a single-page workflow
+// instead of create-then-edit-twice.
 //
-// Manual entries set source_id = null (so they're immune to cron) and
-// status = 'approved' (Lexi is creating it; no review needed).
+// Manual entries set source_id = null (so they're immune to cron),
+// status = 'approved', and admin_edited_at = now() (defensive in case
+// we ever add cron coverage for this org's source later).
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+
+// Pacific-time conversion (mirrors admin/calendar/[id]/edit + cron lib)
+function pacificOffsetForDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (m > 3 && m < 11) return "-07:00";
+  if (m < 3 || m > 11) return "-08:00";
+  const firstOfMonth = new Date(`${y}-${String(m).padStart(2, "0")}-01T12:00:00Z`);
+  const dowFirst = firstOfMonth.getUTCDay();
+  if (m === 3) {
+    const firstSunday = 1 + ((7 - dowFirst) % 7);
+    const secondSunday = firstSunday + 7;
+    return d >= secondSunday ? "-07:00" : "-08:00";
+  }
+  const firstSunday = 1 + ((7 - dowFirst) % 7);
+  return d >= firstSunday ? "-08:00" : "-07:00";
+}
+function pacificWallToUtc(wallClock: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(wallClock)) return null;
+  const [date] = wallClock.split("T");
+  return new Date(`${wallClock}:00${pacificOffsetForDate(date)}`).toISOString();
+}
 
 export const load: PageServerLoad = async () => {
   const { data: cats } = await supabaseAdmin
@@ -34,10 +58,12 @@ export const actions: Actions = {
     const category_id = String(fd.get("category_id") ?? "").trim() || null;
     const area_id = String(fd.get("area_id") ?? "").trim() || null;
 
-    if (!title) return fail(400, { error: "Title is required.", values: Object.fromEntries(fd) });
-    if (!organization_name) return fail(400, { error: "Organization is required.", values: Object.fromEntries(fd) });
+    if (!title)
+      return fail(400, { error: "Title is required.", values: Object.fromEntries(fd) });
+    if (!organization_name)
+      return fail(400, { error: "Organization is required.", values: Object.fromEntries(fd) });
 
-    const { data, error } = await supabaseAdmin
+    const { data: prod, error } = await supabaseAdmin
       .from("productions")
       .insert({
         title,
@@ -49,12 +75,43 @@ export const actions: Actions = {
         area_id,
         source_id: null,
         status: "approved",
+        admin_edited_at: new Date().toISOString(),
       })
       .select("id")
       .single();
+    if (error || !prod) {
+      return fail(500, { error: error?.message ?? "Could not save.", values: Object.fromEntries(fd) });
+    }
 
-    if (error) return fail(500, { error: error.message, values: Object.fromEntries(fd) });
+    // Performances: parse JSON, convert each Pacific wall-clock to UTC
+    // timestamptz, insert. Same shape as the edit page's save action.
+    const perfJson = String(fd.get("performances_json") ?? "[]");
+    let perfs: Array<{ wallClock: string; note: string; cancelled: boolean }>;
+    try {
+      const parsed = JSON.parse(perfJson);
+      if (!Array.isArray(parsed)) throw new Error("not an array");
+      perfs = parsed;
+    } catch {
+      // Don't fail the whole create on bad JSON - the production saved;
+      // admin can add performances on the edit page.
+      throw redirect(303, `/admin/calendar/${prod.id}/edit?created=1`);
+    }
 
-    throw redirect(303, `/admin/calendar/${data.id}/edit?created=1`);
+    const rowsToInsert = [];
+    for (const p of perfs) {
+      const utcIso = pacificWallToUtc(p.wallClock);
+      if (!utcIso) continue;
+      rowsToInsert.push({
+        production_id: prod.id,
+        performs_at: utcIso,
+        note: (p.note ?? "").trim() || null,
+        cancelled: !!p.cancelled,
+      });
+    }
+    if (rowsToInsert.length > 0) {
+      await supabaseAdmin.from("performances").insert(rowsToInsert);
+    }
+
+    throw redirect(303, `/admin/calendar/${prod.id}/edit?created=1`);
   },
 };

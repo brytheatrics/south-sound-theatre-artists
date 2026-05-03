@@ -1,8 +1,26 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import SchedulePatternEditor from "$lib/components/SchedulePatternEditor.svelte";
   let { data, form } = $props();
-  let busy = $state(false);
   const v = $derived((form?.values as Record<string, string> | undefined) ?? {});
+
+  // Bind run dates for the schedule pattern editor.
+  let runStart = $state<string>(v.run_start ?? "");
+  let runEnd = $state<string>(v.run_end ?? "");
+  let perfs = $state<Array<{ wallClock: string; note: string; cancelled: boolean }>>([]);
+
+  function addPerf() {
+    const seedDate = runStart || new Date().toISOString().slice(0, 10);
+    perfs = [...perfs, { wallClock: `${seedDate}T19:30`, note: "", cancelled: false }];
+  }
+  function removePerf(i: number) {
+    perfs = perfs.filter((_, j) => j !== i);
+  }
+  function applyGenerated(generated: Array<{ wallClock: string; note: string }>) {
+    perfs = generated.map((g) => ({ ...g, cancelled: false }));
+  }
+
+  let busy = $state(false);
 </script>
 
 <svelte:head>
@@ -15,7 +33,8 @@
   <h1 class="h1-display">Add a production.</h1>
   <p class="lede">
     Manual entries are independent of the cron - they don't get refreshed
-    or overwritten. After save you'll add the per-date performances.
+    or overwritten. Use the schedule pattern below to generate all the
+    performances in one shot.
   </p>
 </header>
 
@@ -33,6 +52,10 @@
     };
   }}
 >
+  <input type="hidden" name="performances_json" value={JSON.stringify(perfs)} />
+
+  <h2 class="block-title">Production details</h2>
+
   <label class="field">
     <span>Title</span>
     <input name="title" type="text" required value={v.title ?? ""} placeholder="DA VINCI CODE" />
@@ -47,11 +70,11 @@
   <div class="row-2">
     <label class="field">
       <span>Run start</span>
-      <input name="run_start" type="date" value={v.run_start ?? ""} />
+      <input name="run_start" type="date" bind:value={runStart} />
     </label>
     <label class="field">
       <span>Run end</span>
-      <input name="run_end" type="date" value={v.run_end ?? ""} />
+      <input name="run_end" type="date" bind:value={runEnd} />
     </label>
   </div>
 
@@ -82,9 +105,35 @@
     <span class="hint">Where calendar visitors click to learn more / buy tickets.</span>
   </label>
 
+  <h2 class="block-title perf-h">Performances</h2>
+  <p class="perf-help">Times in Pacific. Use the pattern generator below or add rows by hand.</p>
+
+  <SchedulePatternEditor
+    {runStart}
+    {runEnd}
+    existingCount={perfs.length}
+    onApply={applyGenerated}
+  />
+
+  {#if perfs.length === 0}
+    <p class="empty-perfs">No performances yet — add one below or use the pattern generator above.</p>
+  {/if}
+
+  <ul class="perf-list">
+    {#each perfs as p, i (i)}
+      <li class="perf-row" class:cancelled={p.cancelled}>
+        <input type="datetime-local" bind:value={perfs[i].wallClock} class="dt-input" />
+        <input type="text" bind:value={perfs[i].note} placeholder="Note (e.g., Pay What You Can)" class="note-input" />
+        <button type="button" class="bt bt-ghost bt-sm" onclick={() => removePerf(i)}>×</button>
+      </li>
+    {/each}
+  </ul>
+
+  <button type="button" class="bt bt-ghost" onclick={addPerf}>+ Add performance</button>
+
   <div class="actions">
     <button type="submit" class="bt bt-pri" disabled={busy}>
-      {busy ? "Saving..." : "Save & add performances"}
+      {busy ? "Saving..." : `Save${perfs.length > 0 ? ` with ${perfs.length} performance${perfs.length === 1 ? "" : "s"}` : ""}`}
     </button>
     <a class="bt bt-ghost" href="/admin/calendar">Cancel</a>
   </div>
@@ -92,14 +141,42 @@
 
 <style>
   .hd { margin-bottom: 1.5rem; }
-  .eyebrow { display: inline-block; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.5rem; }
+  .eyebrow {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
   .eyebrow .num { color: var(--accent); margin-right: 0.4em; }
   .h1-display { font-family: var(--font-display); font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 600; margin: 0 0 0.5rem; }
   .lede { color: var(--ink-soft); max-width: 60ch; margin: 0 0 1rem; }
   .form-error { padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
+
   .card { background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.25rem; max-width: 720px; }
+  .block-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+    color: var(--ink);
+  }
+  .block-title:not(:first-of-type) { margin-top: 1.25rem; }
+  .perf-h { margin-top: 1.5rem; }
+  .perf-help { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.6rem; }
+
   .field { display: block; margin-bottom: 0.95rem; }
-  .field > span:first-child { display: block; font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.3rem; }
+  .field > span:first-child {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
   .field input, .field select {
     width: 100%;
     padding: 0.5rem 0.7rem;
@@ -112,11 +189,50 @@
   }
   .field .hint { display: block; margin-top: 0.25rem; font-size: 0.78rem; color: var(--muted); }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  .empty-perfs { color: var(--muted); font-style: italic; padding: 0.5rem 0; }
+  .perf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem; }
+  .perf-row {
+    display: grid;
+    grid-template-columns: 11rem 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.4rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+  }
+  .perf-row.cancelled { opacity: 0.5; text-decoration: line-through; }
+  .dt-input, .note-input {
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
   .actions { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
-  .bt { padding: 0.55rem 1rem; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-raised); color: var(--ink-soft); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
+  .bt {
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: var(--font-body);
+  }
   .bt:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .bt-pri { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .bt-pri:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: white; }
+  .bt-sm { padding: 0.2rem 0.5rem; font-size: 0.85rem; }
   .bt:disabled { opacity: 0.6; cursor: not-allowed; }
-  @media (max-width: 720px) { .row-2 { grid-template-columns: 1fr; } }
+
+  @media (max-width: 720px) {
+    .row-2 { grid-template-columns: 1fr; }
+    .perf-row { grid-template-columns: 1fr; }
+  }
 </style>
