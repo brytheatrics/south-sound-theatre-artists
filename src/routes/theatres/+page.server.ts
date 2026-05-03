@@ -16,6 +16,7 @@ export type TheatreRow = {
   description: string | null;
   homepage_url: string | null;
   logo_url: string | null;
+  logo_bg: string;
 };
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("event_sources")
       .select(
         `org_slug, org_name, area_id, active,
-         description, homepage_url, logo_url`,
+         description, homepage_url, logo_url, logo_bg`,
       )
       .eq("active", true)
       .order("org_name"),
@@ -48,6 +49,7 @@ export const load: PageServerLoad = async ({ url }) => {
     description: s.description,
     homepage_url: s.homepage_url,
     logo_url: s.logo_url,
+    logo_bg: s.logo_bg ?? "paper",
   }));
 
   // Area filter — by name (URL-friendly) for shareability. Falls through

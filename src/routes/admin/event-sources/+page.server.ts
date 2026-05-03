@@ -20,7 +20,7 @@ export const load: PageServerLoad = async () => {
       `id, org_slug, org_name, source_url, adapter, cadence_days, active,
        last_status, last_show_count, last_checked_at, last_successful_at,
        last_error, cooldown_until, notes, updated_at, area_id,
-       description, homepage_url, logo_url`,
+       description, homepage_url, logo_url, logo_bg`,
     )
     .order("org_name");
   if (error) throw error;
@@ -56,6 +56,7 @@ export const actions: Actions = {
     const description = String(fd.get("description") ?? "").trim();
     const homepageUrl = String(fd.get("homepage_url") ?? "").trim();
     const logoUrl = String(fd.get("logo_url") ?? "").trim();
+    const logoBg = String(fd.get("logo_bg") ?? "paper").trim();
 
     // Light validation: URLs must look like URLs if set.
     const looksLikeUrl = (s: string) => /^https?:\/\//i.test(s);
@@ -68,6 +69,10 @@ export const actions: Actions = {
     if (description.length > 500) {
       return fail(400, { error: "Description should be under 500 characters." });
     }
+    const validBgs = ["paper", "paper-2", "bg-raised", "ink", "accent"];
+    if (!validBgs.includes(logoBg)) {
+      return fail(400, { error: "Invalid logo background choice." });
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("event_sources")
@@ -75,6 +80,7 @@ export const actions: Actions = {
         description: description || null,
         homepage_url: homepageUrl || null,
         logo_url: logoUrl || null,
+        logo_bg: logoBg,
       })
       .eq("id", id)
       .select("org_slug")

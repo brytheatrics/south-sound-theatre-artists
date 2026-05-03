@@ -1,5 +1,18 @@
 <script lang="ts">
   let { data } = $props();
+
+  // Logo cell background colours are FIXED (don't follow the theme
+  // toggle) - if admin picked ink because the logo is white, we can't
+  // let the cell flip to cream in dark mode and make the logo
+  // invisible again. Hex values mirror the light-theme palette.
+  const LOGO_BG_HEX: Record<string, string> = {
+    "paper": "#f1ede0",
+    "paper-2": "#ebe5d3",
+    "bg-raised": "#ffffff",
+    "ink": "#0e0d0c",
+    "accent": "#3b6f4a",
+  };
+  const LOGO_BG_DARK = new Set(["ink", "accent"]);
 </script>
 
 <svelte:head>
@@ -67,7 +80,11 @@
       <div class="card-grid">
         {#each group.list as t (t.slug)}
           <article class="card">
-            <div class="card-logo">
+            <div
+              class="card-logo"
+              style:background={LOGO_BG_HEX[t.logo_bg] ?? LOGO_BG_HEX.paper}
+              class:logo-on-dark={LOGO_BG_DARK.has(t.logo_bg)}
+            >
               {#if t.logo_url}
                 <img src={t.logo_url} alt="" loading="lazy" />
               {:else}
@@ -220,12 +237,20 @@
     width: 64px;
     height: 64px;
     border-radius: var(--radius);
-    background: var(--paper);
+    /* background is set inline per-row via t.logo_bg so admin can pick
+       a colour that contrasts with the logo's foreground (white logos
+       need a dark tile, etc.). */
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     border: 1px solid var(--rule-soft);
+  }
+  .card-logo.logo-on-dark .logo-fallback {
+    /* Fixed cream (NOT var(--bg)) because the chosen logo background
+       doesn't follow the theme toggle - using var(--bg) would flip the
+       fallback text to dark in dark mode and disappear it. */
+    color: #faf7ee;
   }
   .card-logo img {
     width: 100%;

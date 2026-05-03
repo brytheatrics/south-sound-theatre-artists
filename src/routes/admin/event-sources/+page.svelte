@@ -4,6 +4,26 @@
   let busy = $state<string | null>(null);
   let savingId = $state<string | null>(null);
 
+  // Logo background swatches. Hex values are FIXED - they don't follow
+  // the dark-mode toggle, since the whole point of the choice is to
+  // contrast with the logo's foreground (admin who picked ink because
+  // the logo is white can't have it flip back to cream in dark mode).
+  const LOGO_BG_OPTIONS: Array<{ value: string; label: string; hex: string }> = [
+    { value: "paper", label: "Paper", hex: "#f1ede0" },
+    { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
+    { value: "bg-raised", label: "White", hex: "#ffffff" },
+    { value: "ink", label: "Ink", hex: "#0e0d0c" },
+    { value: "accent", label: "Moss", hex: "#3b6f4a" },
+  ];
+
+  // Per-row local state for the chosen background, keyed by source id.
+  // Same pattern as logoUrls so the swatch picker is reactive without
+  // having to rerender the page on every click.
+  let logoBgs = $state<Record<string, string>>({});
+  function getLogoBg(s: { id: string; logo_bg: string }): string {
+    return logoBgs[s.id] ?? s.logo_bg ?? "paper";
+  }
+
   // Per-row local state for the logo upload control inside the public-edit
   // disclosure. Keyed by source id so multiple rows can be uploading at once.
   let logoUrls = $state<Record<string, string>>({});
@@ -96,7 +116,7 @@
   }
 </script>
 
-{#snippet publicEdit(s: { id: string; org_slug: string; description: string | null; homepage_url: string | null; logo_url: string | null })}
+{#snippet publicEdit(s: { id: string; org_slug: string; description: string | null; homepage_url: string | null; logo_url: string | null; logo_bg: string })}
   <details class="public-edit">
     <summary>Edit public details (description / homepage / logo)</summary>
     <form
@@ -151,21 +171,53 @@
             />
           </label>
           {#if getLogoValue(s)}
-            <img class="pe-logo-preview" src={getLogoValue(s)} alt="" />
-          {/if}
-        </div>
-        {#if uploadingId === s.id || (uploadError && uploadingId === null)}
-          {#if uploadingId === s.id}
-            <div class="pe-progress">
-              <div class="pe-progress-fill" style:width="{uploadProgress}%"></div>
+            <div
+              class="pe-logo-preview-tile"
+              style:background={LOGO_BG_OPTIONS.find((o) => o.value === getLogoBg(s))?.hex ?? "#f1ede0"}
+            >
+              <img class="pe-logo-preview" src={getLogoValue(s)} alt="" />
             </div>
           {/if}
+        </div>
+        {#if uploadingId === s.id}
+          <div class="pe-progress">
+            <div class="pe-progress-fill" style:width="{uploadProgress}%"></div>
+          </div>
         {/if}
         <span class="pe-logo-hint">
           PNG with transparency works best. Cloudinary auto-resizes to 400px max edge.
           {#if uploadError}<span class="pe-error">{uploadError}</span>{/if}
         </span>
       </label>
+
+      <fieldset class="pe-bg-field">
+        <legend class="pe-label">Logo background</legend>
+        <p class="pe-bg-hint">
+          Pick a tile colour that contrasts with the logo's foreground.
+          White-on-transparent logos need an ink or moss tile; black logos
+          look best on paper or white. The choice stays the same in dark
+          mode (so a tile you picked for a white logo doesn't flip back).
+        </p>
+        <div class="pe-swatches">
+          {#each LOGO_BG_OPTIONS as opt (opt.value)}
+            <label
+              class="pe-swatch"
+              class:on={getLogoBg(s) === opt.value}
+              style:background={opt.hex}
+              title={opt.label}
+            >
+              <input
+                type="radio"
+                name="logo_bg"
+                value={opt.value}
+                checked={getLogoBg(s) === opt.value}
+                onchange={() => (logoBgs = { ...logoBgs, [s.id]: opt.value })}
+              />
+              <span class="pe-swatch-label">{opt.label}</span>
+            </label>
+          {/each}
+        </div>
+      </fieldset>
       <div class="pe-actions">
         <button type="submit" class="bt bt-pri" disabled={savingId === s.id}>
           {savingId === s.id ? "Saving..." : "Save public details"}
@@ -617,15 +669,77 @@
     align-items: center;
   }
   .pe-logo-row input { flex: 1; }
-  .pe-logo-preview {
-    width: 36px;
-    height: 36px;
-    object-fit: contain;
-    background: var(--paper);
+  .pe-logo-preview-tile {
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--rule-soft);
     border-radius: var(--radius);
     padding: 3px;
     flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Background colour set inline - matches the chosen logo_bg so admin
+       sees what the public card will look like. */
+  }
+  .pe-logo-preview {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .pe-bg-field {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .pe-bg-hint {
+    margin: 0.2rem 0 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .pe-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .pe-swatch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 38px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  }
+  .pe-swatch:hover {
+    border-color: var(--ink);
+  }
+  .pe-swatch.on {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent), transparent 70%);
+  }
+  .pe-swatch input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pe-swatch-label {
+    /* The label sits on top of the swatch background. Use a neutral
+       grey that's legible on every palette colour - bumping into the
+       white / ink edges is rare and the on-state highlights the
+       picked one anyway. */
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5e5b56;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 1px 4px;
+    border-radius: 2px;
   }
   .pe-upload-btn {
     flex: 0 0 auto;
