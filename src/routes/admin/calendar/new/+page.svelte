@@ -47,7 +47,10 @@
   use:enhance={() => {
     busy = true;
     return async ({ update }) => {
-      await update();
+      // reset:false so a validation-fail response doesn't blank the form.
+      // (Successful submit redirects, so this branch only matters on
+      // failure - but blanking on failure would be infuriating.)
+      await update({ reset: false });
       busy = false;
     };
   }}

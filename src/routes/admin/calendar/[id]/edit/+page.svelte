@@ -90,7 +90,11 @@
   use:enhance={() => {
     busy = true;
     return async ({ update }) => {
-      await update();
+      // reset:false because the inputs use value={data.x} (not bound) -
+      // a default reset wipes them visually even though the save worked.
+      // The load function still re-runs and refreshes data, so the
+      // values stay correct, just don't reset.
+      await update({ reset: false });
       busy = false;
     };
   }}
