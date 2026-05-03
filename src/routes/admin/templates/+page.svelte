@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import MarkdownToolbar from "$lib/components/MarkdownToolbar.svelte";
+  import { renderMarkdown } from "$lib/util/markdown";
   let { data, form } = $props();
   /* svelte-ignore state_referenced_locally */
   let activeSlug = $state(data.rows[0]?.slug ?? "");
@@ -39,10 +41,26 @@
       <span>Subject</span>
       <input type="text" name="subject" bind:value={subject} required />
     </label>
-    <label class="field">
-      <span>Body</span>
-      <textarea name="body" bind:value={body} rows="14"></textarea>
-    </label>
+    <div class="split">
+      <div class="field">
+        <span>Body (markdown)</span>
+        <MarkdownToolbar textareaId={`body-${active.slug}`} />
+        <textarea
+          id={`body-${active.slug}`}
+          name="body"
+          bind:value={body}
+          rows="20"
+        ></textarea>
+        <span class="hint">
+          Variables in {"{{double_braces}}"} are filled in at send time
+          (they show literally in the preview here).
+        </span>
+      </div>
+      <div class="preview">
+        <span class="preview-label">Preview</span>
+        <div class="prose prose-compact">{@html renderMarkdown(body)}</div>
+      </div>
+    </div>
     <button type="submit" class="bt bt-pri" disabled={busy}>{busy ? "Saving..." : "Save"}</button>
     {#if form?.saved === active.slug}<span class="ok">Saved.</span>{/if}
     {#if form?.error}<span class="err">{form.error}</span>{/if}
@@ -68,17 +86,34 @@
   }
   .tabs button:hover { border-color: var(--ink); color: var(--ink); }
   .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-  .editor { display: flex; flex-direction: column; gap: 1rem; max-width: 720px; }
+  .editor { display: flex; flex-direction: column; gap: 1rem; max-width: 1200px; }
   .desc { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field > span:first-child { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
   .field input, .field textarea { padding: 10px 14px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg-raised); }
-  .field textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.55; resize: vertical; }
+  /* Square the textarea's top corners and tighten its top border so it
+     reads as one element with the toolbar sitting above it. */
+  .field textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.55; resize: vertical; border-radius: 0 0 var(--radius) var(--radius); border-top-color: var(--rule); }
   .field input:focus, .field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .hint { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.45; text-transform: none; letter-spacing: normal; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .preview {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    background: var(--bg-raised);
+    overflow-y: auto;
+    max-height: 600px;
+  }
+  .preview-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); display: block; margin-bottom: 0.5rem; }
   .bt { font-family: var(--font-body); font-size: 14px; padding: 10px 18px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; align-self: flex-start; }
   .bt-pri { background: var(--ink); color: var(--bg); }
   .bt-pri:hover:not(:disabled) { background: var(--accent); }
   .bt:disabled { opacity: 0.5; cursor: progress; }
   .ok { color: var(--accent); font-size: 13px; }
   .err { color: var(--warn); font-size: 13px; }
+
+  @media (max-width: 900px) {
+    .split { grid-template-columns: 1fr; }
+  }
 </style>
