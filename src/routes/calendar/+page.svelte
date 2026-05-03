@@ -296,23 +296,31 @@
           {#if byDate.has(cell.key)}
             <div class="day-perfs">
               {#each byDate.get(cell.key) ?? [] as p (p.id)}
+                {@const baseTitle = p.production.title + ' — ' + p.production.organization_name + (p.note ? ' — ' + p.note : '')}
                 {#if p.production.detail_url}
                   <a
                     class="perf-pill perf-pill-link"
+                    class:has-note={!!p.note}
                     href={p.production.detail_url}
                     target="_blank"
                     rel="noopener"
-                    title={p.production.title + ' — ' + p.production.organization_name + ' (opens in a new tab)'}
+                    title={baseTitle + ' (opens in a new tab)'}
                   >
                     <span class="perf-time">{fmtTime(p.performs_at)}</span>
                     <span class="perf-title">{p.production.title}</span>
                     <span class="perf-org">{p.production.organization_name}</span>
+                    {#if p.note}
+                      <span class="note-badge" aria-label={p.note}>✦</span>
+                    {/if}
                   </a>
                 {:else}
-                  <div class="perf-pill" title={p.production.title + ' — ' + p.production.organization_name}>
+                  <div class="perf-pill" class:has-note={!!p.note} title={baseTitle}>
                     <span class="perf-time">{fmtTime(p.performs_at)}</span>
                     <span class="perf-title">{p.production.title}</span>
                     <span class="perf-org">{p.production.organization_name}</span>
+                    {#if p.note}
+                      <span class="note-badge" aria-label={p.note}>✦</span>
+                    {/if}
                   </div>
                 {/if}
               {/each}
@@ -601,6 +609,7 @@
     overflow: hidden;
   }
   .perf-pill {
+    position: relative;
     display: flex;
     flex-direction: column;
     padding: 0.25rem 0.4rem;
@@ -614,6 +623,20 @@
     text-decoration: none;
     transition: background 0.12s, border-left-width 0.12s;
   }
+  /* Note badge sits in the top-right corner of any pill whose
+     performance has a note (Pay-What-You-Can, ASL, Talkback, etc).
+     Hovering the pill reveals the full note text via the title attr.
+     The list view shows the note inline so this is grid-only. */
+  .note-badge {
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 0.65rem;
+    color: var(--accent);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .perf-pill.has-note { padding-right: 1rem; }
   /* When the pill is a link, make the affordance visible: cursor change,
      subtle hover paint, and a thicker accent rule. */
   .perf-pill-link {
