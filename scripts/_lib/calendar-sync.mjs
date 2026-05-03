@@ -323,36 +323,49 @@ async function getDefaultCategoryId(db) {
 }
 
 // Upsert a single production + replace its performances atomically.
-// Match key: source_id + title + run_start month (handles re-runs of
-// the same show without producing duplicates; does not collapse two
-// distinct revivals of the same title in the same season, which is
-// vanishingly rare for community theatre).
+// Match key: source_id + run_start window (+/- 30 days). Title is NOT
+// part of the match key so that admin renames don't cause the cron to
+// create a duplicate alongside the renamed row.
+//
+// Three short-circuits:
+//   - admin_edited_at is set: row is admin-locked, skip everything
+//   - deleted_at is set: row was admin-removed, skip (don't reanimate)
+//   - found + clean: update fields + replace performances
+//   - not found: insert new
+//
+// Trade-off: two productions from the same source with overlapping
+// 30-day run windows would collide on the same row. Vanishingly rare
+// for community theatre (typically one show running at a time); accept
+// the false-positive in the rare overlap case.
 async function upsertProductionWithPerformances(db, source, show, defaultCategoryId) {
   const orgName = source.org_name;
 
   // Normalise title to ALL CAPS for consistent display on the calendar.
-  // Different orgs publish with mixed conventions ("ANNIE" vs "Wait Until
-  // Dark"); uppercasing at write-time is cheap and gives the calendar a
-  // unified look without per-render CSS that would also affect the user's
-  // copy-paste experience. Manual entries through other paths preserve
-  // their entered case.
   const title = String(show.title ?? "").toUpperCase().trim();
   if (!title) return; // skip empty titles after normalisation
 
-  // Try to find existing by source_id + lower(title) + run_start within ~30 days
   const findRes = await db.query(
-    `select id from public.productions
+    `select id, admin_edited_at, deleted_at from public.productions
       where source_id = $1
-        and lower(title) = lower($2)
-        and (run_start is null or run_start between ($3::date - interval '30 days') and ($3::date + interval '30 days'))
-        and deleted_at is null
+        and (run_start is null or run_start between ($2::date - interval '30 days') and ($2::date + interval '30 days'))
       limit 1`,
-    [source.id, title, show.run_start],
+    [source.id, show.run_start],
   );
+
+  if (findRes.rowCount > 0) {
+    const existing = findRes.rows[0];
+    if (existing.admin_edited_at || existing.deleted_at) {
+      // Admin owns this row (edit-locked or removed). Cron leaves it
+      // alone - neither updates metadata nor touches performances.
+      return existing.id;
+    }
+  }
 
   let productionId;
   if (findRes.rowCount > 0) {
     productionId = findRes.rows[0].id;
+    // (Admin-lock + deleted short-circuits handled above; we only get
+    // here when the row is clean and cron-controlled.)
     await db.query(
       `update public.productions
           set title = $2,

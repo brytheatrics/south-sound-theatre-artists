@@ -51,12 +51,19 @@
     {/if}
   </p>
   {#if data.sourceInfo}
-    <p class="warn-soft">
-      ⚠ This production is auto-pop'd by the cron. Edits to the metadata
-      below will be overwritten on the next sync. Performance edits will
-      also be replaced. To make persistent overrides, soft-delete this
-      row and re-create it as a manual entry.
-    </p>
+    {#if data.production.admin_edited_at}
+      <p class="info-soft">
+        🔒 <strong>Admin-locked.</strong> The cron skips this row on every sync —
+        your edits below will stick. Click <em>Re-enable auto-sync</em> at the
+        bottom if you want this row to follow the source again.
+      </p>
+    {:else}
+      <p class="warn-soft">
+        ⚠ Auto-pop'd by the cron. Saving here marks this row as
+        admin-locked, after which the cron will skip it on every sync
+        (so your edits stick). Until you save, the cron is in charge.
+      </p>
+    {/if}
   {/if}
 </header>
 
@@ -190,6 +197,18 @@
   </div>
 </form>
 
+{#if data.sourceInfo && data.production.admin_edited_at}
+  <form method="POST" action="?/resync" class="resync-zone" use:enhance>
+    <h3 class="resync-title">Re-enable auto-sync</h3>
+    <p class="confirm-text">
+      Clear the admin lock. Next cron run will overwrite this production's
+      metadata + replace its performances from the source. Useful if your
+      edits were a one-off correction you don't want to pin forever.
+    </p>
+    <button type="submit" class="bt bt-ghost">Unlock and let cron manage</button>
+  </form>
+{/if}
+
 <form method="POST" action="?/softDelete" class="delete-zone" use:enhance>
   <h3 class="danger-title">Danger zone</h3>
   {#if !confirmingDelete}
@@ -197,7 +216,11 @@
       Move to trash
     </button>
   {:else}
-    <p class="confirm-text">Move this production + all its performances to the 30-day trash?</p>
+    <p class="confirm-text">Move this production + all its performances to the 30-day trash?
+      {#if data.sourceInfo}
+        Auto-pop'd rows also get admin-locked so the cron won't recreate them.
+      {/if}
+    </p>
     <div class="actions">
       <button type="submit" class="bt bt-danger">Yes, move to trash</button>
       <button type="button" class="bt bt-ghost" onclick={() => (confirmingDelete = false)}>Cancel</button>
@@ -228,6 +251,32 @@
     border-radius: var(--radius);
     font-size: 0.85rem;
     max-width: 720px;
+  }
+  .info-soft {
+    background: #dceadd;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.6rem 0.85rem;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    max-width: 720px;
+  }
+  .info-soft em { font-style: italic; }
+  .resync-zone {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-raised);
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    max-width: 720px;
+  }
+  .resync-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
   }
 
   .form-error, .form-ok {

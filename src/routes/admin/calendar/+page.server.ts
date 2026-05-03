@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .from("productions")
     .select(
       `id, title, organization_name, run_start, run_end, status, source_id,
-       category_id, detail_url, created_at, updated_at`,
+       category_id, detail_url, admin_edited_at, created_at, updated_at`,
       { count: "exact" },
     )
     .is("deleted_at", null);
@@ -87,6 +87,7 @@ export const load: PageServerLoad = async ({ url }) => {
       performance_count: perfCountById.get(p.id) ?? 0,
       category_name: p.category_id ? categoryNameById.get(p.category_id) ?? null : null,
       is_auto_pop: p.source_id !== null,
+      is_admin_locked: p.admin_edited_at !== null,
     })),
     total: count ?? 0,
     pendingCount: pendingCount ?? 0,
@@ -178,9 +179,12 @@ export const actions: Actions = {
     const data = await request.formData();
     const ids = data.getAll("id").map(String).filter(Boolean);
     if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    // Set admin_edited_at alongside deleted_at so the cron sees the lock
+    // and won't reanimate the row on its next sync.
+    const now = new Date().toISOString();
     const { error } = await supabaseAdmin
       .from("productions")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: now, admin_edited_at: now })
       .in("id", ids);
     if (error) return fail(500, { error: "Could not delete." });
     return { deleted: ids.length };

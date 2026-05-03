@@ -60,7 +60,7 @@ export const load: PageServerLoad = async ({ params }) => {
     .select(
       `id, title, organization_name, run_start, run_end, detail_url,
        description, category_id, area_id, source_id, status,
-       rejection_reason, deleted_at, created_at, updated_at`,
+       rejection_reason, deleted_at, admin_edited_at, created_at, updated_at`,
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -138,6 +138,12 @@ export const actions: Actions = {
         category_id,
         area_id,
         status,
+        // Mark admin-edited so the cron's upsert will skip this row on
+        // future syncs. Auto-pop'd entries become admin-owned the
+        // moment Lexi saves; manual entries are already source_id=null
+        // so they were never cron-managed, but we still set it for
+        // consistency in admin UI ("locked" indicator).
+        admin_edited_at: new Date().toISOString(),
       })
       .eq("id", params.id);
 
@@ -177,10 +183,25 @@ export const actions: Actions = {
   },
 
   softDelete: async ({ params }) => {
+    // Set admin_edited_at alongside deleted_at so the cron sees the
+    // lock and won't re-create this production on its next sync.
+    const now = new Date().toISOString();
     await supabaseAdmin
       .from("productions")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: now, admin_edited_at: now })
       .eq("id", params.id);
     throw redirect(303, "/admin/calendar?deleted=1");
+  },
+
+  resync: async ({ params }) => {
+    // "Re-enable auto-sync": clears the admin lock so the next cron
+    // run is allowed to overwrite this production's metadata + replace
+    // its performances. Useful after Lexi makes a one-off correction
+    // she doesn't want to pin forever.
+    await supabaseAdmin
+      .from("productions")
+      .update({ admin_edited_at: null })
+      .eq("id", params.id);
+    return { unlocked: true };
   },
 };

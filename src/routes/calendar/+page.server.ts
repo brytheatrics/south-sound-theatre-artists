@@ -129,6 +129,16 @@ export const load: PageServerLoad = async ({ url }) => {
   const categoriesById = new Map(categories.map((c) => [c.id, c]));
   const areasById = new Map(areas.map((a) => [a.id, a]));
 
+  // event_sources -> source_url mapping for the info-link fallback.
+  // Productions without their own detail_url (e.g. ManeStage's per-show
+  // pages aren't linked from /buy-tickets) fall back to the source's
+  // own URL - that's where the schedule lives, so it's a sensible
+  // "click here to learn more" target.
+  const { data: srcRows } = await supabaseAdmin
+    .from("event_sources")
+    .select("id, source_url");
+  const sourceUrlById = new Map((srcRows ?? []).map((s) => [s.id, s.source_url]));
+
   // Stitch + filter
   const performances: Performance[] = perfs
     .map((p) => {
@@ -151,6 +161,13 @@ export const load: PageServerLoad = async ({ url }) => {
       if (activeAreaIds && (!areaId || !activeAreaIds.includes(areaId))) return null;
       const area = areaId ? areasById.get(areaId) : undefined;
 
+      // detail_url fallback: when the per-show page wasn't extracted
+      // (ManeStage-style consolidated /buy-tickets pages, etc.), link
+      // out to the org's source URL instead. Better than no link at
+      // all - users can still click through to learn more.
+      const linkUrl =
+        prod.detail_url ?? (prod.source_id ? sourceUrlById.get(prod.source_id) ?? null : null);
+
       return {
         id: p.id,
         performs_at: p.performs_at,
@@ -159,7 +176,7 @@ export const load: PageServerLoad = async ({ url }) => {
           id: prod.id,
           title: prod.title,
           organization_name: prod.organization_name,
-          detail_url: prod.detail_url ?? null,
+          detail_url: linkUrl,
           run_start: prod.run_start,
           run_end: prod.run_end,
           category_slug: slug,

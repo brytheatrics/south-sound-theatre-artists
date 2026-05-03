@@ -154,6 +154,9 @@
             {:else}
               <span class="src-pill src-manual">manual</span>
             {/if}
+            {#if p.is_admin_locked}
+              <span class="src-pill src-locked" title="Admin-edited - cron will skip this row on future syncs">🔒 locked</span>
+            {/if}
           </td>
           <td class="actions-cell">
             <a href="/admin/calendar/{p.id}/edit" class="bt bt-ghost bt-sm">Edit</a>
@@ -306,6 +309,7 @@
   .st-rejected { background: #f9e0d4; color: var(--error); }
   .src-auto { background: #e1ebf2; color: #406480; }
   .src-manual { background: #f1ede0; color: var(--muted); }
+  .src-locked { background: #f4ecd8; color: #8a6e1c; margin-left: 0.25rem; }
   .actions-cell { text-align: right; white-space: nowrap; }
 
   .pagination {
