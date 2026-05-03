@@ -237,46 +237,81 @@ Add nothing speculatively. Triggers are concrete signals from real users:
 1. **JSON-LD `Event` schema** in the org's site source (`<script type="application/ld+json">` blocks). Survives redesigns because sites can't break it without hurting Google rankings.
 2. **iCal / Google Calendar feeds** — many orgs publish public feeds. Cleanest data, ask orgs first.
 3. **Ticketing platform APIs / feeds** — Tessitura, AudienceView, OvationTix, Eventbrite, etc.
-4. **Custom HTML scrapers** — last resort, high maintenance burden, only when worth it.
-5. **Admin review queue** — scraper produces drafts; Lexi approves before they go live. Catches drift, keeps quality.
+4. **AI extraction from a stable season-list URL** — fetch the page, send cleaned HTML to Claude Haiku, parse JSON. One generic adapter for any org with a single text-based season page. Cheap, robust to redesigns, doesn't need per-org code.
+5. **Custom HTML scrapers** — last resort. Only justified for orgs with quirky structures that AI extraction can't handle reliably.
+6. **Admin review queue** — every scraped event lands here as a draft; Lexi approves before it goes live. Catches drift, hallucination, and date-format errors.
+
+**Audit complete (2026-05-02).** Visited every South Sound producing org. Headline findings:
+- **No org exposes JSON-LD Event schema in a usable way.** Tacoma Arts Live had it but is closing and no longer producing.
+- **One org exposes a clean structured feed**: Bainbridge Performing Arts via Squarespace's `/events?format=json` endpoint.
+- **Six orgs share Arts People / OvationTix ticketing** (Centerstage, Auburn Community Players, Jewel Box, Bremerton, OLT, OFT) — one platform adapter covers them all, parameterized by org code.
+- **Eleven orgs render a clean season list as plain HTML text** at a stable URL — ideal for AI extraction.
+- **One org exposes Eventbrite per-show JSON-LD** (Dukesbay).
+- **One org has a likely Next.js JSON endpoint** worth probing (Renton Civic).
+- **Three orgs need extra work**: New Muses (no season index — manual entry only), OLT (titles on index, dates only on per-show subpages — two-step crawl), OFT (bot-blocks WebFetch — needs UA spoof or headless browser).
+- **Four orgs are wall**: Toy Boat (login-walled, very low cadence), NW Center Theatre (placeholder Wix), Screaming Butterflies (month-only date precision, can't satisfy a calendar), String & Shadow (touring company, dates scattered across partner-venue calendars).
+
+**Architecture decisions** (settled 2026-05-02):
+- **Vendor:** Anthropic API (Claude Haiku 4.5). $5 of free signup credits cover the projected first ~5 years; thereafter ~$1-2/year. Hard monthly spend cap set in Anthropic console as belt-and-suspenders.
+- **Cadence:** monthly cron is plenty for orgs that publish full seasons annually. Per-source `cadence_days` override on `event_sources` for orgs with mid-season activity. Optional weekly bursts during Aug-Sep season-announcement windows.
+- **Cost-saving cache:** SHA-256 hash of cleaned HTML stored on each `event_sources` row. Skip the AI call entirely when the page hasn't changed since the last successful run. Drops cost ~75% in steady state.
+- **Manual refresh button** in admin per source. 1-hour cooldown between actual API calls (defeats accidental click-spam even if the cache is bypassed). Reports back whether content changed and how many shows were found.
+- **Review queue** non-negotiable: scraped events go to `productions` with `status='pending_review'` and only show on the public calendar after Lexi approves. Catches AI hallucination and date-format errors. After 2-3 months of consistent quality per org, individual orgs could be opted into auto-publish (mirrors the existing `profiles.trusted` pattern).
+- **Stale-source detection:** track `last_successful_at` and `last_show_count` on each source. After 2 weeks of empty results, email Lexi with a "this URL probably needs updating" alert that suggests the next likely slug (e.g. `/season-87.html` → `/season-88.html`, `/blog/tag/2025-2026` → `/blog/tag/2026-2027`).
 
 **Schema direction:** multi-tag, not exclusive categories. Each org carries an array of tags so it can belong to multiple buckets simultaneously (e.g. Tacoma Opera = "producing" + "opera"; OFT = "producing" + "youth"). Calendar UI toggles flip individual tags. Default-on tags: `producing`, `venue`, `youth`. Default-off: `opera`, `symphony`, `college`, `high-school`. (One catch flagged early: venues book non-theatrical events too — weddings / conferences. Need a per-event-type filter at scrape time OR Lexi-curated review to keep the calendar relevant.)
 
-**v1 audit scope (30 producing companies):**
-```
-TACOMA / PIERCE COUNTY
-  Tacoma Little Theatre, Lakewood Playhouse, Tacoma Musical Playhouse,
-  Theatre Northwest, Dukesbay Productions, New Muses Theatre Company,
-  Toy Boat Theatre, Screaming Butterflies Entertainment,
-  Mustard Seed Theater Company, Tacoma Opera
+**Org list (26 orgs, post-audit):**
 
-SOUTH PIERCE (Puyallup / Sumner)
-  Sumner Mainstage Theatre, Northwest Center Theatre
+| Region | Org | Adapter | Source |
+|---|---|---|---|
+| Tacoma | Tacoma Little Theatre | ai-generic | `/blog/tag/2025-2026` (annual slug) |
+| Tacoma | Lakewood Playhouse | ai-generic | `/season-87.html` (annual season number) |
+| Tacoma | Tacoma Musical Playhouse | ai-generic | `/season-and-show-tickets` |
+| Tacoma | Dukesbay Productions | eventbrite | Eventbrite organizer |
+| Tacoma | New Muses | manual | no season index |
+| Tacoma | Toy Boat | manual | login-walled, low cadence |
+| Tacoma | Screaming Butterflies | manual | month-precision only |
+| Tacoma | Mustard Seed | ai-generic | `mustardseedtheater.csstix.com` |
+| South Pierce | ManeStage | ai-generic | `/current-season` |
+| South Pierce | NW Center Theatre | manual | placeholder site, revisit later |
+| Olympia | Harlequin | ai-generic | `/season-{year}/` (annual slug) |
+| Olympia | Olympia Little Theatre | ai-generic-crawl | `/shows/` index → per-show subpages |
+| Olympia | Olympia Family Theater | ai-generic w/ UA | `/announcing-our-{yy}-{yy}-season/` (bot-block) |
+| Olympia | Theater Artists Olympia | ai-generic | `/calendar` |
+| Olympia | String & Shadow | manual | touring, dates not on own site |
+| Olympia | Animal Fire | ai-generic | homepage (single annual show) |
+| Olympia | Evergreen | ai-generic | `/season66` (season number) |
+| South King | Centerstage | ovationtix | account 36978 |
+| South King | Renton Civic | nextjs-probe | `/_next/data/{buildId}/shows/{slug}.json` if exposed, else ai-generic |
+| South King | Burien Actors Theatre | ai-generic | `/this-season/` |
+| South King | Theatre Battery | ai-generic | homepage (single show) |
+| South King | Emerald | ai-generic | `/current-production` |
+| South King | Auburn Community Players | arts-people | org code on city page |
+| Gig Harbor | Jewel Box | arts-people | org code |
+| Gig Harbor | Bainbridge Performing Arts | squarespace-json | `/events?format=json` |
+| Gig Harbor | Bremerton Community Theatre | arts-people | org code `brmct` |
 
-OLYMPIA / THURSTON
-  Harlequin Productions, Olympia Little Theatre, Olympia Family Theater,
-  Broadway Olympia Productions, Theater Artists Olympia,
-  String & Shadow Puppet Theater, Animal Fire Theatre
+**Removed from original audit list:** Theater Northwest (Tacoma Arts Live closing, no longer producing), Broadway Olympia (defunct), Peninsula Community Theatre (no WA org by that name), Auburn Players Community Theatre (Auburn NY, wrong state).
 
-SOUTH KING COUNTY
-  Centerstage Theatre, Renton Civic Theatre, Burien Actors Theatre,
-  Theatre Battery, Emerald Theatre, Auburn Community Players
-
-GIG HARBOR / KITSAP
-  Jewel Box Theatre, Peninsula Community Theatre, Bainbridge Performing Arts,
-  Bremerton Community Theatre, Evergreen Playhouse
-```
-(Notably **out of scope** for v1 audit: Second Story Rep — Redmond, north of Seattle.)
+**Implementation phases:**
+- **Phase 0 — Extraction dry-run** (no DB changes). Standalone Node script hits the 11 ai-generic orgs once, prints JSON output to stdout. Validates that Haiku produces clean structured data on real-world theatre HTML. ~$0.10 to run. *De-risks the whole feature before any UI is built.*
+- **Phase 1 — Schema + monthly cron.** New `event_sources` table (`org_id`, `url`, `adapter`, `cadence_days`, `last_hash`, `last_successful_at`, `last_show_count`, `last_status`, `cooldown_until`). Generic AI adapter, HTML hash caching, monthly GitHub Actions cron. New shows write to `productions` with `status='pending_review'`. No UI yet — verify pipeline writes rows correctly.
+- **Phase 2 — Admin review queue.** `/admin/calendar-sync` lists pending productions, approve/reject buttons, mirrors existing review-queue patterns.
+- **Phase 3 — Public calendar view.** Calendar grid + list view, mobile-first, filter by org tags.
+- **Phase 4 — Source management UI + manual refresh.** `/admin/event-sources` — add/edit/remove sources, manual refresh button with 1-hour cooldown, stale-detection email when sources go quiet.
+- **Phase 5 — Platform adapters.** Arts People (covers 6 orgs), OvationTix (Centerstage), Eventbrite (Dukesbay), Squarespace `?format=json` (BPA). Each is short.
+- **Phase 6 — Seed all 26 orgs.** SQL insert with the URLs from this audit.
 
 **Deferred tiers** (separate audits later, each is its own universe):
 - **Venues / presenters** — Pantages, Rialto, Theatre on the Square (all operated by Tacoma Arts Live), Washington Center for the Performing Arts (Olympia), Federal Way Performing Arts Center, Auburn Performing Arts Center, etc. Different scrape target: org website may or may not aggregate all the venue programming.
 - **Symphony / classical** — Tacoma Symphony, Symphony Tacoma, Northwest Sinfonietta, Federal Way Symphony, etc. Different audience overlap with theatre; opt-in tag.
-- **Opera** — Tacoma Opera lives in v1 producing companies, but if more opera orgs surface, they'd join their own tier.
+- **Opera** — Tacoma Opera. If more opera orgs surface, they'd join their own tier.
 - **Youth / educational theatre** — CSTOCK, OFT youth side, WWCA, Olympia Junior Programs, Capital Playhouse-style (defunct or active small companies). Many of these are also in v1 list as "producing" — multi-tag handles the overlap.
 - **Colleges** — PLU, UPS, Evergreen, Saint Martin's, TCC, Pierce College, SPSCC, Centralia. Different season pacing (academic year), often less structured event data.
 - **High schools** — 40+ in the South Sound. Data quality wall (PDFs in Google Drive, no structured anywhere). Biggest org-by-org effort, smallest payoff per scraper. Pull list once from WSTF chapter directory if/when we go after them.
 
-**Status:** **audit deferred.** The 30-org producing list is locked. When we're ready to actually build the calendar, run the audit (~15-20 min for an LLM with web access), categorize orgs by data-source quality, then build the cron pipeline + calendar UI. Likely a 1-2 day implementation once the audit is in hand. The v1.3 "What's Playing" calendar (production announcements artists submit) is the simpler precursor — that one ships from manually-submitted data and can launch first.
+**Status:** **audit complete (2026-05-02), architecture settled, ready to start Phase 0 dry-run.** v1.3 "What's Playing" calendar (production announcements artists manually submit) remains the simpler precursor — that one ships from manually-submitted data and can launch first.
 
 ---
 

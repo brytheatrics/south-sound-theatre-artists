@@ -27,3 +27,6 @@ backup-out/
 
 # Bulk-import staging (real bios + headshots + resumes; never commit)
 imports/
+
+# Calendar extraction dry-run output (scripts/calendar-extract-dryrun.mjs)
+_dryrun-results/
