@@ -256,6 +256,16 @@
           <td><em>image embedded</em></td>
           <td>Embed an image. Use the Image button above to upload + insert in one step.</td>
         </tr>
+        <tr>
+          <td><code>\-</code> or <code>\*</code></td>
+          <td>literal <code>-</code> or <code>*</code></td>
+          <td>
+            Put a backslash before any of <code>-</code>, <code>*</code>,
+            <code>[</code>, <code>]</code>, <code>!</code>, or another
+            <code>\</code> to make it appear as plain text. Mostly useful
+            when you want a line that starts with a dash but isn't a list.
+          </td>
+        </tr>
       </tbody>
     </table>
     <p class="help-tip">

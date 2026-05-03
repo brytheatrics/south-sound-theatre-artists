@@ -15,6 +15,17 @@
     subject = active?.subject ?? "";
     body = active?.body_markdown ?? "";
   });
+
+  // Split tabs into two groups by audience. Community-bound first
+  // (these are the ones whose copy / look matters because real
+  // people see them); admin-bound second (Lexi reading her own inbox,
+  // less polish needed).
+  const communityRows = $derived(
+    data.rows.filter((r) => r.audience !== "admin"),
+  );
+  const adminRows = $derived(
+    data.rows.filter((r) => r.audience === "admin"),
+  );
 </script>
 
 <svelte:head><title>Email templates - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
@@ -22,20 +33,50 @@
 <header class="hd">
   <span class="eyebrow"><span class="num">·</span>Admin · templates</span>
   <h1 class="h1-display">Email templates.</h1>
-  <p class="lede">Subject lines and bodies for outbound mail. Variables in {"{{double_braces}}"} are filled in at send time.</p>
+  <p class="lede">
+    Subject lines and bodies for outbound mail. Variables in {"{{double_braces}}"}
+    get filled in at send time.
+    <strong>Community-facing</strong> emails (top group) go to artists,
+    orgs, and audience members - the copy here is what real people see.
+    <strong>Admin-only</strong> emails (bottom group) go to your inbox -
+    polish doesn't matter as much.
+  </p>
 </header>
 
-<div class="tabs">
-  {#each data.rows as r (r.slug)}
-    <button type="button" class:on={r.slug === activeSlug} onclick={() => (activeSlug = r.slug)}>{r.slug}</button>
-  {/each}
+<div class="tab-group">
+  <span class="tab-group-label">
+    Community-facing
+    <span class="tab-group-count">{communityRows.length}</span>
+  </span>
+  <div class="tabs">
+    {#each communityRows as r (r.slug)}
+      <button type="button" class:on={r.slug === activeSlug} onclick={() => (activeSlug = r.slug)}>{r.slug}</button>
+    {/each}
+  </div>
+</div>
+
+<div class="tab-group">
+  <span class="tab-group-label tab-group-label-admin">
+    Admin-only
+    <span class="tab-group-count">{adminRows.length}</span>
+  </span>
+  <div class="tabs">
+    {#each adminRows as r (r.slug)}
+      <button type="button" class="tab-admin" class:on={r.slug === activeSlug} onclick={() => (activeSlug = r.slug)}>{r.slug}</button>
+    {/each}
+  </div>
 </div>
 
 {#if active}
   <form method="POST" action="?/save" class="editor" use:enhance={() => { busy = true; return async ({ update }) => { await update({ reset: false }); busy = false; }; }}>
     <input type="hidden" name="slug" value={active.slug} />
     {#if active.description}
-      <p class="desc">{active.description}</p>
+      <div class="desc-box">
+        <span class="desc-eyebrow">
+          {active.audience === "admin" ? "Goes to admin (you)" : "Goes to community members"}
+        </span>
+        <p class="desc-body">{active.description}</p>
+      </div>
     {/if}
     <label class="field">
       <span>Subject</span>
@@ -71,7 +112,28 @@
   .hd { display: flex; flex-direction: column; gap: 0.5rem; max-width: 900px; margin-bottom: 2rem; }
   .h1-display { margin: 0.5rem 0 0.25rem; }
   .lede { font-family: var(--font-accent); font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 1rem; }
-  .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 1rem; }
+  .tab-group { margin-bottom: 1rem; }
+  .tab-group-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .tab-group-label-admin { color: var(--muted); font-weight: 400; }
+  .tab-group-count {
+    background: var(--paper-2);
+    color: var(--muted);
+    padding: 1px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
   .tabs button {
     background: transparent;
     border: 1px solid var(--rule);
@@ -86,8 +148,40 @@
   }
   .tabs button:hover { border-color: var(--ink); color: var(--ink); }
   .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  /* Admin-only tabs read as secondary - dashed border, lighter background. */
+  .tabs button.tab-admin { border-style: dashed; }
+  .tabs button.tab-admin.on {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--ink);
+    border-style: solid;
+  }
+  /* Description box: prominent above the form so Lexi knows what
+     she's editing before she touches the body. */
+  .desc-box {
+    padding: 12px 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .desc-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .desc-body {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
   .editor { display: flex; flex-direction: column; gap: 1rem; max-width: 1200px; }
-  .desc { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field > span:first-child { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
   .field input, .field textarea { padding: 10px 14px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 14px; background: var(--bg-raised); }

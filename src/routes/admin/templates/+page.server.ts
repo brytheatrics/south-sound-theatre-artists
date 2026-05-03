@@ -7,7 +7,7 @@ import { supabaseAdmin } from "$lib/server/supabase";
 export const load: PageServerLoad = async () => {
   const { data, error } = await supabaseAdmin
     .from("email_templates")
-    .select("slug, subject, body_markdown, description, updated_at")
+    .select("slug, subject, body_markdown, description, audience, updated_at")
     .order("slug");
   if (error) throw error;
   return { rows: data ?? [] };
