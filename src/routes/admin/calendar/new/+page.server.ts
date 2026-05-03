@@ -31,7 +31,6 @@ export const actions: Actions = {
     const run_start = String(fd.get("run_start") ?? "").trim() || null;
     const run_end = String(fd.get("run_end") ?? "").trim() || null;
     const detail_url = String(fd.get("detail_url") ?? "").trim() || null;
-    const description = String(fd.get("description") ?? "").trim() || null;
     const category_id = String(fd.get("category_id") ?? "").trim() || null;
     const area_id = String(fd.get("area_id") ?? "").trim() || null;
 
@@ -46,7 +45,6 @@ export const actions: Actions = {
         run_start,
         run_end,
         detail_url,
-        description,
         category_id,
         area_id,
         source_id: null,

@@ -16,9 +16,19 @@ export const load: PageServerLoad = async ({ url }) => {
   const q = (url.searchParams.get("q") ?? "").trim();
   const statusFilter = (url.searchParams.get("status") ?? "").trim();
   const sourceFilter = (url.searchParams.get("source") ?? "").trim(); // 'auto' | 'manual'
+  const whenFilter = (url.searchParams.get("when") ?? "upcoming").trim(); // 'upcoming' | 'past' | 'all'
   const pageParam = url.searchParams.get("page") ?? "";
   const page =
     /^\d+$/.test(pageParam) && Number(pageParam) > 0 ? Number(pageParam) : 1;
+
+  // Today as YYYY-MM-DD in Pacific (the run_start / run_end columns are
+  // dates, not timestamptz, so we just need the date string).
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   let query = supabaseAdmin
     .from("productions")
@@ -41,9 +51,16 @@ export const load: PageServerLoad = async ({ url }) => {
   } else if (sourceFilter === "manual") {
     query = query.is("source_id", null);
   }
+  // When filter: default 'upcoming' hides shows whose run_end is past.
+  // 'past' shows just past shows. 'all' shows everything.
+  if (whenFilter === "upcoming") {
+    query = query.or(`run_end.is.null,run_end.gte.${today}`);
+  } else if (whenFilter === "past") {
+    query = query.lt("run_end", today);
+  }
 
   query = query
-    .order("run_start", { ascending: true, nullsFirst: false })
+    .order("run_start", { ascending: whenFilter === "past" ? false : true, nullsFirst: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   const { data, count, error } = await query;
@@ -81,6 +98,14 @@ export const load: PageServerLoad = async ({ url }) => {
     .select("*", { count: "exact", head: true })
     .not("deleted_at", "is", null);
 
+  // How many past shows are currently hidden (so the UI can show
+  // "X past shows hidden — show all" affordance).
+  const { count: pastCount } = await supabaseAdmin
+    .from("productions")
+    .select("*", { count: "exact", head: true })
+    .lt("run_end", today)
+    .is("deleted_at", null);
+
   return {
     productions: (data ?? []).map((p) => ({
       ...p,
@@ -92,11 +117,13 @@ export const load: PageServerLoad = async ({ url }) => {
     total: count ?? 0,
     pendingCount: pendingCount ?? 0,
     trashCount: trashCount ?? 0,
+    pastCount: pastCount ?? 0,
     page,
     pageSize: PAGE_SIZE,
     q,
     statusFilter,
     sourceFilter,
+    whenFilter,
   };
 };
 

@@ -82,11 +82,6 @@
     <span class="hint">Where calendar visitors click to learn more / buy tickets.</span>
   </label>
 
-  <label class="field">
-    <span>Description</span>
-    <textarea name="description" rows="4" placeholder="Optional - shown on detail views.">{v.description ?? ""}</textarea>
-  </label>
-
   <div class="actions">
     <button type="submit" class="bt bt-pri" disabled={busy}>
       {busy ? "Saving..." : "Save & add performances"}
@@ -105,7 +100,7 @@
   .card { background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.25rem; max-width: 720px; }
   .field { display: block; margin-bottom: 0.95rem; }
   .field > span:first-child { display: block; font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.3rem; }
-  .field input, .field select, .field textarea {
+  .field input, .field select {
     width: 100%;
     padding: 0.5rem 0.7rem;
     border: 1px solid var(--rule);

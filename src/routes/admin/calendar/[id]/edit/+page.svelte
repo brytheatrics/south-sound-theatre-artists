@@ -137,11 +137,6 @@
   </label>
 
   <label class="field">
-    <span>Description</span>
-    <textarea name="description" rows="4">{data.production.description ?? ""}</textarea>
-  </label>
-
-  <label class="field">
     <span>Status</span>
     <select name="status">
       <option value="approved" selected={data.production.status === "approved"}>Approved (visible)</option>
@@ -316,7 +311,7 @@
     color: var(--muted);
     margin-bottom: 0.3rem;
   }
-  .field input, .field select, .field textarea {
+  .field input, .field select {
     width: 100%;
     padding: 0.5rem 0.7rem;
     border: 1px solid var(--rule);

@@ -16,6 +16,7 @@
       q: data.q || null,
       status: data.statusFilter || null,
       source: data.sourceFilter || null,
+      when: data.whenFilter !== "upcoming" ? data.whenFilter : null,
       page: data.page > 1 ? String(data.page) : null,
     };
     const merged = { ...base, ...overrides };
@@ -80,11 +81,25 @@
     <option value="auto" selected={data.sourceFilter === "auto"}>Auto-pop'd (cron)</option>
     <option value="manual" selected={data.sourceFilter === "manual"}>Manual</option>
   </select>
+  <select name="when" class="filter-select">
+    <option value="upcoming" selected={data.whenFilter === "upcoming"}>Upcoming + current</option>
+    <option value="past" selected={data.whenFilter === "past"}>Past (closed)</option>
+    <option value="all" selected={data.whenFilter === "all"}>All time</option>
+  </select>
   <button type="submit" class="bt bt-ghost">Apply</button>
-  {#if data.q || data.statusFilter || data.sourceFilter}
+  {#if data.q || data.statusFilter || data.sourceFilter || data.whenFilter !== "upcoming"}
     <a class="bt bt-ghost" href="/admin/calendar">Clear</a>
   {/if}
 </form>
+
+{#if data.whenFilter === "upcoming" && data.pastCount > 0}
+  <p class="hidden-past-note">
+    {data.pastCount} past show{data.pastCount === 1 ? "" : "s"} hidden.
+    <a href={buildUrl({ when: "all" })}>Show all</a>
+    ·
+    <a href={buildUrl({ when: "past" })}>Just past</a>
+  </p>
+{/if}
 
 <!-- BULK ACTIONS BAR (only when something selected) -->
 {#if selectedIds.size > 0}
@@ -260,6 +275,17 @@
   }
 
   .empty { padding: 2rem; text-align: center; color: var(--muted); }
+
+  .hidden-past-note {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+  }
+  .hidden-past-note a { color: var(--accent); }
 
   .rows {
     width: 100%;

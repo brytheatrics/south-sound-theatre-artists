@@ -91,13 +91,14 @@
 
   <div class="row-2">
     <label class="field">
-      <span>Category</span>
-      <select name="category_id">
+      <span>Category <em>required</em></span>
+      <select name="category_id" required>
         <option value="">— pick —</option>
         {#each data.categories as c (c.id)}
           <option value={c.id} selected={v.categoryId === c.id}>{c.name}</option>
         {/each}
       </select>
+      {#if errs.category_id}<span class="err">{errs.category_id}</span>{/if}
     </label>
     <label class="field">
       <span>Area <em>required</em></span>
@@ -118,21 +119,14 @@
     {#if errs.detail_url}<span class="err">{errs.detail_url}</span>{/if}
   </label>
 
-  <label class="field">
-    <span>Description</span>
-    <textarea name="description" rows="4">{v.description ?? ""}</textarea>
-    <span class="hint">Optional. A few sentences shown on detail views.</span>
-  </label>
-
   <!-- Performances -->
-  <h2 class="block-title perf-h">Performances</h2>
+  <h2 class="block-title perf-h">Performances <em class="req-marker">required</em></h2>
   <p class="perf-help">
-    Times in Pacific. List as many as you'd like. <strong>Optional</strong> -
-    you can leave this empty and we'll fill it in during review.
+    Times in Pacific. List every public performance.
   </p>
 
   {#if perfs.length === 0}
-    <p class="empty-perfs">No performances added.</p>
+    <p class="empty-perfs">No performances added yet — click the button below.</p>
   {/if}
 
   <ul class="perf-list">
@@ -146,6 +140,7 @@
   </ul>
 
   <button type="button" class="bt bt-ghost" onclick={addPerf}>+ Add performance</button>
+  {#if errs.performances}<p class="err perf-err">{errs.performances}</p>{/if}
 
   <!-- Submitter -->
   <h2 class="block-title">You</h2>
@@ -231,7 +226,7 @@
     margin-bottom: 0.3rem;
   }
   .field em { font-style: normal; color: var(--accent); margin-left: 0.25rem; }
-  .field input, .field select, .field textarea {
+  .field input, .field select {
     width: 100%;
     padding: 0.55rem 0.7rem;
     border: 1px solid var(--rule);
@@ -246,6 +241,16 @@
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
   .empty-perfs { color: var(--muted); font-style: italic; padding: 0.4rem 0; font-size: 0.9rem; }
+  .req-marker {
+    margin-left: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    text-transform: none;
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 400;
+  }
+  .perf-err { color: var(--error); margin: 0.5rem 0; font-size: 0.9rem; }
   .perf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem; }
   .perf-row {
     display: grid;

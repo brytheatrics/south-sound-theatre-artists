@@ -76,7 +76,6 @@ type Values = {
   runStart: string;
   runEnd: string;
   detailUrl: string;
-  description: string;
   categoryId: string;
   areaId: string;
   performancesJson: string;
@@ -99,7 +98,6 @@ export const actions: Actions = {
       runStart: ((data.get("run_start") as string) ?? "").trim(),
       runEnd: ((data.get("run_end") as string) ?? "").trim(),
       detailUrl: ((data.get("detail_url") as string) ?? "").trim(),
-      description: ((data.get("description") as string) ?? "").trim(),
       categoryId: ((data.get("category_id") as string) ?? "").trim(),
       areaId: ((data.get("area_id") as string) ?? "").trim(),
       performancesJson: ((data.get("performances_json") as string) ?? "[]").trim(),
@@ -115,12 +113,13 @@ export const actions: Actions = {
     if (values.runStart && values.runEnd && values.runStart > values.runEnd) {
       errors.run_end = "Must be on or after run start.";
     }
+    if (!values.categoryId) errors.category_id = "Pick a category.";
     if (!values.areaId) errors.area_id = "Pick the region this is in.";
     if (!values.submitterName) errors.submitter_name = "Required.";
     if (!isValidEmail(values.submitterEmail)) errors.submitter_email = "Enter a valid email address.";
     if (values.detailUrl && !isValidUrl(values.detailUrl)) errors.detail_url = "Must be a valid URL.";
 
-    // Parse performances JSON
+    // Parse performances JSON. At least one valid performance required.
     let perfs: Array<{ wallClock: string; note: string }> = [];
     try {
       const parsed = JSON.parse(values.performancesJson);
@@ -131,10 +130,14 @@ export const actions: Actions = {
             wallClock: String(p.wallClock).slice(0, 32),
             note: typeof p.note === "string" ? p.note.trim().slice(0, 200) : "",
           }))
+          .filter((p) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(p.wallClock))
           .slice(0, 200);
       }
     } catch {
-      // Treat as empty - admin can fill in during review.
+      // perfs stays empty; required-check below catches it.
+    }
+    if (perfs.length === 0) {
+      errors.performances = "Add at least one performance (date + time).";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -163,8 +166,7 @@ export const actions: Actions = {
         run_start: values.runStart,
         run_end: values.runEnd,
         detail_url: values.detailUrl || null,
-        description: values.description || null,
-        category_id: values.categoryId || null,
+        category_id: values.categoryId,
         area_id: values.areaId,
         verified_org_id: org?.id ?? null,
         submitter_email: values.submitterEmail,
