@@ -374,6 +374,14 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
         defaultCategoryId,
       ],
     );
+    // Refresh area from the source on every sync (handles cases where
+    // Lexi moves an org between areas - all its productions follow).
+    await db.query(
+      `update public.productions
+          set area_id = (select area_id from public.event_sources where id = $2)
+        where id = $1`,
+      [productionId, source.id],
+    );
     // Clear out previous performances; we re-write them from the latest
     // extraction. This is correct because the source of truth IS the
     // theatre's published schedule.
@@ -385,8 +393,10 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
     const insRes = await db.query(
       `insert into public.productions
          (title, organization_name, run_start, run_end, detail_url,
-          category_id, source_id, status)
-       values ($1, $2, $3, $4, $5, $6, $7, 'approved')
+          category_id, source_id, area_id, status)
+       values ($1, $2, $3, $4, $5, $6, $7,
+               (select area_id from public.event_sources where id = $7),
+               'approved')
        returning id`,
       [
         title,

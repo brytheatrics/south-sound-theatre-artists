@@ -20,6 +20,7 @@
     { href: "/admin/flagged-edits", label: "Edit review", countKey: "flaggedEdits" },
     { href: "/admin/reports", label: "Reports", countKey: "reports" },
     { href: "/admin/callboard", label: "Callboard", countKey: "callboard" },
+    { href: "/admin/calendar", label: "Calendar" },
     { href: "/admin/orgs", label: "Organizations", countKey: "orgs" },
 
     // Directory

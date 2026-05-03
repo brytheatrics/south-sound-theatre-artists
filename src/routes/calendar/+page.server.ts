@@ -117,7 +117,7 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, category_id, source_id`,
+         status, deleted_at, category_id, source_id, area_id`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
@@ -128,15 +128,6 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const categoriesById = new Map(categories.map((c) => [c.id, c]));
   const areasById = new Map(areas.map((a) => [a.id, a]));
-
-  // event_sources -> area_id mapping (small table, fetch all once and
-  // join in memory to avoid nested-select complexity).
-  const { data: sourceRows } = await supabaseAdmin
-    .from("event_sources")
-    .select("id, area_id");
-  const sourceAreaById = new Map(
-    (sourceRows ?? []).map((s) => [s.id, s.area_id]),
-  );
 
   // Stitch + filter
   const performances: Performance[] = perfs
@@ -153,10 +144,10 @@ export const load: PageServerLoad = async ({ url }) => {
         : activeCats.includes("production");
       if (!passesCategory) return null;
 
-      // Resolve area through the source. Productions with no source
-      // (manual entries when that path exists) have no area; those pass
-      // the area filter only when the filter is unset (show-all default).
-      const areaId = prod.source_id ? sourceAreaById.get(prod.source_id) : null;
+      // Area is denormalised onto productions (mig 046). The cron keeps
+      // auto-pop'd entries' area_id in sync with their source on every
+      // upsert; manual entries set it directly via the admin form.
+      const areaId = prod.area_id ?? null;
       if (activeAreaIds && (!areaId || !activeAreaIds.includes(areaId))) return null;
       const area = areaId ? areasById.get(areaId) : undefined;
 
