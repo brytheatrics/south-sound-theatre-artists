@@ -1,0 +1,42 @@
+name: Calendar auto-sync
+
+# Walks event_sources and re-extracts upcoming shows for any source
+# whose cadence_days has elapsed (default 30, so monthly). Most rows
+# are HTML-hash cached so unchanged pages don't burn API tokens; in
+# steady state a typical run is a few cents.
+#
+# Skips:
+#   - Inactive sources (active=false)
+#   - Manual-entry sources (adapter='manual')
+#   - Productions with admin_edited_at set (admin lock)
+#   - Soft-deleted productions (deleted_at not null)
+#
+# Runs once a month on the 1st at 16:00 UTC = 8/9 AM PT. Anything more
+# frequent than monthly is wasted - most theatre season pages change
+# only when a new season is announced (twice a year at most).
+
+on:
+  schedule:
+    - cron: "0 16 1 * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Sync calendar sources
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/calendar-sync.mjs
