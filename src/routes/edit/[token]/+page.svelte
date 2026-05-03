@@ -5,6 +5,7 @@
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
 
   type ResumeData = {
     credits: Array<{ show: string; role: string; company: string; director?: string; year?: string; notes?: string }>;
@@ -120,6 +121,15 @@
 
   let submitting = $state(false);
 
+  // Minor profile graduation: a small dedicated form posts to ?/graduate
+  // when the parent / guardian (or now-18 artist) confirms the artist
+  // has turned 18. After graduation the headshot upload becomes
+  // visible and contact-form messages route to whoever owns the email
+  // on the row from that point on.
+  let confirmingGraduate = $state(false);
+  let graduateFormEl: HTMLFormElement | undefined = $state();
+  let graduating = $state(false);
+
   function toggleSet(set: Set<string>, value: string): Set<string> {
     if (set.has(value)) set.delete(value);
     else set.add(value);
@@ -168,6 +178,67 @@
     </div>
   {/if}
 
+  {#if p.is_minor}
+    <!-- Minor profile banner: parent/guardian-managed today. When the
+         artist turns 18, a click here flips is_minor=false, clears the
+         guardian fields, and unlocks the headshot upload. -->
+    <div class="minor-banner" role="status">
+      <p class="minor-title">
+        <strong>This is a parent / guardian-managed profile.</strong>
+      </p>
+      <p class="minor-body">
+        Because the artist is under 18, the headshot is hidden publicly
+        and contact-form messages route to
+        {p.guardian_name ? p.guardian_name : "the parent or guardian"}.
+        Once they turn 18 you can switch this off and a real headshot
+        becomes available.
+      </p>
+      <button
+        type="button"
+        class="bt bt-pri minor-graduate-btn"
+        onclick={() => (confirmingGraduate = true)}
+      >
+        This artist is now 18 →
+      </button>
+    </div>
+
+    <!-- Hidden form that the modal's onConfirm will requestSubmit().
+         use:enhance keeps the post in-page so we can flash a friendly
+         success message + reload data without a full nav. -->
+    <form
+      method="POST"
+      action="?/graduate"
+      bind:this={graduateFormEl}
+      use:enhance={() => {
+        graduating = true;
+        return async ({ update }) => {
+          // reset:false because we don't want SvelteKit clearing the
+          // big edit form's fields when this small action returns.
+          await update({ reset: false });
+          graduating = false;
+          confirmingGraduate = false;
+        };
+      }}
+      class="hidden-form"
+    ></form>
+
+    <ConfirmModal
+      open={confirmingGraduate}
+      title="Confirm: this artist has turned 18"
+      body="This will switch the profile from parent / guardian-managed to artist-managed. The headshot upload will become available, and the parent / guardian's contact details will be cleared from the profile. The contact email stays as it is - you can update it from this same form afterwards. This can't be undone from this page (an admin would have to flip it back)."
+      confirmLabel={graduating ? "Updating..." : "Yes, the artist is 18"}
+      cancelLabel="Cancel"
+      onConfirm={() => graduateFormEl?.requestSubmit()}
+      onClose={() => { if (!graduating) confirmingGraduate = false; }}
+    />
+  {/if}
+
+  {#if form?.graduated}
+    <div class="form-ok" role="status">
+      Profile is now artist-managed. You can upload a headshot below.
+    </div>
+  {/if}
+
   {#if errors._form}
     <div class="form-error" role="alert">{errors._form}</div>
   {/if}
@@ -197,23 +268,35 @@
       </label>
     </fieldset>
 
-    <fieldset>
-      <legend>Headshot/photo <span class="req">*</span></legend>
-      <p class="hint">
-        Required. Doesn't need to be a professional headshot - any clear
-        photo of you works.
-      </p>
-      <HeadshotUpload bind:value={headshotUrl} />
-      <input type="hidden" name="headshot_url" value={headshotUrl} />
-      {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
-      {#if headshotUrl}
-        <label class="checkbox">
-          <input type="checkbox" name="headshot_consent" bind:checked={headshotConsent} />
-          <span>I confirm I have the rights to use this image.</span>
-        </label>
-        {#if errors.headshot_consent}<span class="error">{errors.headshot_consent}</span>{/if}
-      {/if}
-    </fieldset>
+    {#if !p.is_minor}
+      <fieldset>
+        <legend>Headshot/photo <span class="req">*</span></legend>
+        <p class="hint">
+          Required. Doesn't need to be a professional headshot - any clear
+          photo of you works.
+        </p>
+        <HeadshotUpload bind:value={headshotUrl} />
+        <input type="hidden" name="headshot_url" value={headshotUrl} />
+        {#if errors.headshot_url}<span class="error">{errors.headshot_url}</span>{/if}
+        {#if headshotUrl}
+          <label class="checkbox">
+            <input type="checkbox" name="headshot_consent" bind:checked={headshotConsent} />
+            <span>I confirm I have the rights to use this image.</span>
+          </label>
+          {#if errors.headshot_consent}<span class="error">{errors.headshot_consent}</span>{/if}
+        {/if}
+      </fieldset>
+    {:else}
+      <!-- Minor profiles don't display a headshot. The graduation flow
+           above unlocks this fieldset once the artist turns 18. -->
+      <fieldset class="minor-headshot-stub">
+        <legend>Headshot/photo</legend>
+        <p class="hint">
+          Hidden for minor profiles. Once the artist turns 18, click
+          the button at the top of the page to unlock headshot upload.
+        </p>
+      </fieldset>
+    {/if}
 
     <fieldset>
       <legend>Bio</legend>
@@ -573,6 +656,46 @@
     border-radius: var(--radius);
     margin-bottom: 1.5rem;
   }
+  .form-ok {
+    background: color-mix(in oklch, var(--accent), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--accent), var(--bg) 60%);
+    border-left: 4px solid var(--accent);
+    color: var(--ink);
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin: 0 0 1.5rem;
+    font-size: 14px;
+  }
+  /* Minor profile banner: parent/guardian-managed status + the
+     "graduate to 18" button. Accent-tinted to read as informational
+     rather than warning. */
+  .minor-banner {
+    background: color-mix(in oklch, var(--accent), var(--bg) 92%);
+    border: 1px solid color-mix(in oklch, var(--accent), var(--bg) 70%);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    margin: 0 0 1.5rem;
+    color: var(--ink);
+  }
+  .minor-title {
+    margin: 0 0 6px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .minor-body {
+    margin: 0 0 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .minor-graduate-btn {
+    align-self: flex-start;
+  }
+  .hidden-form { display: none; }
+  .minor-headshot-stub { opacity: 0.7; }
 
   /* Complete-to-publish gate banner. Warmer rust panel so it reads as
      "needs attention" without looking like a hard error. */

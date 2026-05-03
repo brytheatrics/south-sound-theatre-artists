@@ -110,12 +110,15 @@ export const load: PageServerLoad = async ({ params }) => {
   const p = profileRes.data;
   const missingFields: string[] = [];
   if (!p.full_name) missingFields.push("Name");
-  if (!p.headshot_url) missingFields.push("Headshot or photo");
+  // Headshot is suppressed for minor profiles (we never display it
+  // publicly), so it isn't required for them. The same exception
+  // applies to the headshot_consent check below.
+  if (!p.is_minor && !p.headshot_url) missingFields.push("Headshot or photo");
   if (!p.geographic_area) missingFields.push("Geographic area");
   if (!p.disciplines || p.disciplines.length === 0) {
     missingFields.push("At least one discipline");
   }
-  if (p.headshot_url && !p.headshot_consent) {
+  if (!p.is_minor && p.headshot_url && !p.headshot_consent) {
     missingFields.push("Confirmation that you have rights to your photo");
   }
 
@@ -419,5 +422,34 @@ export const actions: Actions = {
       .eq("id", token.id);
 
     throw redirect(303, queued ? "/edit/done?queued=1" : "/edit/done");
+  },
+
+  // Graduate a minor profile to non-minor: clears is_minor + the
+  // guardian fields. Only meaningful when is_minor=true on load. The
+  // contact email column stays as-is - the artist can update it via
+  // the regular form afterwards if they want a different address.
+  // Headshot upload becomes available once the profile is non-minor.
+  //
+  // Token isn't burned by this action (different from the save flow):
+  // graduating doesn't end the edit session, the user usually graduates
+  // and then keeps editing (e.g. to upload a headshot now that they
+  // can). The token still expires on its normal schedule.
+  graduate: async ({ params }) => {
+    const token = await loadValidToken(params.token);
+    if (!token || !token.target_id) {
+      return fail(401, { error: "Edit link is invalid or expired." });
+    }
+    const { error: updErr } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        is_minor: false,
+        guardian_email: null,
+        guardian_name: null,
+      })
+      .eq("id", token.target_id);
+    if (updErr) {
+      return fail(500, { error: "Could not update the profile. Try again." });
+    }
+    return { graduated: true };
   },
 };

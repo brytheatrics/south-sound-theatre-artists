@@ -181,11 +181,13 @@ notes, etc.)*
 ## What didn't get done
 *(Filled in if anything has to defer.)*
 
-- **Auto-graduate-at-18 for minor profiles.** We don't store a birth
-  date intentionally (keeps minor PII off the system). Plan: when the
-  artist turns 18, Lexi flips `is_minor=false` from `/admin/profiles/{id}/edit`
-  and (optionally) updates the contact email to the artist's. The edit
-  UI doesn't currently expose `is_minor` — that's a small follow-up.
+- **Self-service minor graduation built.** The original plan was for
+  Lexi to manually flip `is_minor=false` from the admin profile edit
+  page when the artist turned 18. Now lives on the artist's edit page
+  instead: a banner with an "I'm 18 now →" button that fires a confirmed
+  graduation action. Clears `is_minor`, `guardian_email`, `guardian_name`
+  in one shot and unlocks the headshot upload. Parent / guardian uses
+  their existing edit-link for the transition.
 
 ## Future-me roadmap
 *(Mentioned in the meeting prep but explicitly not built. Don't forget.)*
