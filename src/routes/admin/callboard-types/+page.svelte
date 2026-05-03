@@ -36,12 +36,16 @@
 {#if form?.error}<div class="form-error" role="alert">{form.error}</div>{/if}
 {#if form?.added}<div class="form-ok" role="status">Added "{form.added}".</div>{/if}
 {#if form?.updated}<div class="form-ok" role="status">Saved.</div>{/if}
-{#if form?.removed}<div class="form-ok" role="status">Removed "{form.removed}".</div>{/if}
+{#if form?.removed}<div class="form-ok" role="status">
+  Removed "{form.removed}".{#if form.purgedTrash}
+    {" "}Also purged {form.purgedTrash} trashed post{form.purgedTrash === 1 ? "" : "s"} that referenced this type.
+  {/if}
+</div>{/if}
 
 <ConfirmModal
   open={pendingForm !== null}
   title="Remove this type?"
-  body={`"${pendingName}" will no longer be a category option. Existing posts already tagged with this type would block the delete - re-tag them first.`}
+  body={`"${pendingName}" will no longer be a category option. Live posts using this type will block the delete (re-tag them first). Trashed posts using this type will be permanently purged as part of the delete - they couldn't be restored to a type that no longer exists.`}
   confirmLabel="Remove"
   variant="warn"
   onConfirm={confirmRemove}

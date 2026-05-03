@@ -131,17 +131,42 @@ export const actions: Actions = {
     const slug = clean(data.get("slug"));
     if (!slug) return fail(400, { error: "Missing slug." });
 
-    // Block delete if any posts (live or trash) reference this type.
-    // The FK constraint would catch this anyway, but a friendlier error
-    // here saves a roundtrip.
-    const { count } = await supabaseAdmin
+    // Block delete only if LIVE posts (deleted_at is null) reference
+    // the type. Trashed posts can't be meaningfully recovered after
+    // the type is gone (no type to restore to), so we auto-purge them
+    // as part of the type-delete - same operation, same intent.
+    const { count: liveCount } = await supabaseAdmin
       .from("callboard_posts")
       .select("*", { count: "exact", head: true })
-      .eq("post_type", slug);
-    if ((count ?? 0) > 0) {
+      .eq("post_type", slug)
+      .is("deleted_at", null);
+    if ((liveCount ?? 0) > 0) {
       return fail(409, {
-        error: `Can't delete - ${count} post${count === 1 ? "" : "s"} still use${count === 1 ? "s" : ""} this type. Re-tag them first, or use the Active toggle to hide it without deleting.`,
+        error: `Can't delete - ${liveCount} live post${liveCount === 1 ? "" : "s"} still use${liveCount === 1 ? "s" : ""} this type. Re-tag them first, or use the Active toggle to hide the type without deleting.`,
       });
+    }
+
+    // Auto-purge any trashed posts using this type. Without this the FK
+    // (ON DELETE RESTRICT) would block the type delete and Lexi would
+    // need to manually empty trash via /admin/callboard/trash, which is
+    // friction for what's logically a single intent.
+    const { count: trashCount } = await supabaseAdmin
+      .from("callboard_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("post_type", slug)
+      .not("deleted_at", "is", null);
+    if ((trashCount ?? 0) > 0) {
+      const { error: purgeErr } = await supabaseAdmin
+        .from("callboard_posts")
+        .delete()
+        .eq("post_type", slug)
+        .not("deleted_at", "is", null);
+      if (purgeErr) {
+        console.error("trash purge failed", purgeErr);
+        return fail(500, {
+          error: `Could not purge ${trashCount} trashed post${trashCount === 1 ? "" : "s"} using this type. Try removing them manually via /admin/callboard/trash first.`,
+        });
+      }
     }
 
     const { error } = await supabaseAdmin
@@ -152,6 +177,9 @@ export const actions: Actions = {
       console.error("post type delete failed", error);
       return fail(500, { error: "Could not delete type." });
     }
-    return { removed: slug };
+    return {
+      removed: slug,
+      purgedTrash: trashCount ?? 0,
+    };
   },
 };
