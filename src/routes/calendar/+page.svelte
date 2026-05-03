@@ -133,7 +133,10 @@
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
   }
 
-  const todayKey = $derived(pacificDateKeyFromUTC(new Date()));
+  // Today's key in Pacific Time. Use the same Intl-based conversion as
+  // performance bucketing so the highlight always agrees with which
+  // cell a "today" performance falls into.
+  const todayKey = $derived(pacificDateKey(new Date().toISOString()));
 
   const sortedDateKeys = $derived(
     Array.from(byDate.keys()).sort(),
