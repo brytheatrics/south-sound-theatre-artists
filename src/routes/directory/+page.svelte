@@ -134,14 +134,20 @@
 </svelte:head>
 
 <header class="hd">
-  <span class="eyebrow"><span class="num">→</span>Directory</span>
-  <h1 class="h1-display">
-    {data.total}
-    <span class="serif-it">artists</span>.
-  </h1>
-  <p class="lede">
-    Browse, filter, and reach out. No account needed.
-  </p>
+  <div class="hd-body">
+    <span class="eyebrow"><span class="num">→</span>Directory</span>
+    <h1 class="h1-display">
+      {data.total}
+      <span class="serif-it">artists</span>.
+    </h1>
+    <p class="lede">
+      Browse, filter, and reach out. No account needed.
+    </p>
+  </div>
+  <div class="hd-meta">
+    <a class="meta-cta" href="/submit">Submit your profile &rarr;</a>
+    <span class="meta-stat">{data.total} listed</span>
+  </div>
 </header>
 
 <form
@@ -431,12 +437,41 @@
 
 <style>
   .hd {
-    padding: clamp(2rem, 5vw, 3.5rem) var(--page-pad-x) 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    padding: clamp(2.5rem, 6vw, 3.5rem) var(--page-pad-x) 1.5rem;
+    flex-wrap: wrap;
+  }
+  .hd-body {
+    flex: 1;
+    min-width: 260px;
+    max-width: 800px;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    max-width: 800px;
   }
+  .hd-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 0.5rem;
+    min-width: 160px;
+  }
+  .meta-cta {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .meta-cta:hover { text-decoration: underline; }
+  .meta-stat { color: var(--ink-soft); }
   .h1-display {
     margin: 0.5rem 0 0.25rem;
   }

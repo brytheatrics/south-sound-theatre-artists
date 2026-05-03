@@ -105,6 +105,54 @@
       document.removeEventListener("keydown", handleKey);
     };
   });
+
+  // Submit dropdown — three submission paths under one nav button.
+  // Same close-on-outside-click + Escape pattern as the hamburger.
+  type SubmitOption = { href: string; label: string; description: string };
+  const submitOptions: SubmitOption[] = [
+    {
+      href: "/submit",
+      label: "Submit your profile",
+      description: "Get listed in the artist directory.",
+    },
+    {
+      href: "/callboard/submit",
+      label: "Post a call",
+      description: "Auditions, designer + crew calls, talent opportunities.",
+    },
+    {
+      href: "/calendar/submit",
+      label: "Post a performance",
+      description: "Add an upcoming show to the calendar.",
+    },
+  ];
+
+  let submitOpen = $state(false);
+  let submitRoot: HTMLDivElement | undefined = $state();
+
+  function toggleSubmit() {
+    submitOpen = !submitOpen;
+  }
+  function closeSubmit() {
+    submitOpen = false;
+  }
+  function handleSubmitDocClick(e: MouseEvent) {
+    if (!submitRoot) return;
+    if (!submitRoot.contains(e.target as Node)) submitOpen = false;
+  }
+  function handleSubmitKey(e: KeyboardEvent) {
+    if (e.key === "Escape") submitOpen = false;
+  }
+
+  $effect(() => {
+    if (!submitOpen) return;
+    document.addEventListener("click", handleSubmitDocClick);
+    document.addEventListener("keydown", handleSubmitKey);
+    return () => {
+      document.removeEventListener("click", handleSubmitDocClick);
+      document.removeEventListener("keydown", handleSubmitKey);
+    };
+  });
 </script>
 
 <nav class="nv">
@@ -143,9 +191,33 @@
       </a>
     {/if}
   {/if}
-  <a class="nv-cta" href="/submit">
-    Submit <span aria-hidden="true">↗</span>
-  </a>
+  <div class="nv-submit-wrap" bind:this={submitRoot}>
+    <button
+      type="button"
+      class="nv-cta"
+      onclick={toggleSubmit}
+      aria-expanded={submitOpen}
+      aria-haspopup="menu"
+      aria-label="Submit menu"
+    >
+      Submit <span class="nv-caret" aria-hidden="true">{submitOpen ? "▴" : "▾"}</span>
+    </button>
+    {#if submitOpen}
+      <div class="nv-submit-panel" role="menu">
+        {#each submitOptions as opt (opt.href)}
+          <a
+            role="menuitem"
+            href={opt.href}
+            onclick={closeSubmit}
+            class="nv-submit-opt"
+          >
+            <span class="opt-label">{opt.label}</span>
+            <span class="opt-desc">{opt.description}</span>
+          </a>
+        {/each}
+      </div>
+    {/if}
+  </div>
   <div class="nv-menu-wrap" bind:this={menuRoot}>
     <button
       type="button"
@@ -225,10 +297,71 @@
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .nv-cta:hover {
     text-decoration: none;
     color: var(--ink);
+  }
+  .nv-caret {
+    font-size: 10px;
+    line-height: 1;
+    margin-left: 2px;
+  }
+
+  /* Submit dropdown panel */
+  .nv-submit-wrap {
+    position: relative;
+  }
+  .nv-submit-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.25);
+    min-width: 280px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .nv-submit-opt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .nv-submit-opt:hover {
+    background: var(--paper);
+    text-decoration: none;
+  }
+  .opt-label {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .opt-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.35;
   }
   .nv-admin {
     color: var(--ink);

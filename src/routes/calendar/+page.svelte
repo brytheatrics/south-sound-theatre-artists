@@ -360,35 +360,38 @@
 <style>
   /* MASTHEAD - mirrors callboard styling */
   .masthead {
-    padding: clamp(2rem, 5vw, 4rem) var(--page-pad-x) clamp(1rem, 3vw, 2rem);
-    border-bottom: 1px solid var(--rule);
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    padding: clamp(2.5rem, 6vw, 3.5rem) var(--page-pad-x) 2rem;
+    border-bottom: 1px solid var(--rule);
+    flex-wrap: wrap;
   }
-  .masthead-body { max-width: 880px; }
+  .masthead-body {
+    flex: 1;
+    min-width: 260px;
+  }
   .masthead-meta {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
     padding-top: 0.5rem;
+    min-width: 160px;
   }
   .meta-cta {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: var(--ink);
-    color: var(--bg);
-    border-radius: var(--radius);
-    font-size: 0.9rem;
+    color: var(--accent);
+    font-weight: 600;
     text-decoration: none;
   }
-  .meta-cta:hover { background: var(--accent); text-decoration: none; }
-  .meta-stat {
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
+  .meta-cta:hover { text-decoration: underline; }
+  .meta-stat { color: var(--ink-soft); }
   .eyebrow {
     display: inline-block;
     font-family: var(--font-mono);
