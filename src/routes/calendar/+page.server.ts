@@ -75,12 +75,15 @@ export const load: PageServerLoad = async ({ url }) => {
     .order("sort_order");
   const categories = (catData ?? []) as Category[];
 
-  // Active filter set: explicit ?cats=slug1,slug2 if given, else
-  // categories with default_visible=true.
+  // Active filter set: explicit ?cats=slug1,slug2 if given, else empty
+  // (no filter = show all). Mirrors /directory's "no chip clicked =
+  // showing everything" model. The default_visible flag on
+  // event_categories no longer drives initial chip state - it's kept
+  // on the column for potential future use.
   const catParam = params.get("cats");
   const activeCats: string[] = catParam
     ? catParam.split(",").map((s) => s.trim()).filter(Boolean)
-    : categories.filter((c) => c.default_visible).map((c) => c.slug);
+    : [];
 
   // ---- Areas -------------------------------------------------------
   const { data: areaData } = await supabaseAdmin
@@ -147,11 +150,16 @@ export const load: PageServerLoad = async ({ url }) => {
 
       const cat = prod.category_id ? categoriesById.get(prod.category_id) : undefined;
       const slug = cat?.slug ?? null;
-      // Category filter: uncategorised entries fall through when
-      // "production" is in the active list (sensible default).
-      const passesCategory = slug
-        ? activeCats.includes(slug)
-        : activeCats.includes("production");
+      // Category filter: empty active list = show all (no filter).
+      // Some active = filter to those; uncategorised entries fall
+      // through when "production" is among the active filters (since
+      // most uncategorised auto-pop'd entries are productions).
+      const passesCategory =
+        activeCats.length === 0
+          ? true
+          : slug
+            ? activeCats.includes(slug)
+            : activeCats.includes("production");
       if (!passesCategory) return null;
 
       // Area is denormalised onto productions (mig 046). The cron keeps

@@ -9,13 +9,16 @@
   const POST_TYPE_LABELS = $derived(
     Object.fromEntries(data.postTypes.map((t) => [t.slug, t.label])),
   );
-  const FILTER_TABS = $derived([
-    { value: "", label: "All" },
-    ...data.postTypes.map((t) => ({
+  // Drop the explicit "All" pseudo-chip; under the "no chip clicked =
+  // showing all" model, the default state (no ?type= param) renders
+  // every chip in its off state and shows everything. Click a type
+  // to filter; click the active chip again to clear.
+  const FILTER_TABS = $derived(
+    data.postTypes.map((t) => ({
       value: t.slug,
       label: t.plural_label ?? t.label,
     })),
-  ]);
+  );
 
   const SORT_OPTS = [
     { value: "deadline", label: "Deadline soonest" },
@@ -95,7 +98,7 @@
     <a
       class="chip"
       class:on={data.type === tab.value}
-      href={buildUrl({ type: tab.value || null, page: null })}
+      href={buildUrl({ type: data.type === tab.value ? null : tab.value, page: null })}
     >
       {tab.label}
     </a>

@@ -20,17 +20,12 @@
     return "/calendar" + (s ? "?" + s : "");
   }
 
-  // Only serialise cats if they differ from the default-visible set.
-  function serializeCats(active: string[], cats: PageData["categories"]) {
-    const defaultActive = cats.filter((c) => c.default_visible).map((c) => c.slug).sort();
-    const a = [...active].sort();
-    if (
-      defaultActive.length === a.length &&
-      defaultActive.every((s, i) => s === a[i])
-    ) {
-      return null;
-    }
-    return a.join(",");
+  // Empty active list = no filter, so don't include ?cats= in the URL.
+  // (The default state is "show everything"; only put a param in the
+  // URL when the user has actively narrowed.)
+  function serializeCats(active: string[], _cats: PageData["categories"]) {
+    if (active.length === 0) return null;
+    return active.join(",");
   }
 
   function toggleCat(slug: string) {
@@ -49,24 +44,26 @@
     return active.join(",");
   }
 
+  // Toggle: start from current active list (or empty if no filter).
+  // 0 selected = no filter (URL drops ?areas=, all areas visible).
+  // All selected = same as no filter (collapse to null).
+  // Some selected = filter to those.
   function toggleArea(name: string): string[] | null {
-    // If null (show-all), clicking a chip means "filter to just that area"
-    // — but functionally we treat "everything except this one off" as
-    // unintuitive, so a single-click flips into single-area mode.
     const allNames = data.areas.map((a) => a.name);
-    const current = data.activeAreas ?? allNames;
+    const current = data.activeAreas ?? [];
     const set = new Set(current);
     if (set.has(name)) set.delete(name);
     else set.add(name);
-    if (set.size === 0) return []; // explicitly empty -> server treats as "show all"
-    if (set.size === allNames.length) return null; // all selected -> show all
+    if (set.size === 0) return null;
+    if (set.size === allNames.length) return null;
     return Array.from(set);
   }
 
-  // For chip "on" rendering: a chip is on when areas filter is null
-  // (everything visible) OR when its name is in the active list.
+  // Chip is "on" only when its name is explicitly in the active list.
+  // Default state (activeAreas === null = no filter) renders all chips
+  // as off, matching the directory's "none clicked = show all" model.
   function areaIsOn(name: string): boolean {
-    if (data.activeAreas === null) return true;
+    if (data.activeAreas === null) return false;
     return data.activeAreas.includes(name);
   }
 
