@@ -20,7 +20,8 @@
   // overflow menu so the header reads cleanly.
   const links: Link[] = [
     { href: "/directory", label: "Directory" },
-    { href: "/callboard", label: "Callboard" },
+    { href: "/calendar", label: "What's Playing" },
+    { href: "/callboard", label: "Opportunities" },
     { href: "/resources", label: "Resources" },
   ];
 

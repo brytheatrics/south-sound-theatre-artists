@@ -41,6 +41,7 @@
     { href: "/admin/disciplines", label: "Disciplines", group: true },
     { href: "/admin/submit-form", label: "Submit form fields" },
     { href: "/admin/callboard-types", label: "Callboard types" },
+    { href: "/admin/event-sources", label: "Calendar sources" },
     { href: "/admin/blocklist", label: "Blocklist" },
   ];
 
