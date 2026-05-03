@@ -1,69 +1,47 @@
 <!--
-  ThemeToggle: three-way Light / Dark / Auto control over the dark-mode
-  class on <html>. Persists the choice in localStorage so it survives
+  ThemeToggle: two-way Light / Dark control over the dark-mode class
+  on <html>. Persists the choice in localStorage so it survives
   reloads. The bootstrap script in app.html applies the same logic
   before paint so there's no flash on initial load.
 
-  - Light: explicit, OS preference ignored.
-  - Dark: explicit, OS preference ignored.
-  - Auto (default if no preference saved): follows the OS
-    `prefers-color-scheme` setting and stays in sync if the user
-    flips it while the page is open.
+  No "Auto" mode - people kept getting unexpectedly dropped into dark
+  because their OS reported prefers-color-scheme: dark even when their
+  browser chrome was light (Windows 11 "Custom" mode is the common
+  cause). First-time visitors get light by default; clicking Dark once
+  persists for that browser.
 
-  Stored under the key `ssta_theme` ("light" | "dark") - the Auto
-  state is represented by the absence of the key so we don't have to
-  reconcile a third value with the bootstrap.
+  Stored under the key `ssta_theme` ("light" | "dark"). Absence = light.
 -->
 <script lang="ts">
   import { onMount } from "svelte";
 
-  type Mode = "light" | "dark" | "auto";
+  type Mode = "light" | "dark";
   const STORAGE_KEY = "ssta_theme";
 
-  let mode = $state<Mode>("auto");
-  let mediaQuery: MediaQueryList | null = null;
+  let mode = $state<Mode>("light");
 
   function applyMode(next: Mode) {
     mode = next;
     if (typeof window === "undefined") return;
-    const html = document.documentElement;
-    let dark: boolean;
-    if (next === "dark") dark = true;
-    else if (next === "light") dark = false;
-    else
-      dark =
-        !!mediaQuery &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-    html.classList.toggle("mode-dark", dark);
-
+    document.documentElement.classList.toggle("mode-dark", next === "dark");
     try {
-      if (next === "auto") localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, next);
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // private mode / blocked storage; current-session change still applies.
     }
   }
 
   onMount(() => {
-    // Read the persisted choice. Absence = auto.
-    let saved: Mode = "auto";
+    // Read the persisted choice. Absence = light (the site's primary
+    // aesthetic; dark is opt-in).
+    let saved: Mode = "light";
     try {
       const v = localStorage.getItem(STORAGE_KEY);
-      if (v === "light" || v === "dark") saved = v;
+      if (v === "dark") saved = "dark";
     } catch {
       // ignore
     }
     mode = saved;
-
-    // Listen for OS preference changes so Auto stays in sync.
-    mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      if (mode === "auto") {
-        document.documentElement.classList.toggle("mode-dark", mediaQuery!.matches);
-      }
-    };
-    mediaQuery.addEventListener("change", onChange);
-    return () => mediaQuery?.removeEventListener("change", onChange);
   });
 </script>
 
@@ -82,12 +60,6 @@
       onclick={() => applyMode("dark")}
       aria-pressed={mode === "dark"}
     >Dark</button>
-    <button
-      type="button"
-      class:on={mode === "auto"}
-      onclick={() => applyMode("auto")}
-      aria-pressed={mode === "auto"}
-    >Auto</button>
   </div>
 </div>
 

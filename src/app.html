@@ -11,22 +11,18 @@
 			href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"
 			rel="stylesheet"
 		/>
-		<!-- Theme bootstrap: applied before paint so we don't flash light
-		     tokens on a dark-mode user. Reads the persisted preference
-		     ('light' | 'dark' | absent = auto) and falls through to the
-		     OS prefers-color-scheme. The class lands on <html> so it's
-		     ready before <body> exists. -->
+		<!-- Theme bootstrap: applied before paint so a dark-mode user
+		     doesn't flash light tokens on initial load. Reads the
+		     persisted preference ('light' | 'dark' | absent = light).
+		     No OS-preference fallback - first-time visitors get light;
+		     dark is opt-in via the theme toggle in the hamburger menu. -->
 		<script>
 			(function () {
 				try {
 					var pref = localStorage.getItem("ssta_theme");
-					var dark =
-						pref === "dark" ||
-						(pref !== "light" &&
-							window.matchMedia("(prefers-color-scheme: dark)").matches);
-					if (dark) document.documentElement.classList.add("mode-dark");
+					if (pref === "dark") document.documentElement.classList.add("mode-dark");
 				} catch (e) {
-					// localStorage / matchMedia unavailable; default light.
+					// localStorage unavailable; default light.
 				}
 			})();
 		</script>
