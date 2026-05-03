@@ -60,7 +60,7 @@
 
 <svelte:head>
   <title>Callboard - South Sound Theatre Artists</title>
-  <meta name="description" content="Auditions, designer and crew calls, and production announcements for South Sound theatre artists." />
+  <meta name="description" content="Auditions, designer and crew calls, and other opportunities for South Sound theatre artists. Performances live on the calendar." />
 </svelte:head>
 
 <!-- MASTHEAD -->
@@ -73,9 +73,10 @@
       across the South Sound.
     </h1>
     <p class="lede">
-      Auditions, designer and crew calls, and production announcements. Posting
-      is free - anyone can submit, and verified South Sound companies post
-      immediately.
+      Auditions, designer and crew calls, and other opportunities for the South
+      Sound theatre community. Posting is free - anyone can submit, and verified
+      companies post immediately. Looking for upcoming shows? See
+      <a href="/calendar">What's Playing</a>.
     </p>
   </div>
   <div class="masthead-meta">
@@ -311,7 +312,7 @@
     <h2 class="footer-heading">Post a call. <span class="serif-it">It's free.</span></h2>
     <p class="footer-body">
       Verified South Sound companies can post auditions, designer and crew
-      calls, and production announcements at no cost. Anyone can submit - new
+      calls, and other talent opportunities at no cost. Anyone can submit - new
       companies are vetted by hand, usually within 48 hours.
     </p>
   </div>
