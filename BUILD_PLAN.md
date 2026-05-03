@@ -230,6 +230,54 @@ Add nothing speculatively. Triggers are concrete signals from real users:
 - WYSIWYG editor migration if Lexi struggles with markdown
 - Whatever else surfaces
 
+### v2.x - Auto-populated regional calendar (post-launch ambition)
+**Goal:** the site shows what's playing across South Sound theatre even when companies don't manually post to the callboard. Lexi and Blake both want this — neither has time to keep a calendar updated by hand, and the previous regional theatre-listings site (which both remembered fondly) shut down years ago.
+
+**Approach** in order of preference, **never raw HTML scraping as a default**:
+1. **JSON-LD `Event` schema** in the org's site source (`<script type="application/ld+json">` blocks). Survives redesigns because sites can't break it without hurting Google rankings.
+2. **iCal / Google Calendar feeds** — many orgs publish public feeds. Cleanest data, ask orgs first.
+3. **Ticketing platform APIs / feeds** — Tessitura, AudienceView, OvationTix, Eventbrite, etc.
+4. **Custom HTML scrapers** — last resort, high maintenance burden, only when worth it.
+5. **Admin review queue** — scraper produces drafts; Lexi approves before they go live. Catches drift, keeps quality.
+
+**Schema direction:** multi-tag, not exclusive categories. Each org carries an array of tags so it can belong to multiple buckets simultaneously (e.g. Tacoma Opera = "producing" + "opera"; OFT = "producing" + "youth"). Calendar UI toggles flip individual tags. Default-on tags: `producing`, `venue`, `youth`. Default-off: `opera`, `symphony`, `college`, `high-school`. (One catch flagged early: venues book non-theatrical events too — weddings / conferences. Need a per-event-type filter at scrape time OR Lexi-curated review to keep the calendar relevant.)
+
+**v1 audit scope (30 producing companies):**
+```
+TACOMA / PIERCE COUNTY
+  Tacoma Little Theatre, Lakewood Playhouse, Tacoma Musical Playhouse,
+  Theatre Northwest, Dukesbay Productions, New Muses Theatre Company,
+  Toy Boat Theatre, Screaming Butterflies Entertainment,
+  Mustard Seed Theater Company, Tacoma Opera
+
+SOUTH PIERCE (Puyallup / Sumner)
+  Sumner Mainstage Theatre, Northwest Center Theatre
+
+OLYMPIA / THURSTON
+  Harlequin Productions, Olympia Little Theatre, Olympia Family Theater,
+  Broadway Olympia Productions, Theater Artists Olympia,
+  String & Shadow Puppet Theater, Animal Fire Theatre
+
+SOUTH KING COUNTY
+  Centerstage Theatre, Renton Civic Theatre, Burien Actors Theatre,
+  Theatre Battery, Emerald Theatre, Auburn Community Players
+
+GIG HARBOR / KITSAP
+  Jewel Box Theatre, Peninsula Community Theatre, Bainbridge Performing Arts,
+  Bremerton Community Theatre, Evergreen Playhouse
+```
+(Notably **out of scope** for v1 audit: Second Story Rep — Redmond, north of Seattle.)
+
+**Deferred tiers** (separate audits later, each is its own universe):
+- **Venues / presenters** — Pantages, Rialto, Theatre on the Square (all operated by Tacoma Arts Live), Washington Center for the Performing Arts (Olympia), Federal Way Performing Arts Center, Auburn Performing Arts Center, etc. Different scrape target: org website may or may not aggregate all the venue programming.
+- **Symphony / classical** — Tacoma Symphony, Symphony Tacoma, Northwest Sinfonietta, Federal Way Symphony, etc. Different audience overlap with theatre; opt-in tag.
+- **Opera** — Tacoma Opera lives in v1 producing companies, but if more opera orgs surface, they'd join their own tier.
+- **Youth / educational theatre** — CSTOCK, OFT youth side, WWCA, Olympia Junior Programs, Capital Playhouse-style (defunct or active small companies). Many of these are also in v1 list as "producing" — multi-tag handles the overlap.
+- **Colleges** — PLU, UPS, Evergreen, Saint Martin's, TCC, Pierce College, SPSCC, Centralia. Different season pacing (academic year), often less structured event data.
+- **High schools** — 40+ in the South Sound. Data quality wall (PDFs in Google Drive, no structured anywhere). Biggest org-by-org effort, smallest payoff per scraper. Pull list once from WSTF chapter directory if/when we go after them.
+
+**Status:** **audit deferred.** The 30-org producing list is locked. When we're ready to actually build the calendar, run the audit (~15-20 min for an LLM with web access), categorize orgs by data-source quality, then build the cron pipeline + calendar UI. Likely a 1-2 day implementation once the audit is in hand. The v1.3 "What's Playing" calendar (production announcements artists submit) is the simpler precursor — that one ships from manually-submitted data and can launch first.
+
 ---
 
 ## v1 Build Order
