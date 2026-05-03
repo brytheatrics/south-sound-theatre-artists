@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import { page } from "$app/state";
+  import SchedulePatternEditor from "$lib/components/SchedulePatternEditor.svelte";
   let { data, form } = $props();
 
   // Reactive performances list. Bound to the form via a JSON-encoded
@@ -14,9 +15,13 @@
     })),
   );
 
+  // Bind run dates to local state so the SchedulePatternEditor can
+  // expand against the live values as the admin edits.
+  let runStart = $state(data.production.run_start ?? "");
+  let runEnd = $state(data.production.run_end ?? "");
+
   function addPerf() {
-    // Default new performance to 7:30pm on the run_start date if known.
-    const defaultDate = data.production.run_start ?? new Date().toISOString().slice(0, 10);
+    const defaultDate = runStart || new Date().toISOString().slice(0, 10);
     perfs = [...perfs, { wallClock: `${defaultDate}T19:30`, note: "", cancelled: false }];
   }
   function removePerf(i: number) {
@@ -24,6 +29,13 @@
   }
   function toggleCancelled(i: number) {
     perfs = perfs.map((p, j) => (j === i ? { ...p, cancelled: !p.cancelled } : p));
+  }
+  function applyGeneratedPerformances(generated: Array<{ wallClock: string; note: string }>) {
+    perfs = generated.map((g) => ({
+      wallClock: g.wallClock,
+      note: g.note,
+      cancelled: false,
+    }));
   }
 
   let busy = $state(false);
@@ -102,11 +114,11 @@
   <div class="row-2">
     <label class="field">
       <span>Run start</span>
-      <input name="run_start" type="date" value={data.production.run_start ?? ""} />
+      <input name="run_start" type="date" bind:value={runStart} />
     </label>
     <label class="field">
       <span>Run end</span>
-      <input name="run_end" type="date" value={data.production.run_end ?? ""} />
+      <input name="run_end" type="date" bind:value={runEnd} />
     </label>
   </div>
 
@@ -151,8 +163,15 @@
     showing the date as available.
   </p>
 
+  <SchedulePatternEditor
+    {runStart}
+    {runEnd}
+    existingCount={perfs.length}
+    onApply={applyGeneratedPerformances}
+  />
+
   {#if perfs.length === 0}
-    <p class="empty-perfs">No performances yet — add the first one below.</p>
+    <p class="empty-perfs">No performances yet — add the first one below or use the pattern generator above.</p>
   {/if}
 
   <ul class="perf-list">
