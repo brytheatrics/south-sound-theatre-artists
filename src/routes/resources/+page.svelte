@@ -21,6 +21,23 @@
   </p>
 </header>
 
+<!-- Featured: theatres directory. Sits above the regular resource
+     groups since it's a high-value internal link rather than an
+     external resource. -->
+<section class="featured">
+  <a href="/theatres" class="feature-card">
+    <div class="feature-body">
+      <span class="feature-eyebrow">South Sound theatres</span>
+      <h2 class="feature-title">Browse every theatre we track.</h2>
+      <p class="feature-desc">
+        From year-round professional houses to one-show-a-summer outdoor
+        companies. Tickets, seasons, contact info — all in one place.
+      </p>
+    </div>
+    <span class="feature-arrow" aria-hidden="true">→</span>
+  </a>
+</section>
+
 {#if data.groups.length === 0}
   <p class="empty">
     Nothing curated yet. Check back soon.
@@ -73,6 +90,57 @@
     font-style: italic;
     text-align: center;
   }
+  /* Featured: hero card linking to /theatres */
+  .featured {
+    padding: 0 var(--page-pad-x);
+    margin-bottom: 1rem;
+  }
+  .feature-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+    max-width: 900px;
+  }
+  .feature-card:hover {
+    border-color: var(--ink-soft);
+    text-decoration: none;
+  }
+  .feature-body { flex: 1; min-width: 0; }
+  .feature-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .feature-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0.4rem 0 0.5rem;
+    color: var(--ink);
+  }
+  .feature-desc {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  .feature-arrow {
+    flex: 0 0 auto;
+    font-size: 1.5rem;
+    color: var(--accent);
+  }
+  .feature-card:hover .feature-arrow { transform: translateX(2px); }
   .group {
     padding: 1.5rem var(--page-pad-x);
     border-top: 1px solid var(--rule);
