@@ -33,7 +33,7 @@
   {#if data?.banner}
     <AnnouncementBanner body={data.banner} />
   {/if}
-  <Nav isAdmin={data?.isAdmin ?? false} />
+  <Nav isAdmin={data?.isAdmin ?? false} navLabels={data?.navLabels} />
   <main class="content">
     {@render children()}
   </main>

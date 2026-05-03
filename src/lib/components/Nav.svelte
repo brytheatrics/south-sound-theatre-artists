@@ -5,8 +5,22 @@
   import ThemeToggle from "./ThemeToggle.svelte";
   import LogoMark from "./LogoMark.svelte";
 
-  type Props = { isAdmin?: boolean };
-  let { isAdmin = false }: Props = $props();
+  type NavLabels = {
+    directory: string;
+    calendar: string;
+    callboard: string;
+    resources: string;
+  };
+  const NAV_LABEL_DEFAULTS: NavLabels = {
+    directory: "Directory",
+    calendar: "What's Playing",
+    callboard: "Opportunities",
+    resources: "Resources",
+  };
+
+  type Props = { isAdmin?: boolean; navLabels?: NavLabels };
+  let { isAdmin = false, navLabels }: Props = $props();
+  const labels = $derived(navLabels ?? NAV_LABEL_DEFAULTS);
 
   // Build the GoatCounter dashboard URL when the analytics code is set.
   // Empty string = no analytics integration yet, hide the pill.
@@ -15,15 +29,16 @@
     : "";
 
   type Link = { href: string; label: string };
-  // Primary nav: the three places people come to *do* something.
-  // Reference content (About, Contact, etc.) lives in the hamburger
-  // overflow menu so the header reads cleanly.
-  const links: Link[] = [
-    { href: "/directory", label: "Directory" },
-    { href: "/calendar", label: "What's Playing" },
-    { href: "/callboard", label: "Opportunities" },
-    { href: "/resources", label: "Resources" },
-  ];
+  // Primary nav: the four places people come to *do* something.
+  // Labels come from site_content (editable at /admin/content as
+  // nav.directory / nav.calendar / nav.callboard / nav.resources)
+  // with the hardcoded defaults above as fallback.
+  const links = $derived<Link[]>([
+    { href: "/directory", label: labels.directory },
+    { href: "/calendar", label: labels.calendar },
+    { href: "/callboard", label: labels.callboard },
+    { href: "/resources", label: labels.resources },
+  ]);
 
   // Hamburger menu items: secondary destinations, organized roughly by
   // "learn" -> "act" -> "legal".
