@@ -464,7 +464,8 @@ Discussed and parked. None are committed; if usage patterns or user requests sur
   - `/callboard/unsubscribe/[token]` route — the cron script already links to it (line 103-105) but the page doesn't exist yet, so the link 404s today.
   - Extend `scripts/callboard-weekly-digest.mjs` to also pull new approved productions from the past week and include them in the digest body.
   - Update the `callboard_weekly_digest` template body to mention both callboard + calendar (rename copy to "Weekly digest" — drop the callboard-specific framing).
-  - Estimated ~90 minutes of focused work. Today the email pipeline sends `text:` only — `lib/server/email.ts` line 79. Markdown image syntax in template bodies shows up as literal text in recipient inboxes, so the admin preview pane is misleading (it renders HTML). Lexi explicitly wants visual branding (logo + sign-off), which requires switching to HTML email. Scope:
+  - Estimated ~90 minutes of focused work.
+- **HTML email with logo + branded signature.** Today the email pipeline sends `text:` only — `lib/server/email.ts` line 79. Markdown image syntax in template bodies shows up as literal text in recipient inboxes, so the admin preview pane is misleading (it renders HTML). Lexi explicitly wants visual branding (logo + sign-off), which requires switching to HTML email. Scope:
   - Render `body_markdown` to HTML via the existing `renderMarkdown()` helper at send time.
   - Wrap output in a minimal email-safe shell (table layout, inline styles, hard-coded width — Gmail / Outlook / Apple Mail tested).
   - Pass both `text:` (plain fallback) and `html:` to Resend in the same payload so HTML-stripped clients still get a readable version.
