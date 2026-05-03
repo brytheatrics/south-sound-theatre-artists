@@ -186,12 +186,27 @@ notes, etc.)*
   artist turns 18, Lexi flips `is_minor=false` from `/admin/profiles/{id}/edit`
   and (optionally) updates the contact email to the artist's. The edit
   UI doesn't currently expose `is_minor` — that's a small follow-up.
-- **/admin/event-sources edit form for the new theatre metadata.** The
-  seed script populates `description` / `homepage_url` / `public_email` /
-  `logo_url` for all 26 orgs, but Lexi can't currently edit those fields
-  from the admin panel. For launch, edits would happen via re-running
-  the seed with `--overwrite`. A future tweak: add the four fields to
-  the admin event-sources card.
+
+## Future-me roadmap
+*(Mentioned in the meeting prep but explicitly not built. Don't forget.)*
+
+- **Trust-this-device for admin login.** "Remember this device for 30
+  days" checkbox on `/admin/verify` so Blake doesn't need an email
+  round-trip every time he wants to fix something from his work
+  laptop. Single new cookie, no schema work. ~30 min when wanted.
+- **Multi-admin with per-user accounts.** When Lexi wants to add a
+  second admin, swap env-var auth for an `admin_users` table (email,
+  password_hash, role), keep 2FA-via-email but route to *that* user's
+  email. Includes an `/admin/admins` invite + management page. ~3-4
+  hours; design choices (roles / audit log / ownership transfer) get
+  clearer once a real second user is in mind.
+- **Calendar org consolidation (Option C).** Merge `event_sources`
+  and `verified_orgs` into a single `organizations` table. Verified
+  flag becomes a column on the merged row instead of a separate
+  table. Cleanest data model, but a real migration with backfill +
+  rewrite of /admin/orgs and the scraper's source lookup. Probably
+  half-day of focused work. Worth doing when there's a calm week
+  post-launch.
 
 ---
 
