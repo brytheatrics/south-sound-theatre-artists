@@ -10,6 +10,13 @@
   // post or the admin-picked subset. Empty array hides the bar entirely.
   const marqueeItems = $derived(data.marquee ?? []);
 
+  // Scale animation duration with item count so the px/sec speed stays
+  // roughly constant regardless of how many things are in the ticker.
+  // ~10s per item reads as a calm crawl; min 60s so 1-3 items don't fly.
+  const marqueeDuration = $derived(
+    `${Math.max(60, marqueeItems.length * 10)}s`,
+  );
+
   $effect(() => {
     if (paused || data.featured.length <= 1) return;
     const t = setInterval(() => {
@@ -114,7 +121,7 @@
      runs, which keeps motion buttery. -->
 {#if marqueeItems.length > 0}
   <div class="marquee" role="presentation">
-    <div class="marquee-track">
+    <div class="marquee-track" style="--marquee-duration: {marqueeDuration}">
       {#each [...marqueeItems, ...marqueeItems] as item, i (i)}
         <a class="m-item" href={item.href}>
           <span class="m-glyph" aria-hidden="true">{item.glyph}</span>
@@ -322,7 +329,9 @@
        lock the layer flat to avoid stacking-context surprises.
      - :hover pause lives in CSS so there's zero JS / Svelte state churn
        while the animation runs.
-     - Slower duration (90s) reads as a calm crawl rather than a march. */
+     - Duration scales with item count (~10s/item) via the
+       --marquee-duration custom property set inline in the markup, so
+       a longer ticker doesn't read as a faster scroll. */
   .marquee {
     margin: clamp(2rem, 4vw, 3rem) 0 0;
     overflow: hidden;
@@ -336,7 +345,7 @@
   .marquee-track {
     display: inline-flex;
     gap: 2.5rem;
-    animation: marquee 90s linear infinite;
+    animation: marquee var(--marquee-duration, 90s) linear infinite;
     will-change: transform;
     backface-visibility: hidden;
     -webkit-font-smoothing: antialiased;

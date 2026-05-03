@@ -15,11 +15,7 @@ export type TheatreRow = {
   area_name: string | null;
   description: string | null;
   homepage_url: string | null;
-  public_email: string | null;
   logo_url: string | null;
-  // True = auto-pulled by the cron, so the calendar shows their shows.
-  // False = manual entry; their listings come in by hand.
-  auto_synced: boolean;
 };
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -29,8 +25,8 @@ export const load: PageServerLoad = async ({ url }) => {
     supabaseAdmin
       .from("event_sources")
       .select(
-        `org_slug, org_name, area_id, adapter, active,
-         description, homepage_url, public_email, logo_url`,
+        `org_slug, org_name, area_id, active,
+         description, homepage_url, logo_url`,
       )
       .eq("active", true)
       .order("org_name"),
@@ -51,9 +47,7 @@ export const load: PageServerLoad = async ({ url }) => {
     area_name: s.area_id ? areaNameById.get(s.area_id) ?? null : null,
     description: s.description,
     homepage_url: s.homepage_url,
-    public_email: s.public_email,
     logo_url: s.logo_url,
-    auto_synced: s.adapter !== "manual",
   }));
 
   // Area filter — by name (URL-friendly) for shareability. Falls through

@@ -19,7 +19,8 @@ export const load: PageServerLoad = async () => {
     .select(
       `id, org_slug, org_name, source_url, adapter, cadence_days, active,
        last_status, last_show_count, last_checked_at, last_successful_at,
-       last_error, cooldown_until, notes, updated_at, area_id`,
+       last_error, cooldown_until, notes, updated_at, area_id,
+       description, homepage_url, logo_url`,
     )
     .order("org_name");
   if (error) throw error;
@@ -43,6 +44,45 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
+  // Save the public-facing /theatres metadata (description, homepage URL,
+  // logo URL). All three are nullable - empty string clears the column.
+  // The other event_sources fields (source_url, adapter, area, etc.) are
+  // managed elsewhere; this action only touches the display fields.
+  updatePublic: async ({ request }) => {
+    const fd = await request.formData();
+    const id = String(fd.get("id") ?? "");
+    if (!id) return fail(400, { error: "missing source id" });
+
+    const description = String(fd.get("description") ?? "").trim();
+    const homepageUrl = String(fd.get("homepage_url") ?? "").trim();
+    const logoUrl = String(fd.get("logo_url") ?? "").trim();
+
+    // Light validation: URLs must look like URLs if set.
+    const looksLikeUrl = (s: string) => /^https?:\/\//i.test(s);
+    if (homepageUrl && !looksLikeUrl(homepageUrl)) {
+      return fail(400, { error: "Homepage URL must start with http:// or https://" });
+    }
+    if (logoUrl && !looksLikeUrl(logoUrl)) {
+      return fail(400, { error: "Logo URL must start with http:// or https://" });
+    }
+    if (description.length > 500) {
+      return fail(400, { error: "Description should be under 500 characters." });
+    }
+
+    const { data: row, error } = await supabaseAdmin
+      .from("event_sources")
+      .update({
+        description: description || null,
+        homepage_url: homepageUrl || null,
+        logo_url: logoUrl || null,
+      })
+      .eq("id", id)
+      .select("org_slug")
+      .maybeSingle();
+    if (error || !row) return fail(500, { error: "Could not save." });
+    return { savedPublic: row.org_slug };
+  },
+
   refresh: async ({ request }) => {
     if (!ANTHROPIC_API_KEY) return fail(500, { error: "ANTHROPIC_API_KEY not configured" });
     const fd = await request.formData();

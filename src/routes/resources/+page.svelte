@@ -28,7 +28,7 @@
   <a href="/theatres" class="feature-card">
     <div class="feature-body">
       <span class="feature-eyebrow">South Sound theatres</span>
-      <h2 class="feature-title">Browse every theatre we track.</h2>
+      <h2 class="feature-title">Every South Sound theatre, in one place.</h2>
       <p class="feature-desc">
         From year-round professional houses to one-show-a-summer outdoor
         companies. Tickets, seasons, contact info — all in one place.

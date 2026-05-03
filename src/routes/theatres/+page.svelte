@@ -6,7 +6,7 @@
   <title>Theatres - South Sound Theatre Artists</title>
   <meta
     name="description"
-    content="Every theatre we track in the South Sound: Tacoma, Olympia, Gig Harbor / Kitsap, South King County, and beyond."
+    content="South Sound theatres: Tacoma, Olympia, Gig Harbor / Kitsap, South King County, and beyond."
   />
 </svelte:head>
 
@@ -18,7 +18,7 @@
       {data.total === 1 ? "theatre" : "theatres"},<br />across the South Sound.
     </h1>
     <p class="lede">
-      Every company we track for the calendar lives here — from year-round
+      Every company on our calendar lives here — from year-round
       professional houses to one-show-a-summer outdoor companies. Click into a
       theatre's site for tickets, season info, or to reach their team directly.
     </p>
@@ -100,16 +100,6 @@
                   <a class="card-link" href={t.homepage_url} target="_blank" rel="noopener">
                     Website &rarr;
                   </a>
-                {/if}
-                {#if t.public_email}
-                  <a class="card-link" href={`mailto:${t.public_email}`}>
-                    Email &rarr;
-                  </a>
-                {/if}
-                {#if t.auto_synced}
-                  <span class="card-badge" title="Performances are pulled automatically from this theatre's site.">
-                    Auto-pulled
-                  </span>
                 {/if}
               </div>
             </div>
@@ -304,17 +294,6 @@
     text-decoration: none;
   }
   .card-link:hover { text-decoration: underline; }
-  .card-badge {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 2px 6px;
-    border: 1px solid var(--rule);
-    border-radius: 100px;
-  }
 
   .empty {
     padding: 3rem var(--page-pad-x);

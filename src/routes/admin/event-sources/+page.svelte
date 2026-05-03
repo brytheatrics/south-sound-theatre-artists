@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   let { data, form } = $props();
   let busy = $state<string | null>(null);
+  let savingId = $state<string | null>(null);
 
   function fmtRel(iso: string | null): string {
     if (!iso) return "never";
@@ -19,6 +20,64 @@
     return status ? `st-${status}` : "st-pending";
   }
 </script>
+
+{#snippet publicEdit(s: { id: string; org_slug: string; description: string | null; homepage_url: string | null; logo_url: string | null })}
+  <details class="public-edit">
+    <summary>Edit public details (description / homepage / logo)</summary>
+    <form
+      method="POST"
+      action="?/updatePublic"
+      class="public-edit-form"
+      use:enhance={() => {
+        savingId = s.id;
+        return async ({ update }) => {
+          await update({ reset: false });
+          savingId = null;
+        };
+      }}
+    >
+      <input type="hidden" name="id" value={s.id} />
+      <label class="pe-field">
+        <span class="pe-label">Description</span>
+        <textarea
+          name="description"
+          rows="2"
+          maxlength="500"
+          placeholder="1-2 sentence public-facing description (shown on /theatres)"
+          value={s.description ?? ""}
+        ></textarea>
+      </label>
+      <label class="pe-field">
+        <span class="pe-label">Homepage URL</span>
+        <input
+          name="homepage_url"
+          type="url"
+          placeholder="https://..."
+          value={s.homepage_url ?? ""}
+        />
+      </label>
+      <label class="pe-field">
+        <span class="pe-label">Logo URL</span>
+        <div class="pe-logo-row">
+          <input
+            name="logo_url"
+            type="url"
+            placeholder="https://..."
+            value={s.logo_url ?? ""}
+          />
+          {#if s.logo_url}
+            <img class="pe-logo-preview" src={s.logo_url} alt="" />
+          {/if}
+        </div>
+      </label>
+      <div class="pe-actions">
+        <button type="submit" class="bt bt-pri" disabled={savingId === s.id}>
+          {savingId === s.id ? "Saving..." : "Save public details"}
+        </button>
+      </div>
+    </form>
+  </details>
+{/snippet}
 
 <svelte:head>
   <title>Calendar sources - SSTA admin</title>
@@ -48,6 +107,11 @@
     {form.result?.cost?.toFixed(4)})
   </div>
 {/if}
+{#if form?.savedPublic}
+  <div class="form-ok" role="status">
+    Saved public details for <strong>{form.savedPublic}</strong>.
+  </div>
+{/if}
 
 <h2 class="section-h">
   Auto-pulled <span class="section-count">{data.autoSources.length}</span>
@@ -55,7 +119,7 @@
 
 <div class="src-list">
   {#each data.autoSources as s (s.id)}
-    <article class="src-row" class:inactive={!s.active}>
+    <article class="src-row src-row-wrap" class:inactive={!s.active}>
       <div class="src-name">
         <h3>{s.org_name}</h3>
         <code class="src-slug">{s.org_slug}</code>
@@ -97,6 +161,7 @@
           </button>
         </form>
       </div>
+      {@render publicEdit(s)}
     </article>
   {/each}
 </div>
@@ -133,6 +198,7 @@
       <div class="src-actions">
         <a class="bt bt-ghost" href="/admin/calendar/new">+ Add show</a>
       </div>
+      {@render publicEdit(s)}
     </article>
   {/each}
 </div>
@@ -316,6 +382,104 @@
 
   .src-actions {
     align-self: center;
+  }
+
+  /* Public-details edit disclosure: lives beneath the existing 4-column
+     row, hidden by default. Spans the full width when open so the form
+     fields read on a single line at desktop widths. */
+  .public-edit {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--rule-soft);
+    font-size: 0.85rem;
+  }
+  .public-edit summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0;
+    list-style: revert;
+  }
+  .public-edit[open] summary {
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+  .public-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-top: 0.25rem;
+  }
+  .pe-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .pe-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pe-field input,
+  .pe-field textarea {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--ink);
+    width: 100%;
+  }
+  .pe-field input:focus,
+  .pe-field textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .pe-logo-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .pe-logo-row input { flex: 1; }
+  .pe-logo-preview {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+    padding: 3px;
+    flex: 0 0 auto;
+  }
+  .pe-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .bt-pri {
+    padding: 0.45rem 1rem;
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .bt-pri:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .bt-pri:disabled {
+    opacity: 0.6;
+    cursor: progress;
   }
   .bt-ghost {
     padding: 0.4rem 0.85rem;
