@@ -2,15 +2,54 @@
 // public site_content pages. Handles paragraphs, # / ## headings,
 // **bold**, *italic*, [link](url), ![alt](url) images, - lists.
 //
+// Backslash escapes are supported for the special characters above:
+// `\-`, `\*`, `\[`, `\]`, `\!`, `\\`. Useful when you want to start a
+// line with a literal dash without it becoming a list, or write
+// "5*5" without the asterisks turning into italic.
+//
 // Not a full CommonMark renderer. Sufficient for editable copy and
 // keeps render output identical between the editor preview and the
 // served HTML.
+
+// Mask escapes BEFORE the HTML escape pass and BEFORE any regex rules.
+// Each `\X` becomes a private-use unicode placeholder so the existing
+// regexes can't see the escaped character. We swap the placeholders
+// back to the literal character at the very end. `\\` is processed
+// first so a double-backslash doesn't chain into another escape rule.
+// Built at runtime via fromCharCode so the source file doesn't depend
+// on raw control bytes (0x0001-0x0006) surviving editor round-trips.
+// None of these codepoints collide with anything Lexi would type.
+const ESC_BS = String.fromCharCode(0x0001);
+const ESC_DASH = String.fromCharCode(0x0002);
+const ESC_STAR = String.fromCharCode(0x0003);
+const ESC_LBRACK = String.fromCharCode(0x0004);
+const ESC_RBRACK = String.fromCharCode(0x0005);
+const ESC_BANG = String.fromCharCode(0x0006);
+
+function maskEscapes(s: string): string {
+  return s
+    .replace(/\\\\/g, ESC_BS)
+    .replace(/\\-/g, ESC_DASH)
+    .replace(/\\\*/g, ESC_STAR)
+    .replace(/\\\[/g, ESC_LBRACK)
+    .replace(/\\\]/g, ESC_RBRACK)
+    .replace(/\\!/g, ESC_BANG);
+}
+function unmaskEscapes(s: string): string {
+  return s
+    .replace(new RegExp(ESC_DASH, "g"), "-")
+    .replace(new RegExp(ESC_STAR, "g"), "*")
+    .replace(new RegExp(ESC_LBRACK, "g"), "[")
+    .replace(new RegExp(ESC_RBRACK, "g"), "]")
+    .replace(new RegExp(ESC_BANG, "g"), "!")
+    .replace(new RegExp(ESC_BS, "g"), "\\");
+}
 
 export function renderMarkdown(md: string): string {
   if (!md) return "";
   const escape = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const lines = escape(md).split(/\r?\n/);
+  const lines = escape(maskEscapes(md)).split(/\r?\n/);
 
   let html = "";
   let inList = false;
@@ -55,7 +94,7 @@ export function renderMarkdown(md: string): string {
     html += `<p>${inline(line)}</p>`;
   }
   if (inList) html += "</ul>";
-  return html;
+  return unmaskEscapes(html);
 }
 
 function inline(s: string): string {
@@ -75,5 +114,5 @@ export function renderMarkdownInline(md: string): string {
   if (!md) return "";
   const escape = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return inline(escape(md.trim()));
+  return unmaskEscapes(inline(escape(maskEscapes(md.trim()))));
 }
