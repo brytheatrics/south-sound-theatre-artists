@@ -28,7 +28,12 @@ export type CallboardPost = {
 
 export const load: PageServerLoad = async ({ url }) => {
   const params = url.searchParams;
-  const type = (params.get("type") ?? "").trim();
+  // Multi-select filter: ?types=audition,designer (comma-separated).
+  // Backwards-compatible with the older single-value ?type= param.
+  const typesParam = (params.get("types") ?? params.get("type") ?? "").trim();
+  const requestedTypes = typesParam
+    ? typesParam.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
   const verifiedOnly = params.get("verified") === "1";
   const sort = params.get("sort") === "newest" ? "newest" : "deadline";
   const view = params.get("view") === "cards" ? "cards" : "list";
@@ -69,8 +74,13 @@ export const load: PageServerLoad = async ({ url }) => {
     .eq("status", "approved")
     .is("deleted_at", null);
 
-  if (type && validTypes.includes(type)) {
-    query = query.eq("post_type", type);
+  // Filter to only the requested types that actually exist + are active.
+  // Empty list = no filter, show all.
+  const activeTypes = requestedTypes.filter((t) => validTypes.includes(t));
+  if (activeTypes.length === 1) {
+    query = query.eq("post_type", activeTypes[0]);
+  } else if (activeTypes.length > 1) {
+    query = query.in("post_type", activeTypes);
   }
   if (verifiedOnly) {
     query = query.not("verified_org_id", "is", null);
@@ -120,7 +130,7 @@ export const load: PageServerLoad = async ({ url }) => {
     postTypes,
     page,
     pageSize: PAGE_SIZE,
-    type,
+    activeTypes,
     verifiedOnly,
     sort,
     view,

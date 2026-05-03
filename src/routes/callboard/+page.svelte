@@ -28,7 +28,7 @@
   function buildUrl(overrides: Record<string, string | null>) {
     const p = new URLSearchParams();
     const base: Record<string, string | null> = {
-      type: data.type || null,
+      types: data.activeTypes.length > 0 ? data.activeTypes.join(",") : null,
       verified: data.verifiedOnly ? "1" : null,
       sort: data.sort === "newest" ? "newest" : null,
       view: data.view === "cards" ? "cards" : null,
@@ -40,6 +40,15 @@
     }
     const s = p.toString();
     return "/callboard" + (s ? "?" + s : "");
+  }
+
+  // Toggle a type slug in/out of the active set. Empty = no filter.
+  function toggleType(slug: string): string | null {
+    const set = new Set(data.activeTypes);
+    if (set.has(slug)) set.delete(slug);
+    else set.add(slug);
+    if (set.size === 0) return null;
+    return Array.from(set).join(",");
   }
 
   function fmtRelative(iso: string): string {
@@ -97,8 +106,8 @@
   {#each FILTER_TABS as tab (tab.value)}
     <a
       class="chip"
-      class:on={data.type === tab.value}
-      href={buildUrl({ type: data.type === tab.value ? null : tab.value, page: null })}
+      class:on={data.activeTypes.includes(tab.value)}
+      href={buildUrl({ types: toggleType(tab.value), page: null })}
     >
       {tab.label}
     </a>
@@ -176,7 +185,7 @@
 {#if data.posts.length === 0}
   <div class="empty">
     <p>No posts match your filters.</p>
-    {#if data.type || data.verifiedOnly}
+    {#if data.activeTypes.length > 0 || data.verifiedOnly}
       <a class="bt bt-ghost" href="/callboard">Clear filters</a>
     {/if}
   </div>
