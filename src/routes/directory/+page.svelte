@@ -538,29 +538,9 @@
     overflow: hidden;
     clip: rect(0 0 0 0);
   }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 5px 11px;
-    border-radius: 100px;
-    background: transparent;
-    border: 1px solid var(--rule);
-    color: var(--ink-soft);
-    font-family: var(--font-body);
-    font-size: 12px;
-    cursor: pointer;
-    user-select: none;
-    line-height: 1.2;
-  }
-  .chip:hover {
-    border-color: var(--ink);
-    color: var(--ink);
-  }
-  .chip.on {
-    background: var(--ink);
-    color: var(--bg);
-    border-color: var(--ink);
-  }
+  /* Base .chip / .chip:hover / .chip.on come from app.css (shared
+     across /calendar, /directory, /callboard). Only directory-specific
+     bits stay here. */
   .chip-label input:focus-visible + .chip {
     outline: 2px solid var(--accent);
     outline-offset: 2px;

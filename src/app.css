@@ -116,6 +116,41 @@ a:hover {
   color: var(--accent);
 }
 
+/* ===================================================================
+ * Filter chip — used on /calendar, /directory, /callboard, and any
+ * future filter strip. Off state is paper-tone, on state is moss
+ * accent. Per-page styles can override (e.g. role chips on callboard
+ * keep .chip-sm for size variation), but the off / hover / on states
+ * are shared so all filter strips read the same visual language.
+ * =================================================================*/
+.chip {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+  text-decoration: none;
+}
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
 .h1-display {
   font-family: var(--font-display);
   font-weight: 600;

@@ -438,28 +438,9 @@
     margin-right: 0.5rem;
     margin-bottom: 0;
   }
-  .chip {
-    display: inline-block;
-    padding: 0.35rem 0.75rem;
-    border: 1px solid var(--rule);
-    border-radius: 999px;
-    background: var(--bg-raised);
-    color: var(--ink-soft);
-    font-size: 0.875rem;
-    line-height: 1;
-    text-decoration: none;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-  }
-  .chip:hover {
-    border-color: var(--accent);
-    color: var(--ink);
-    text-decoration: none;
-  }
-  .chip.on {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-  }
+  /* Base .chip / .chip:hover / .chip.on come from app.css (shared
+     across /calendar, /directory, /callboard). Only page-specific
+     variants live here. */
   .chip.chip-clear {
     color: var(--muted);
     font-style: italic;
