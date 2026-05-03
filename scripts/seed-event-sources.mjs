@@ -109,7 +109,7 @@ const MANUAL_SOURCES = [
   // Phase 5 candidates (will auto-pull when the relevant adapter is built)
   { slug: "centerstage", name: "Centerstage Theatre", area: "South King County",
     url: "https://centerstagetheatre.com/current-season/",
-    notes: "Federal Way. PHASE 5: will auto-pull via OvationTix adapter (account 36978). Until then, check /current-season for show titles and ci.ovationtix.com/36978/ for performance dates." },
+    notes: "Federal Way. PHASE 6 (headless browser): OvationTix is a JS-rendered React app behind Cloudflare bot detection - cheap AI-extraction can't see anything. Needs Playwright. Same investment unlocks the Ludus-based orgs (TLT, ManeStage, New Muses) so it's a worthwhile batch when we get to it. Until then, check /current-season for show titles and ci.ovationtix.com/36978/ for performance dates." },
   { slug: "rentoncivic", name: "Renton Civic Theatre", area: "South King County",
     url: "https://www.rentoncivictheatre.org/season-2026",
     notes: "Renton. PHASE 5: will auto-pull via Next.js JSON endpoint probe. Until then, check /season-2026 for the season + events.rentoncivictheatre.org for performance dates." },

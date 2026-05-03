@@ -300,8 +300,9 @@ Add nothing speculatively. Triggers are concrete signals from real users:
 - **Phase 2 — Admin review queue.** `/admin/calendar-sync` lists pending productions, approve/reject buttons, mirrors existing review-queue patterns.
 - **Phase 3 — Public calendar view.** Calendar grid + list view, mobile-first, filter by org tags.
 - **Phase 4 — Source management UI + manual refresh.** `/admin/event-sources` — add/edit/remove sources, manual refresh button with 1-hour cooldown, stale-detection email when sources go quiet.
-- **Phase 5 — Platform adapters.** Arts People (covers 6 orgs), OvationTix (Centerstage), Eventbrite (Dukesbay), Squarespace `?format=json` (BPA). Each is short.
-- **Phase 6 — Seed all 26 orgs.** SQL insert with the URLs from this audit.
+- **Phase 5 — Platform adapters (cheap).** Arts People (already covered via AI extraction with `?ticketing=<code>` URLs - 6 orgs working), Eventbrite for Dukesbay, Squarespace `?format=json` for BPA. Each is short. Note: **OvationTix is NOT cheap** - it's JS-rendered React + Cloudflare bot protection. Moved to Phase 6.
+- **Phase 6 — Headless browser support.** Adds Playwright (or similar) to the cron so we can scrape JS-rendered platforms. One investment unlocks: Centerstage (OvationTix), TLT/ManeStage/New Muses (Ludus subdomain ticketing - currently only the Ludus link, not the schedule, so admin would have to follow the link manually for non-auto-extractable shows). Adds ~50MB dependency, ~30s/source runtime in CI. Worth doing when manual-entry burden across these ~4 orgs feels high.
+- **Phase 7 — Seed all 26 orgs.** SQL insert with the URLs from this audit. (Already done at this point - kept here historically; all 26 are seeded with appropriate adapter values.)
 
 **Deferred tiers** (separate audits later, each is its own universe):
 - **Venues / presenters** — Pantages, Rialto, Theatre on the Square (all operated by Tacoma Arts Live), Washington Center for the Performing Arts (Olympia), Federal Way Performing Arts Center, Auburn Performing Arts Center, etc. Different scrape target: org website may or may not aggregate all the venue programming.
