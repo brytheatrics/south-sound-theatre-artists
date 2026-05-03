@@ -112,6 +112,20 @@
     Saved public details for <strong>{form.savedPublic}</strong>.
   </div>
 {/if}
+{#if form?.activeSet}
+  <div class="form-ok" role="status">
+    {form.activeSet.slug} is now {form.activeSet.active ? "active" : "disabled"}
+    {form.activeSet.active
+      ? "- the cron will sync it on its next run."
+      : "- the cron will skip it. Existing shows stay live."}.
+  </div>
+{/if}
+{#if form?.adapterSet}
+  <div class="form-ok" role="status">
+    {form.adapterSet.slug} is now
+    {form.adapterSet.adapter === "manual" ? "manual entry" : "auto-pulled"}.
+  </div>
+{/if}
 
 <h2 class="section-h">
   Auto-pulled <span class="section-count">{data.autoSources.length}</span>
@@ -160,6 +174,30 @@
             {busy === s.id ? "Refreshing..." : "Refresh now"}
           </button>
         </form>
+        <form method="POST" action="?/setActive" use:enhance>
+          <input type="hidden" name="id" value={s.id} />
+          <input type="hidden" name="active" value={(!s.active).toString()} />
+          <button
+            type="submit"
+            class="bt bt-ghost"
+            title={s.active
+              ? "Disable - cron will skip this source. Existing shows stay live."
+              : "Re-enable cron syncing for this source."}
+          >
+            {s.active ? "Disable" : "Enable"}
+          </button>
+        </form>
+        <form method="POST" action="?/setAdapter" use:enhance>
+          <input type="hidden" name="id" value={s.id} />
+          <input type="hidden" name="adapter" value="manual" />
+          <button
+            type="submit"
+            class="bt bt-ghost"
+            title="Convert to manual entry - cron stops touching it, Lexi adds shows by hand."
+          >
+            Make manual
+          </button>
+        </form>
       </div>
       {@render publicEdit(s)}
     </article>
@@ -197,6 +235,30 @@
 
       <div class="src-actions">
         <a class="bt bt-ghost" href="/admin/calendar/new">+ Add show</a>
+        <form method="POST" action="?/setActive" use:enhance>
+          <input type="hidden" name="id" value={s.id} />
+          <input type="hidden" name="active" value={(!s.active).toString()} />
+          <button
+            type="submit"
+            class="bt bt-ghost"
+            title={s.active
+              ? "Hide this source from /admin/calendar/new and /theatres."
+              : "Re-enable this source."}
+          >
+            {s.active ? "Disable" : "Enable"}
+          </button>
+        </form>
+        <form method="POST" action="?/setAdapter" use:enhance>
+          <input type="hidden" name="id" value={s.id} />
+          <input type="hidden" name="adapter" value="ai-generic" />
+          <button
+            type="submit"
+            class="bt bt-ghost"
+            title="Convert back to auto-pull. The cron will start syncing this source on its next run."
+          >
+            Make auto
+          </button>
+        </form>
       </div>
       {@render publicEdit(s)}
     </article>
@@ -382,6 +444,16 @@
 
   .src-actions {
     align-self: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 130px;
+  }
+  .src-actions form { display: flex; }
+  .src-actions .bt-ghost,
+  .src-actions form .bt-ghost {
+    width: 100%;
+    text-align: center;
   }
 
   /* Public-details edit disclosure: lives beneath the existing 4-column

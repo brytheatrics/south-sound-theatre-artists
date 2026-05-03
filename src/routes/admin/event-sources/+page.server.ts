@@ -83,6 +83,44 @@ export const actions: Actions = {
     return { savedPublic: row.org_slug };
   },
 
+  // Flip active=true/false. Inactive sources are skipped entirely by the
+  // cron. Existing productions stay live - this only controls future syncs.
+  setActive: async ({ request }) => {
+    const fd = await request.formData();
+    const id = String(fd.get("id") ?? "");
+    const active = fd.get("active") === "true";
+    if (!id) return fail(400, { error: "missing source id" });
+    const { data: row, error } = await supabaseAdmin
+      .from("event_sources")
+      .update({ active })
+      .eq("id", id)
+      .select("org_slug")
+      .maybeSingle();
+    if (error || !row) return fail(500, { error: "Could not update." });
+    return { activeSet: { slug: row.org_slug, active } };
+  },
+
+  // Flip adapter between 'ai-generic' (auto-pulled by cron) and 'manual'
+  // (skipped by cron, Lexi enters shows by hand). Useful when an org's
+  // site stops scraping cleanly and we'd rather curate than fight it.
+  setAdapter: async ({ request }) => {
+    const fd = await request.formData();
+    const id = String(fd.get("id") ?? "");
+    const adapter = String(fd.get("adapter") ?? "");
+    if (!id) return fail(400, { error: "missing source id" });
+    if (adapter !== "ai-generic" && adapter !== "manual") {
+      return fail(400, { error: "adapter must be ai-generic or manual" });
+    }
+    const { data: row, error } = await supabaseAdmin
+      .from("event_sources")
+      .update({ adapter })
+      .eq("id", id)
+      .select("org_slug")
+      .maybeSingle();
+    if (error || !row) return fail(500, { error: "Could not update." });
+    return { adapterSet: { slug: row.org_slug, adapter } };
+  },
+
   refresh: async ({ request }) => {
     if (!ANTHROPIC_API_KEY) return fail(500, { error: "ANTHROPIC_API_KEY not configured" });
     const fd = await request.formData();
