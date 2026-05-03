@@ -455,6 +455,16 @@ Discussed and parked. None are committed; if usage patterns or user requests sur
 - **Discipline-specific resume sections.** v1.1 ships a generic credits/training/skills builder. The product spec mentioned per-discipline section variations - revisit if specific disciplines (designers? technicians?) struggle with the generic shape.
 - **Multi-category disciplines.** Sound Designer plausibly belongs in both Music & Sound and Design; we left it single-category and lean on the picker's search. Revisit if multiple ambiguous-home disciplines surface.
 - **Embedded analytics summary on /admin home.** Right now the View Analytics pill links out to GoatCounter. Could pull top numbers via API and render summary cards on /admin once we know which metrics matter.
+- **HTML email with logo + branded signature.** Today the email pipeline sends `text:` only — `lib/server/email.ts` line 79. Markdown image syntax in template bodies shows up as literal text in recipient inboxes, so the admin preview pane is misleading (it renders HTML). Lexi explicitly wants visual branding (logo + sign-off), which requires switching to HTML email. Scope:
+  - Render `body_markdown` to HTML via the existing `renderMarkdown()` helper at send time.
+  - Wrap output in a minimal email-safe shell (table layout, inline styles, hard-coded width — Gmail / Outlook / Apple Mail tested).
+  - Pass both `text:` (plain fallback) and `html:` to Resend in the same payload so HTML-stripped clients still get a readable version.
+  - Add a `signature` row to `site_content` (or similar one-source-of-truth) and inject `{{signature}}` as a template variable so the signature is edit-once-applied-everywhere.
+  - Optional: support trailing-two-spaces / `\` at line end as soft-break (`<br>`) so Lexi can stack signature lines tightly without each becoming a full paragraph gap.
+  - Fix the existing CSS quirk in `app.css`: `.prose p:has(> img:only-child) { float: left; max-width: 200px; }` was for the About page team-section layout but bleeds into the email preview, making logo size depend on whether the image sits alone on its line. Scope the rule to non-prose-compact contexts.
+  - Update the `/admin/templates` preview to use the same renderer so what Lexi sees matches what recipients get.
+  - **Deliverability note:** well-formed HTML transactional email with plain-text fallback is the industry default — risk of spam-flagging is small if the email is short, has no marketing-template noise, no tracking pixels, and the domain (already verified via Resend) keeps a clean reputation. Watch `email_log` after the switch for any patterns.
+  - Estimated ~2 hours of focused work plus test sends to Gmail / Outlook / Apple Mail.
 
 ---
 
