@@ -610,6 +610,17 @@ Discussed and parked. None are committed; if usage patterns or user requests sur
   - Update the `/admin/templates` preview to use the same renderer so what Lexi sees matches what recipients get.
   - **Deliverability note:** well-formed HTML transactional email with plain-text fallback is the industry default — risk of spam-flagging is small if the email is short, has no marketing-template noise, no tracking pixels, and the domain (already verified via Resend) keeps a clean reputation. Watch `email_log` after the switch for any patterns.
   - Estimated ~2 hours of focused work plus test sends to Gmail / Outlook / Apple Mail.
+- **Sponsors / paid listings page.** A `/sponsors` (or whatever name lands - candidates: "Supporting businesses," "Services," "Partners") page where vetted businesses useful to theatre artists pay for a listing. E.g. vocal coaches, headshot photographers, rehearsal-schedule tools. Distinct from the existing `/resources` page (curated free links) and `/theatres` (auto-pulled producing companies).
+  - **Schema sketch:** new `sponsors` table with id, slug, name, description (1-2 sentence blurb), website_url, logo_url, logo_bg, contact_email, paid_through (date - cron or lazy-on-render hides expired entries), sort_order, active, deleted_at, standard timestamps. Single migration.
+  - **Public page:** mirrors `/theatres`'s logo-tile layout. Small "These businesses help support SSTA — listings here are paid placements" disclosure banner up top to keep editorial trust intact.
+  - **Admin page:** `/admin/sponsors` with the same logo-bg picker + Cloudinary upload flow as `/admin/organizations`. paid_through is just a date input - admin updates it manually when payment lands.
+  - **Payment path:** offline invoicing for v1 (admin emails sponsor, Venmo/check/whatever). Zero code touches money. Stripe Checkout is theoretically possible if the volume justifies it, but adds 3% + 30¢ fees + an integration to maintain. Ko-fi tiers are a third option since Lexi already has a Ko-fi.
+  - **Open questions before building:**
+    1. Naming - "Sponsors" implies they support the org, "Services" reads as a directory, "Partners" is marketing-speak. Lexi picks since she'll write the page copy.
+    2. 501(c)(3) / UBIT (unrelated-business-income-tax) implications - worth a 30-min call with someone who knows nonprofit law before publishing the first paid listing.
+    3. Conflict / acceptance policy - what kinds of businesses get a yes? Vocal coach is obvious; wedding photographer who occasionally does headshots is borderline.
+  - **Recommendation when revisiting:** wait for the first vendor to *ask* before building. Empty paid-placements page reads as "trying to monetize, nobody biting." A real "hi, can I be listed?" email is the right trigger.
+  - Estimated ~1.5 hours of focused work once the design questions above are settled.
 
 ---
 
