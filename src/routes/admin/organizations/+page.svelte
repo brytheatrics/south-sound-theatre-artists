@@ -410,12 +410,12 @@
   {#each data.autoSources as s (s.id)}
     <article class="src-row src-row-wrap" class:inactive={!s.active}>
       <div class="src-name">
-        <h3>
-          {s.name}
-          {#if s.verified}<span class="verified-badge" title="Verified">&#10003;</span>{/if}
-        </h3>
+        <h3>{s.name}</h3>
         <code class="src-slug">{s.slug}</code>
         {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
+        <span class="verify-pill" class:verified={s.verified}>
+          {s.verified ? "Verified" : "Unverified"}
+        </span>
       </div>
 
       <div class="src-status">
@@ -492,12 +492,12 @@
   {#each data.manualSources as s (s.id)}
     <article class="src-row src-manual">
       <div class="src-name">
-        <h3>
-          {s.name}
-          {#if s.verified}<span class="verified-badge" title="Verified">&#10003;</span>{/if}
-        </h3>
+        <h3>{s.name}</h3>
         <code class="src-slug">{s.slug}</code>
         {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
+        <span class="verify-pill" class:verified={s.verified}>
+          {s.verified ? "Verified" : "Unverified"}
+        </span>
       </div>
 
       <div class="src-status">
@@ -653,6 +653,31 @@
     gap: 0.4rem;
   }
   .src-slug { font-size: 0.75rem; color: var(--muted); }
+
+  /* Verified / Unverified pill - lives next to the area chip in the
+     row header so admins can audit verification status at a glance.
+     Default (unverified) reads as a neutral chip; .verified swaps to
+     the moss-on-cream treatment used elsewhere on the page. */
+  .verify-pill {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--paper-2);
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    line-height: 1.6;
+    vertical-align: middle;
+  }
+  .verify-pill.verified {
+    background: color-mix(in oklch, var(--accent), var(--bg) 85%);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 
   .status-pill {
     display: inline-block;
