@@ -169,14 +169,14 @@ export const actions: Actions = {
 
     // Check if submitter email belongs to a verified org.
     const { data: org } = await supabaseAdmin
-      .from("verified_orgs")
+      .from("organizations")
       .select("id, name")
       .eq("contact_email", values.submitterEmail)
       .eq("verified", true)
       .is("deleted_at", null)
       .maybeSingle();
 
-    const verifiedOrgId = org?.id ?? null;
+    const organizationId = org?.id ?? null;
 
     const verificationToken = generateToken();
     const tokenHash = hashToken(verificationToken);
@@ -199,7 +199,7 @@ export const actions: Actions = {
         expires_at: expiresAtIso,
         ticket_url: values.ticketUrl || null,
         submitter_email: values.submitterEmail,
-        verified_org_id: verifiedOrgId,
+        organization_id: organizationId,
         email_verification_token_hash: tokenHash,
         email_verification_expires_at: tokenExpires,
         status: "pending_email",

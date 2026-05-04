@@ -120,7 +120,7 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, category_id, source_id, area_id`,
+         status, deleted_at, category_id, organization_id, area_id`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
@@ -132,13 +132,13 @@ export const load: PageServerLoad = async ({ url }) => {
   const categoriesById = new Map(categories.map((c) => [c.id, c]));
   const areasById = new Map(areas.map((a) => [a.id, a]));
 
-  // event_sources -> source_url mapping for the info-link fallback.
+  // organizations -> source_url mapping for the info-link fallback.
   // Productions without their own detail_url (e.g. ManeStage's per-show
-  // pages aren't linked from /buy-tickets) fall back to the source's
-  // own URL - that's where the schedule lives, so it's a sensible
+  // pages aren't linked from /buy-tickets) fall back to the org's
+  // source URL - that's where the schedule lives, so it's a sensible
   // "click here to learn more" target.
   const { data: srcRows } = await supabaseAdmin
-    .from("event_sources")
+    .from("organizations")
     .select("id, source_url");
   const sourceUrlById = new Map((srcRows ?? []).map((s) => [s.id, s.source_url]));
 
@@ -174,7 +174,7 @@ export const load: PageServerLoad = async ({ url }) => {
       // out to the org's source URL instead. Better than no link at
       // all - users can still click through to learn more.
       const linkUrl =
-        prod.detail_url ?? (prod.source_id ? sourceUrlById.get(prod.source_id) ?? null : null);
+        prod.detail_url ?? (prod.organization_id ? sourceUrlById.get(prod.organization_id) ?? null : null);
 
       return {
         id: p.id,

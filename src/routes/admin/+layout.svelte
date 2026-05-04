@@ -21,7 +21,7 @@
     { href: "/admin/reports", label: "Reports", countKey: "reports" },
     { href: "/admin/callboard", label: "Callboard", countKey: "callboard" },
     { href: "/admin/calendar", label: "Calendar" },
-    { href: "/admin/orgs", label: "Organizations", countKey: "orgs" },
+    { href: "/admin/organizations", label: "Organizations", countKey: "orgs" },
 
     // Directory
     { href: "/admin/profiles", label: "All profiles", group: true },
@@ -42,7 +42,6 @@
     { href: "/admin/disciplines", label: "Disciplines", group: true },
     { href: "/admin/submit-form", label: "Submit form fields" },
     { href: "/admin/callboard-types", label: "Callboard types" },
-    { href: "/admin/event-sources", label: "Calendar sources" },
     { href: "/admin/blocklist", label: "Blocklist" },
   ];
 

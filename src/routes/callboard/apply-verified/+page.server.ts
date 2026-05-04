@@ -1,5 +1,5 @@
 // Apply for verified theatre organization status. Creates a row in
-// verified_orgs with verified=false; admin approves at /admin/orgs.
+// organizations with verified=false; admin approves at /admin/organizations.
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions } from "./$types";
@@ -44,16 +44,43 @@ export const actions: Actions = {
       return fail(400, { errors, values: { name, contactName, contactEmail, websiteUrl, description } });
     }
 
-    const { error: insertErr } = await supabaseAdmin.from("verified_orgs").insert({
+    // Generate a slug from the name. Lowercase, ascii-only, dash-separated,
+    // truncated to 60. organizations.slug is unique - on collision we suffix
+    // with a 4-char random tail; the apply-verified flow doesn't expose the
+    // slug to the user so collision-suffixing is fine here.
+    const baseSlug =
+      name
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, 60) || "org";
+    let slug = baseSlug;
+    const { data: clash } = await supabaseAdmin
+      .from("organizations")
+      .select("id")
+      .eq("slug", baseSlug)
+      .maybeSingle();
+    if (clash) {
+      slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+
+    const { error: insertErr } = await supabaseAdmin.from("organizations").insert({
+      slug,
       name,
       contact_email: contactEmail,
-      website_url: websiteUrl || null,
+      homepage_url: websiteUrl || null,
       description: description || null,
       verified: false,
+      // Applied orgs default to manual entry; admin can switch them to
+      // ai-generic later if their site supports automated pulls.
+      adapter: "manual",
+      active: true,
     });
 
     if (insertErr) {
-      console.error("verified_orgs insert failed", insertErr);
+      console.error("organizations insert failed", insertErr);
       return fail(500, {
         errors: { _form: "Could not save your application. Please try again." } as Record<string, string>,
         values: { name, contactName, contactEmail, websiteUrl, description },

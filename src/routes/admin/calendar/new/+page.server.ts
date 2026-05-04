@@ -3,7 +3,7 @@
 // from /admin/calendar/[id]/edit so admin gets a single-page workflow
 // instead of create-then-edit-twice.
 //
-// Manual entries set source_id = null (so they're immune to cron),
+// Manual entries set organization_id = null (so they're immune to cron),
 // status = 'approved', and admin_edited_at = now() (defensive in case
 // we ever add cron coverage for this org's source later).
 
@@ -73,7 +73,7 @@ export const actions: Actions = {
         detail_url,
         category_id,
         area_id,
-        source_id: null,
+        organization_id: null,
         status: "approved",
         admin_edited_at: new Date().toISOString(),
       })

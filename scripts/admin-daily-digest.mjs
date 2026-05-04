@@ -33,9 +33,13 @@ async function main() {
         `select count(*)::int as n from callboard_posts
          where status = 'pending_review' and deleted_at is null`,
       ),
+      // Pending verification: applied via apply-verified (contact_email
+      // set) but not yet verified. Filtering on contact_email NOT null
+      // keeps the imported calendar-source rows out of the count.
       db.query(
-        `select count(*)::int as n from verified_orgs
-         where verified = false and deleted_at is null`,
+        `select count(*)::int as n from organizations
+         where verified = false and contact_email is not null
+           and deleted_at is null`,
       ),
     ]);
 

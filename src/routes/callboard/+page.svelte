@@ -192,7 +192,7 @@
       <article class="card">
         <div class="card-top">
           <span class="type-badge">{POST_TYPE_LABELS[p.post_type] ?? p.post_type}</span>
-          {#if p.verified_org_id}
+          {#if p.organization_id}
             <span class="verified-badge" title="Verified producing company">&#10003;</span>
           {/if}
         </div>
@@ -234,7 +234,7 @@
         <div class="post-mid">
           <div class="post-org">
             <a class="org-name serif-it" href="/callboard/{p.id}">{p.organization_name}</a>
-            {#if p.verified_org_id}
+            {#if p.organization_id}
               <span class="verified-badge" title="Verified producing company">&#10003;</span>
             {/if}
             {#if p.location}

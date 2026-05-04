@@ -1,6 +1,6 @@
 // scripts/calendar-sync.mjs
 //
-// Walk active event_sources and run the AI-extraction pipeline for each.
+// Walk active organizations rows and run the AI-extraction pipeline for each.
 // Skips orgs whose cadence_days hasn't elapsed since last_checked_at
 // (default 30 days). For each source: fetches HTML, hashes it, skips the
 // AI call if unchanged since last run, otherwise extracts shows + per-
@@ -60,18 +60,22 @@ async function main() {
 
   try {
     // Cron only runs adapters that actually fetch + extract. Manual
-    // entries (adapter='manual') stay in event_sources for admin
+    // entries (adapter='manual') stay in organizations for admin
     // visibility but are skipped here so we don't waste API tokens
     // hitting unscrapeable / placeholder pages.
+    //
+    // Aliasing slug -> org_slug and name -> org_name so the lib + the
+    // log-formatting code below keep working without a rename pass on
+    // every source.* reference.
     let where, params;
     if (args.orgSlug) {
-      where = `active = true and adapter <> 'manual' and org_slug = $1`;
+      where = `active = true and adapter <> 'manual' and slug = $1 and deleted_at is null`;
       params = [args.orgSlug];
     } else if (args.force) {
-      where = `active = true and adapter <> 'manual'`;
+      where = `active = true and adapter <> 'manual' and deleted_at is null`;
       params = [];
     } else {
-      where = `active = true and adapter <> 'manual' and (
+      where = `active = true and adapter <> 'manual' and deleted_at is null and (
                  last_checked_at is null
                  or last_checked_at < now() - (cadence_days * interval '1 day')
                )`;
@@ -79,17 +83,20 @@ async function main() {
     }
 
     const sourcesRes = await db.query(
-      `select id, org_slug, org_name, source_url, adapter, last_hash,
+      `select id,
+              slug as org_slug,
+              name as org_name,
+              source_url, adapter, last_hash,
               last_show_count, cadence_days, last_checked_at, last_status
-         from public.event_sources
+         from public.organizations
         where ${where}
-        order by org_slug`,
+        order by slug`,
       params,
     );
     const sources = sourcesRes.rows;
 
     if (sources.length === 0) {
-      console.log("::notice::no event_sources due for sync");
+      console.log("::notice::no organizations due for sync");
       return;
     }
 

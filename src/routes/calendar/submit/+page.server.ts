@@ -147,7 +147,7 @@ export const actions: Actions = {
     // Verified-org check: if submitter email is on a verified org, skip
     // admin review on email-verify.
     const { data: org } = await supabaseAdmin
-      .from("verified_orgs")
+      .from("organizations")
       .select("id, name")
       .eq("contact_email", values.submitterEmail)
       .eq("verified", true)
@@ -168,7 +168,7 @@ export const actions: Actions = {
         detail_url: values.detailUrl || null,
         category_id: values.categoryId,
         area_id: values.areaId,
-        verified_org_id: org?.id ?? null,
+        organization_id: org?.id ?? null,
         submitter_email: values.submitterEmail,
         email_verification_token_hash: tokenHash,
         email_verification_expires_at: tokenExpires,

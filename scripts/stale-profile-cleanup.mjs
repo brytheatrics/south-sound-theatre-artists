@@ -119,9 +119,14 @@ async function main() {
        returning id`,
       [purgeCutoff],
     );
+    // Only purge organizations rows that originated as verification
+    // applications (contact_email set). Calendar-source rows are kept
+    // around indefinitely - the cron uses deleted_at as the "don't
+    // re-pull this" sentinel, same pattern as productions.
     const orgPurge = await db.query(
-      `delete from verified_orgs
+      `delete from organizations
        where deleted_at is not null and deleted_at < $1
+         and contact_email is not null
        returning id`,
       [purgeCutoff],
     );

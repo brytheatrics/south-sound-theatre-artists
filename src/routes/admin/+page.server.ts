@@ -46,10 +46,15 @@ export const load: PageServerLoad = async () => {
         .select("*", { count: "exact", head: true })
         .eq("status", "pending_review")
         .is("deleted_at", null),
+      // Pending verification = orgs that applied via apply-verified
+      // (contact_email set) but haven't been verified yet. Filtering on
+      // contact_email NOT null keeps imported calendar-source rows out
+      // of the count.
       supabaseAdmin
-        .from("verified_orgs")
+        .from("organizations")
         .select("*", { count: "exact", head: true })
         .eq("verified", false)
+        .not("contact_email", "is", null)
         .is("deleted_at", null),
     ]);
   if (submissionsRes.error) throw submissionsRes.error;

@@ -1,9 +1,9 @@
 // scripts/seed-theatre-metadata.mjs
 //
-// Populates the public-facing metadata columns on event_sources
+// Populates the public-facing metadata columns on organizations
 // (description, homepage_url, public_email, logo_url) used by the
 // /theatres directory page. Idempotent — re-running updates only
-// non-null fields, so admin overrides made via /admin/event-sources
+// non-null fields, so admin overrides made via /admin/organizations
 // are preserved across re-seeds.
 //
 // Run:
@@ -253,14 +253,14 @@ async function main() {
       continue;
     }
     const res = await db.query(
-      `update public.event_sources
+      `update public.organizations
          set ${setClauses.join(", ")}, updated_at = now()
-         where org_slug = $1
-         returning org_slug`,
+         where slug = $1
+         returning slug`,
       values,
     );
     if (res.rowCount === 0) {
-      console.error(`  !  ${m.slug}: no event_sources row found; skipping`);
+      console.error(`  !  ${m.slug}: no organizations row found; skipping`);
     } else {
       updated++;
       console.log(`  ~  ${m.slug}: updated`);

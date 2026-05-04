@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .from("callboard_posts")
     .select(
       `id, post_type, title, organization_name, location, submitter_email,
-       status, published, verified_org_id, expires_at, created_at, reviewed_at,
+       status, published, organization_id, expires_at, created_at, reviewed_at,
        rejection_reason`,
       { count: "exact" },
     )

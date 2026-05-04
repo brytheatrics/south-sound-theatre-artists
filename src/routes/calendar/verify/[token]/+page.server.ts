@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const { data: row, error: lookupErr } = await supabaseAdmin
     .from("productions")
     .select(
-      `id, title, organization_name, status, verified_org_id,
+      `id, title, organization_name, status, organization_id,
        email_verification_expires_at`,
     )
     .eq("email_verification_token_hash", tokenHash)
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ params }) => {
     return {
       alreadyVerified: true,
       title: row.title,
-      verifiedOrg: row.verified_org_id !== null,
+      verifiedOrg: row.organization_id !== null,
     };
   }
 
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ params }) => {
   }
 
   // Verified-org auto-publish: skip review.
-  const newStatus = row.verified_org_id ? "approved" : "pending_review";
+  const newStatus = row.organization_id ? "approved" : "pending_review";
 
   await supabaseAdmin
     .from("productions")
@@ -62,7 +62,7 @@ export const load: PageServerLoad = async ({ params }) => {
   return {
     verified: true,
     title: row.title,
-    verifiedOrg: row.verified_org_id !== null,
+    verifiedOrg: row.organization_id !== null,
     autoApproved: newStatus === "approved",
   };
 };

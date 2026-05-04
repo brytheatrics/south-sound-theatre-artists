@@ -137,7 +137,7 @@ Rate limiting: 5 password attempts per IP per 15 minutes on the admin login endp
 | `admin_login_attempts` | Rate-limit tracking (5 fails / 15 min / IP) |
 | `productions` | Shows extracted from approved callboard posts (v1.2). Populated as a side-effect of approving audition / production posts in either admin or verified-org auto-publish path |
 | `callboard_posts` | Audition notices, designer / crew calls, production announcements, general opportunities (v1.2). Email-verify token + status workflow same as pending_submissions |
-| `verified_orgs` | Approved theatre organizations (v1.2). Posts from a verified org skip the admin queue and go live straight from the email-verify step |
+| `organizations` | **Single source of truth for theatre orgs (mig 065).** Folds the old `event_sources` (calendar-sync orgs) and `verified_orgs` (callboard/calendar auto-publish) into one table. `verified=true` orgs skip per-post review on callboard + calendar submits. `productions.organization_id` and `callboard_posts.organization_id` both FK here. |
 | `callboard_subscriptions` | Opt-in weekly digest. `subscriber_email` unique, `disciplines` text[], `post_types` text[], `last_digest_at`, `unsubscribed_at`, per-row `unsubscribe_token` for one-click links (v1.2) |
 | `marquee_settings` | Single-row config for the homepage scrolling ticker. `enabled`, `include_all_callboard`, `include_callboard_post_ids`. Admin-edited at `/admin/marquee` (v1.2) |
 | `resources` + `resource_categories` | Curated link library at `/resources`. Soft-deleted with `deleted_at`; admin manages from `/admin/resources` (v1.2) |
@@ -460,11 +460,16 @@ not on staging. Push when ready:
 - `200b172` Resources: trigger to keep `category_id` in sync with `category_ids[1]`
 - `22b832f` Mentorship: dedicated /mentorship discovery page
 
-### 1. Calendar org consolidation (Option C)
+### 1. Calendar org consolidation (Option C) — **shipped (mig 065)**
 
-Merge `event_sources` and `verified_orgs` into a single `organizations`
-table. Decided in this session — Blake said "let's do C" once SSTA is
-launched. Scope:
+Merged `event_sources` and `verified_orgs` into a single `organizations`
+table (mig 065). The 2 filler `verified_orgs` rows were dropped per
+Blake; real verified orgs come back through `/callboard/apply-verified`
+which now writes to `organizations` directly. `/admin/event-sources`
+and `/admin/orgs` were folded into `/admin/organizations`. FKs on
+`productions` and `callboard_posts` point at `organizations.id`.
+
+Original scope (kept as historical record):
 - New migration creates `organizations` with the union of both tables'
   columns. Suggested column shape:
   - From `event_sources`: id, slug, name, area_id, adapter, source_url,

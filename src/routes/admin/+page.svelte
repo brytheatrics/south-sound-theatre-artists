@@ -51,7 +51,7 @@
   {/if}
   {#if data.orgsPendingCount > 0}
     <div class="queue-notice">
-      <a href="/admin/orgs?verified=0" class="queue-notice-link">
+      <a href="/admin/organizations" class="queue-notice-link">
         {data.orgsPendingCount} organization
         {data.orgsPendingCount === 1 ? "application" : "applications"} pending &rarr;
       </a>

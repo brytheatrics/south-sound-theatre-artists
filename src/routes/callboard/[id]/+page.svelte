@@ -36,7 +36,7 @@
   <main class="post-main">
     <div class="post-top">
       <span class="type-badge">{typeLabel}</span>
-      {#if post.verified_org_id}
+      {#if post.organization_id}
         <span class="verified-badge" title="Verified producing company">&#10003;</span>
         {#if verifiedOrgName}
           <span class="verified-label">Verified company</span>

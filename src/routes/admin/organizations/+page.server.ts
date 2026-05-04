@@ -1,33 +1,37 @@
-// Admin: list / inspect / refresh calendar event sources. Each row in
-// event_sources represents one org we auto-pull from. Lexi sees the last
-// sync status, count of shows currently held, and can trigger a manual
-// refresh (which calls into the same syncEventSource() the cron uses,
-// honouring the per-source cooldown to prevent click-spam).
+// /admin/organizations: single page that manages every theatre we list.
+// Folds together the old /admin/event-sources (calendar-sync sources)
+// and /admin/orgs (verified-org applications) - they describe the same
+// thing and now share one row in `organizations`.
+//
+// Sections on the page:
+//   - Pending verification: contact_email set + verified=false
+//   - Verified orgs: verified=true (callboard / calendar auto-publish)
+//   - Pulled automatically: adapter != 'manual'
+//   - Added by hand: adapter == 'manual'
 
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { fail } from "@sveltejs/kit";
 import pg from "pg";
 import { syncEventSource } from "../../../../scripts/_lib/calendar-sync.mjs";
-// Dynamic (not static) so the build doesn't fail when ANTHROPIC_API_KEY
-// isn't set on the deploy target. The admin "Pull now" button gracefully
-// errors at runtime with a clear message if the key is missing - the
-// monthly cron runs in GitHub Actions where the secret is set, so
-// auto-pulls work regardless of whether Netlify has the key.
+import { sendEmail } from "$lib/server/email";
+import { PUBLIC_SITE_URL } from "$env/static/public";
 import { env as privateEnv } from "$env/dynamic/private";
 
 const { Client } = pg;
 
 export const load: PageServerLoad = async () => {
-  const { data: sources, error } = await supabaseAdmin
-    .from("event_sources")
+  const { data: orgs, error } = await supabaseAdmin
+    .from("organizations")
     .select(
-      `id, org_slug, org_name, source_url, adapter, cadence_days, active,
+      `id, slug, name, source_url, adapter, cadence_days, active,
        last_status, last_show_count, last_checked_at, last_successful_at,
        last_error, cooldown_until, notes, updated_at, area_id,
-       description, homepage_url, logo_url, logo_bg`,
+       description, homepage_url, public_email, logo_url, logo_bg,
+       contact_email, verified, created_at`,
     )
-    .order("org_name");
+    .is("deleted_at", null)
+    .order("name");
   if (error) throw error;
 
   const { data: areas } = await supabaseAdmin
@@ -36,34 +40,35 @@ export const load: PageServerLoad = async () => {
     .order("sort_order");
   const areaNameById = new Map((areas ?? []).map((a) => [a.id, a.name]));
 
-  const enriched = (sources ?? []).map((s) => ({
+  const enriched = (orgs ?? []).map((s) => ({
     ...s,
     area_name: s.area_id ? areaNameById.get(s.area_id) ?? null : null,
     is_manual: s.adapter === "manual",
   }));
 
   return {
-    autoSources: enriched.filter((s) => !s.is_manual),
-    manualSources: enriched.filter((s) => s.is_manual),
+    pendingVerification: enriched.filter(
+      (o) => o.contact_email && !o.verified,
+    ),
+    verifiedOrgs: enriched.filter((o) => o.verified),
+    autoSources: enriched.filter((o) => !o.is_manual),
+    manualSources: enriched.filter((o) => o.is_manual),
   };
 };
 
 export const actions: Actions = {
-  // Save the public-facing /theatres metadata (description, homepage URL,
-  // logo URL). All three are nullable - empty string clears the column.
-  // The other event_sources fields (source_url, adapter, area, etc.) are
-  // managed elsewhere; this action only touches the display fields.
+  // Save the public-facing /theatres metadata. Same shape as the old
+  // event-sources updatePublic action.
   updatePublic: async ({ request }) => {
     const fd = await request.formData();
     const id = String(fd.get("id") ?? "");
-    if (!id) return fail(400, { error: "missing source id" });
+    if (!id) return fail(400, { error: "missing organization id" });
 
     const description = String(fd.get("description") ?? "").trim();
     const homepageUrl = String(fd.get("homepage_url") ?? "").trim();
     const logoUrl = String(fd.get("logo_url") ?? "").trim();
     const logoBg = String(fd.get("logo_bg") ?? "paper").trim();
 
-    // Light validation: URLs must look like URLs if set.
     const looksLikeUrl = (s: string) => /^https?:\/\//i.test(s);
     if (homepageUrl && !looksLikeUrl(homepageUrl)) {
       return fail(400, { error: "Homepage URL must start with http:// or https://" });
@@ -80,7 +85,7 @@ export const actions: Actions = {
     }
 
     const { data: row, error } = await supabaseAdmin
-      .from("event_sources")
+      .from("organizations")
       .update({
         description: description || null,
         homepage_url: homepageUrl || null,
@@ -88,74 +93,130 @@ export const actions: Actions = {
         logo_bg: logoBg,
       })
       .eq("id", id)
-      .select("org_slug")
+      .select("slug")
       .maybeSingle();
     if (error || !row) return fail(500, { error: "Could not save." });
-    return { savedPublic: row.org_slug };
+    return { savedPublic: row.slug };
   },
 
-  // Flip active=true/false. Inactive sources are skipped entirely by the
-  // cron. Existing productions stay live - this only controls future syncs.
   setActive: async ({ request }) => {
     const fd = await request.formData();
     const id = String(fd.get("id") ?? "");
     const active = fd.get("active") === "true";
-    if (!id) return fail(400, { error: "missing source id" });
+    if (!id) return fail(400, { error: "missing organization id" });
     const { data: row, error } = await supabaseAdmin
-      .from("event_sources")
+      .from("organizations")
       .update({ active })
       .eq("id", id)
-      .select("org_slug")
+      .select("slug")
       .maybeSingle();
     if (error || !row) return fail(500, { error: "Could not update." });
-    return { activeSet: { slug: row.org_slug, active } };
+    return { activeSet: { slug: row.slug, active } };
   },
 
-  // Flip adapter between 'ai-generic' (auto-pulled by cron) and 'manual'
-  // (skipped by cron, Lexi enters shows by hand). Useful when an org's
-  // site stops scraping cleanly and we'd rather curate than fight it.
   setAdapter: async ({ request }) => {
     const fd = await request.formData();
     const id = String(fd.get("id") ?? "");
     const adapter = String(fd.get("adapter") ?? "");
-    if (!id) return fail(400, { error: "missing source id" });
+    if (!id) return fail(400, { error: "missing organization id" });
     if (adapter !== "ai-generic" && adapter !== "manual") {
       return fail(400, { error: "adapter must be ai-generic or manual" });
     }
     const { data: row, error } = await supabaseAdmin
-      .from("event_sources")
+      .from("organizations")
       .update({ adapter })
       .eq("id", id)
-      .select("org_slug")
+      .select("slug")
       .maybeSingle();
     if (error || !row) return fail(500, { error: "Could not update." });
-    return { adapterSet: { slug: row.org_slug, adapter } };
+    return { adapterSet: { slug: row.slug, adapter } };
+  },
+
+  // Approve a pending verification application. Also fires the
+  // org_approved email so the contact knows their callboard +
+  // calendar submissions will now skip the per-post review.
+  approveVerification: async ({ request }) => {
+    const fd = await request.formData();
+    const ids = fd.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+
+    for (const id of ids) {
+      const { data: org } = await supabaseAdmin
+        .from("organizations")
+        .select("name, contact_email")
+        .eq("id", id)
+        .maybeSingle();
+      if (!org || !org.contact_email) continue;
+
+      await supabaseAdmin
+        .from("organizations")
+        .update({ verified: true })
+        .eq("id", id);
+
+      await sendEmail({
+        to: org.contact_email,
+        templateSlug: "org_approved",
+        vars: {
+          name: org.name,
+          org_name: org.name,
+          callboard_url: `${PUBLIC_SITE_URL}/callboard`,
+          calendar_url: `${PUBLIC_SITE_URL}/calendar`,
+        },
+      });
+    }
+
+    return { verified: ids.length };
+  },
+
+  revokeVerification: async ({ request }) => {
+    const fd = await request.formData();
+    const ids = fd.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("organizations")
+      .update({ verified: false })
+      .in("id", ids);
+    if (error) return fail(500, { error: "Could not revoke." });
+    return { revoked: ids.length };
+  },
+
+  softDelete: async ({ request }) => {
+    const fd = await request.formData();
+    const ids = fd.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("organizations")
+      .update({ deleted_at: new Date().toISOString(), verified: false, active: false })
+      .in("id", ids);
+    if (error) return fail(500, { error: "Could not delete." });
+    return { deleted: ids.length };
   },
 
   refresh: async ({ request }) => {
     if (!privateEnv.ANTHROPIC_API_KEY) return fail(500, { error: "ANTHROPIC_API_KEY not configured" });
     const fd = await request.formData();
     const sourceId = String(fd.get("id") ?? "");
-    if (!sourceId) return fail(400, { error: "missing source id" });
+    if (!sourceId) return fail(400, { error: "missing organization id" });
 
-    // Use direct pg connection so the lib's queries (parameterised SQL)
-    // can run unchanged. Supabase JS client's promise model is
-    // incompatible with the lib's interface.
     const db = new Client({ connectionString: privateEnv.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
     await db.connect();
     try {
+      // syncEventSource expects org_slug / org_name field names from the
+      // old event_sources rows. Alias on read so the lib doesn't have to
+      // change shape.
       const sourceRes = await db.query(
-        `select id, org_slug, org_name, source_url, adapter, last_hash,
+        `select id,
+                slug as org_slug,
+                name as org_name,
+                source_url, adapter, last_hash,
                 last_show_count, cadence_days, last_checked_at, last_status,
                 cooldown_until
-           from public.event_sources where id = $1`,
+           from public.organizations where id = $1`,
         [sourceId],
       );
       const source = sourceRes.rows[0];
-      if (!source) return fail(404, { error: "source not found" });
+      if (!source) return fail(404, { error: "organization not found" });
 
-      // Cooldown check (manual refresh respects the 1hr post-success cooldown
-      // that the cron sets, defending against click-spam / accidental loops).
       if (source.cooldown_until && new Date(source.cooldown_until) > new Date()) {
         const minsLeft = Math.ceil(
           (new Date(source.cooldown_until).getTime() - Date.now()) / 60_000,

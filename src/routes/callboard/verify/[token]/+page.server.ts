@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params }) => {
     .from("callboard_posts")
     .select(
       `id, title, organization_name, submitter_email, status,
-       verified_org_id, post_type, location, show_dates, ticket_url,
+       organization_id, post_type, location, show_dates, ticket_url,
        email_verification_expires_at`,
     )
     .eq("email_verification_token_hash", tokenHash)
@@ -55,7 +55,9 @@ export const load: PageServerLoad = async ({ params }) => {
 
   // Determine if this post should go live immediately (verified org) or
   // enter the admin review queue.
-  const isVerifiedOrg = !!post.verified_org_id;
+  // organization_id is set at submit-time only when the submitter
+  // email matched a verified org, so its presence implies "verified".
+  const isVerifiedOrg = !!post.organization_id;
   const newStatus = isVerifiedOrg ? "approved" : "pending_review";
   const goesLive = isVerifiedOrg;
 

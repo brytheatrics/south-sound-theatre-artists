@@ -1,7 +1,7 @@
 // Public /theatres page — a directory of every theatre we track in
-// event_sources, regardless of whether their performances are auto-pulled
+// organizations, regardless of whether their performances are auto-pulled
 // or manually entered. Lexi can edit the public-facing metadata
-// (description / homepage / email / logo) at /admin/event-sources; the
+// (description / homepage / email / logo) at /admin/organizations; the
 // scrape-shaped fields (source_url, adapter, last_status) stay hidden
 // from the public page.
 
@@ -24,13 +24,14 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const [{ data: sources, error }, { data: areas }, { data: contentRow }] = await Promise.all([
     supabaseAdmin
-      .from("event_sources")
+      .from("organizations")
       .select(
-        `org_slug, org_name, area_id, active,
+        `slug, name, area_id, active,
          description, homepage_url, logo_url, logo_bg`,
       )
       .eq("active", true)
-      .order("org_name"),
+      .is("deleted_at", null)
+      .order("name"),
     supabaseAdmin
       .from("areas")
       .select("id, name, sort_order")
@@ -47,8 +48,8 @@ export const load: PageServerLoad = async ({ url }) => {
   const areaIdByName = new Map((areas ?? []).map((a) => [a.name, a.id]));
 
   let rows: TheatreRow[] = (sources ?? []).map((s) => ({
-    slug: s.org_slug,
-    name: s.org_name,
+    slug: s.slug,
+    name: s.name,
     area_id: s.area_id,
     area_name: s.area_id ? areaNameById.get(s.area_id) ?? null : null,
     description: s.description,

@@ -94,7 +94,8 @@ Profiles, additions over the v1 baseline:
 - `stale_pinged_at` (timestamptz, nullable) - drives the 18-month "still active?" cron pipeline (mig 031)
 
 v1.2 adds (callboard surface):
-- `callboard_posts`, `verified_orgs`, `productions` (mig 025)
+- `callboard_posts`, `productions` (mig 025; the original `verified_orgs` table was folded into `organizations` by mig 065)
+- `organizations` - **single source of truth for theatre orgs** (mig 065). Holds calendar-sync sources (auto-pull config + bookkeeping) plus verified-org callboard/calendar auto-publish (`contact_email` + `verified` flag). `productions.organization_id` and `callboard_posts.organization_id` both FK here.
 - `marquee_settings` - single row (id check enforces id=1) controlling the homepage ticker (mig 029)
 - `callboard_subscriptions` - opt-in weekly digest, with per-row `unsubscribe_token` for one-click links (migs 032 + 033)
 - `resources` + `resource_categories` - admin-managed link library (mig 034)
@@ -109,7 +110,7 @@ Reference tables (admin-editable):
 - `unions` (with descriptions)
 - `resource_categories` - sortable groups for the resource library
 
-Soft-delete pattern: `deleted_at` column. The stale-cleanup cron handles the 30-day hard-purge sweep across `profiles`, `callboard_posts`, and `verified_orgs`.
+Soft-delete pattern: `deleted_at` column. The stale-cleanup cron handles the 30-day hard-purge sweep across `profiles`, `callboard_posts`, and `organizations` (verification-application rows only - calendar-source rows are kept around indefinitely as the cron uses `deleted_at` as a "don't re-pull" sentinel).
 
 ## Cron jobs
 

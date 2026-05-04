@@ -32,7 +32,7 @@ const TABLES = [
   "areas",
   "unions",
   "callboard_posts",
-  "verified_orgs",
+  "organizations",
   "productions",
   "callboard_subscriptions",
   "marquee_settings",

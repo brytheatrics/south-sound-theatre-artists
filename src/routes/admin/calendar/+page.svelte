@@ -54,7 +54,7 @@
   </p>
   <div class="hd-actions">
     <a class="bt bt-pri" href="/admin/calendar/new">+ Add production</a>
-    <a class="bt bt-ghost" href="/admin/event-sources">Manage theatres →</a>
+    <a class="bt bt-ghost" href="/admin/organizations">Manage theatres →</a>
   </div>
 </header>
 

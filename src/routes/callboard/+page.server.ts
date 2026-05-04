@@ -22,7 +22,7 @@ export type CallboardPost = {
   deadline_text: string | null;
   expires_at: string | null;
   ticket_url: string | null;
-  verified_org_id: string | null;
+  organization_id: string | null;
   created_at: string;
 };
 
@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .select(
       `id, post_type, title, organization_name, location, description,
        roles, compensation_type, compensation, key_dates, deadline_text,
-       expires_at, ticket_url, verified_org_id, created_at`,
+       expires_at, ticket_url, organization_id, created_at`,
       { count: "exact" },
     )
     .eq("published", true)
@@ -83,7 +83,7 @@ export const load: PageServerLoad = async ({ url }) => {
     query = query.in("post_type", activeTypes);
   }
   if (verifiedOnly) {
-    query = query.not("verified_org_id", "is", null);
+    query = query.not("organization_id", "is", null);
   }
   if (sort === "deadline") {
     query = query.order("expires_at", { ascending: true, nullsFirst: false });

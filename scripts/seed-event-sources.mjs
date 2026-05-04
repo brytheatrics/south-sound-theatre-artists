@@ -1,7 +1,7 @@
 // scripts/seed-event-sources.mjs
 //
-// Seed the event_sources table with the 16 orgs validated in Phase 0.5.
-// Idempotent: re-running updates existing rows by org_slug. Source URLs
+// Seed the organizations table with the 16 orgs validated in Phase 0.5.
+// Idempotent: re-running updates existing rows by slug. Source URLs
 // were chosen for stability where possible (e.g. Harlequin /season/ which
 // auto-redirects to the current year, Mustard Seed CSSTix root); orgs
 // where only annual-slug URLs work are tagged in `notes` so admin knows
@@ -146,7 +146,7 @@ async function main() {
   ];
 
   console.log(
-    `Seeding ${all.length} event_sources rows (${SOURCES.length} auto, ${MANUAL_SOURCES.length} manual)${args.dryRun ? " (DRY RUN)" : ""}`,
+    `Seeding ${all.length} organizations rows (${SOURCES.length} auto, ${MANUAL_SOURCES.length} manual)${args.dryRun ? " (DRY RUN)" : ""}`,
   );
 
   let inserted = 0;
@@ -165,11 +165,11 @@ async function main() {
     // overwrite adapter on update either, so a row already promoted from
     // 'manual' to a real adapter (e.g. 'ovationtix') won't be reverted.
     const res = await db.query(
-      `insert into public.event_sources
-         (org_slug, org_name, source_url, adapter, cadence_days, notes, area_id, active)
+      `insert into public.organizations
+         (slug, name, source_url, adapter, cadence_days, notes, area_id, active)
        values ($1, $2, $3, $4, 30, $5, $6, true)
-       on conflict (org_slug) do update
-         set org_name = excluded.org_name,
+       on conflict (slug) do update
+         set name = excluded.name,
              source_url = excluded.source_url,
              notes = excluded.notes,
              area_id = excluded.area_id,

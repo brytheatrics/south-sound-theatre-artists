@@ -10,7 +10,7 @@
 // "refresh now" button calling into this from the app server) both go
 // through syncEventSource() so the upsert logic lives in one place.
 //
-// Pipeline per event_sources row:
+// Pipeline per organizations row (formerly event_sources):
 //   1. Fetch the source URL
 //   2. Strip <script>/<style>/<svg>/comments and collapse whitespace
 //   3. SHA-256 the cleaned HTML; compare to the row's last_hash
@@ -22,7 +22,7 @@
 //   6. Code-side expand schedule x run_range -> per-performance list
 //   7. Upsert into productions + performances tables (replace
 //      performances atomically per show)
-//   8. Write event_sources cache + status fields back
+//   8. Write organizations cache + status fields back
 
 import { createHash } from "node:crypto";
 
@@ -323,7 +323,7 @@ async function getDefaultCategoryId(db) {
 }
 
 // Upsert a single production + replace its performances atomically.
-// Match key: source_id + run_start window (+/- 30 days). Title is NOT
+// Match key: organization_id + run_start window (+/- 30 days). Title is NOT
 // part of the match key so that admin renames don't cause the cron to
 // create a duplicate alongside the renamed row.
 //
@@ -346,7 +346,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
 
   const findRes = await db.query(
     `select id, admin_edited_at, deleted_at from public.productions
-      where source_id = $1
+      where organization_id = $1
         and (run_start is null or run_start between ($2::date - interval '30 days') and ($2::date + interval '30 days'))
       limit 1`,
     [source.id, show.run_start],
@@ -391,7 +391,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
     // Lexi moves an org between areas - all its productions follow).
     await db.query(
       `update public.productions
-          set area_id = (select area_id from public.event_sources where id = $2)
+          set area_id = (select area_id from public.organizations where id = $2)
         where id = $1`,
       [productionId, source.id],
     );
@@ -406,9 +406,9 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
     const insRes = await db.query(
       `insert into public.productions
          (title, organization_name, run_start, run_end, detail_url,
-          category_id, source_id, area_id, status)
+          category_id, organization_id, area_id, status)
        values ($1, $2, $3, $4, $5, $6, $7,
-               (select area_id from public.event_sources where id = $7),
+               (select area_id from public.organizations where id = $7),
                'approved')
        returning id`,
       [
@@ -439,10 +439,10 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
 // ---------- Per-source pipeline --------------------------------------
 
 /**
- * Sync one event_sources row.
+ * Sync one organizations row.
  *
  * @param {pg.Client} db
- * @param {object} source - row from event_sources (must have id, org_name,
+ * @param {object} source - row from organizations (must have id, org_name (alias for name),
  *                          source_url, last_hash, etc.)
  * @param {object} opts
  * @param {boolean} [opts.force=false] - ignore the hash cache and force AI re-run
@@ -468,7 +468,7 @@ export async function syncEventSource(db, source, opts = {}) {
   // Cache short-circuit
   if (!opts.force && source.last_hash && source.last_hash === newHash) {
     await db.query(
-      `update public.event_sources
+      `update public.organizations
           set last_status = 'unchanged',
               last_checked_at = now(),
               last_error = null
@@ -575,11 +575,11 @@ export async function syncEventSource(db, source, opts = {}) {
     }
   }
 
-  // Update event_sources cache + status
+  // Update organizations cache + status
   const status = productionsWritten > 0 ? "ok" : "empty";
   const errorSummary = showErrors.length > 0 ? showErrors.join(" | ").slice(0, 1000) : null;
   await db.query(
-    `update public.event_sources
+    `update public.organizations
         set last_hash = $2,
             last_checked_at = now(),
             last_successful_at = case when $3 = 'ok' then now() else last_successful_at end,
@@ -604,7 +604,7 @@ export async function syncEventSource(db, source, opts = {}) {
 
 async function markSourceError(db, sourceId, errMsg) {
   await db.query(
-    `update public.event_sources
+    `update public.organizations
         set last_status = 'error',
             last_error = $2,
             last_checked_at = now()

@@ -1,13 +1,22 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   let { data, form } = $props();
   let busy = $state<string | null>(null);
   let savingId = $state<string | null>(null);
 
+  let pendingDeleteForm = $state<HTMLFormElement | null>(null);
+  let pendingDeleteName = $state("");
+  function askDelete(e: MouseEvent, name: string) {
+    pendingDeleteForm = (e.currentTarget as HTMLElement).closest("form");
+    pendingDeleteName = name;
+  }
+  function cancelDelete() { pendingDeleteForm = null; pendingDeleteName = ""; }
+  function confirmDelete() { pendingDeleteForm?.requestSubmit(); cancelDelete(); }
+
   // Logo background swatches. Hex values are FIXED - they don't follow
   // the dark-mode toggle, since the whole point of the choice is to
-  // contrast with the logo's foreground (admin who picked ink because
-  // the logo is white can't have it flip back to cream in dark mode).
+  // contrast with the logo's foreground.
   const LOGO_BG_OPTIONS: Array<{ value: string; label: string; hex: string }> = [
     { value: "paper", label: "Paper", hex: "#f1ede0" },
     { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
@@ -16,16 +25,11 @@
     { value: "accent", label: "Moss", hex: "#3b6f4a" },
   ];
 
-  // Per-row local state for the chosen background, keyed by source id.
-  // Same pattern as logoUrls so the swatch picker is reactive without
-  // having to rerender the page on every click.
   let logoBgs = $state<Record<string, string>>({});
   function getLogoBg(s: { id: string; logo_bg: string }): string {
     return logoBgs[s.id] ?? s.logo_bg ?? "paper";
   }
 
-  // Per-row local state for the logo upload control inside the public-edit
-  // disclosure. Keyed by source id so multiple rows can be uploading at once.
   let logoUrls = $state<Record<string, string>>({});
   let uploadingId = $state<string | null>(null);
   let uploadProgress = $state(0);
@@ -95,7 +99,6 @@
   function onLogoFileChange(id: string, e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) uploadLogo(id, file);
-    // Clear input value so re-selecting the same file fires onchange again.
     (e.target as HTMLInputElement).value = "";
   }
 
@@ -111,13 +114,14 @@
     return `${d}d ago`;
   }
 
+  function fmtDate(iso: string): string {
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
   function statusClass(status: string | null): string {
     return status ? `st-${status}` : "st-pending";
   }
 
-  // Friendly labels for the status pill. The raw values come from the
-  // sync script (ok, unchanged, empty, error) but those read like dev
-  // shorthand to Lexi - swap to plain English at render time.
   function statusLabel(status: string | null): string {
     switch (status) {
       case "ok": return "Updated";
@@ -130,7 +134,7 @@
   }
 </script>
 
-{#snippet publicEdit(s: { id: string; org_slug: string; description: string | null; homepage_url: string | null; logo_url: string | null; logo_bg: string })}
+{#snippet publicEdit(s: { id: string; slug: string; description: string | null; homepage_url: string | null; logo_url: string | null; logo_bg: string })}
   <details class="public-edit">
     <summary>Edit public details — description, homepage, logo</summary>
     <form
@@ -241,20 +245,20 @@
 {/snippet}
 
 <svelte:head>
-  <title>Calendar sources - SSTA admin</title>
+  <title>Organizations - SSTA admin</title>
   <meta name="robots" content="noindex" />
 </svelte:head>
 
 <header class="hd">
-  <span class="eyebrow"><span class="num">·</span>Admin · theatres</span>
-  <h1 class="h1-display">Theatres on the calendar.</h1>
+  <span class="eyebrow"><span class="num">·</span>Admin · organizations</span>
+  <h1 class="h1-display">Organizations.</h1>
   <p class="lede">
     Every theatre we list. The site automatically pulls upcoming shows
     from {data.autoSources.length} of them on the 1st of each month.
     The other {data.manualSources.length} you add by hand because their
-    site doesn't list shows in a way we can read automatically. Edit
-    each theatre's public details (description, homepage, logo) by
-    clicking the row.
+    site doesn't list shows in a way we can read automatically. Verified
+    orgs ({data.verifiedOrgs.length}) can post to the callboard and
+    submit performances directly without per-post admin review.
   </p>
 </header>
 
@@ -276,38 +280,141 @@
 {#if form?.activeSet}
   <div class="form-ok" role="status">
     <strong>{form.activeSet.slug}</strong> is now {form.activeSet.active ? "active" : "disabled"}.
-    {form.activeSet.active
-      ? "Their next monthly pull will include them again."
-      : "We'll stop pulling from them. Their existing shows stay on the calendar."}
   </div>
 {/if}
 {#if form?.adapterSet}
   <div class="form-ok" role="status">
     <strong>{form.adapterSet.slug}</strong> is now
     {form.adapterSet.adapter === "manual"
-      ? "set to manual entry — add shows by hand from / admin/calendar/new."
-      : "set to automatic — we'll pull from them on the next monthly sync."}
+      ? "set to manual entry."
+      : "set to automatic pull."}
   </div>
+{/if}
+{#if form?.verified}
+  <div class="form-ok" role="status">
+    Verified {form.verified} organization{form.verified !== 1 ? "s" : ""}.
+  </div>
+{/if}
+{#if form?.revoked}
+  <div class="form-ok" role="status">
+    Revoked verification for {form.revoked}.
+  </div>
+{/if}
+{#if form?.deleted}
+  <div class="form-ok" role="status">
+    Deleted {form.deleted}.
+  </div>
+{/if}
+
+<!-- PENDING VERIFICATION: applications via /callboard/apply-verified
+     that haven't been verified yet. Shown at the top so they're hard
+     to miss. -->
+{#if data.pendingVerification.length > 0}
+  <h2 class="section-h">
+    Pending verification <span class="section-count">{data.pendingVerification.length}</span>
+  </h2>
+  <p class="section-help">
+    Theatres that applied for verified status. Once verified, their
+    callboard posts and calendar submissions skip the per-post review queue.
+  </p>
+  <table class="rows">
+    <thead>
+      <tr>
+        <th>Organization</th>
+        <th>Applied</th>
+        <th class="actions-col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each data.pendingVerification as org (org.id)}
+        <tr>
+          <td data-label="Organization">
+            <div class="org-name">{org.name}</div>
+            <div class="org-email">{org.contact_email}</div>
+            {#if org.homepage_url}
+              <div class="org-web"><a href={org.homepage_url} target="_blank" rel="noopener" class="ext-link">{org.homepage_url}</a></div>
+            {/if}
+            {#if org.description}
+              <div class="org-desc">{org.description.slice(0, 120)}{org.description.length > 120 ? "…" : ""}</div>
+            {/if}
+          </td>
+          <td data-label="Applied" class="mono-cell">{fmtDate(org.created_at)}</td>
+          <td data-label="Actions" class="actions-col">
+            <form method="POST" action="?/approveVerification" use:enhance={() => { busy = org.id; return async ({ update }) => { await update(); busy = null; }; }} style="display:inline">
+              <input type="hidden" name="id" value={org.id} />
+              <button type="submit" class="bt-link" disabled={busy === org.id}>Verify</button>
+            </form>
+            <form method="POST" action="?/softDelete" use:enhance={() => { busy = org.id; return async ({ update }) => { await update(); busy = null; }; }} style="display:inline">
+              <input type="hidden" name="id" value={org.id} />
+              <button type="button" class="bt-link warn" disabled={busy === org.id} onclick={(e) => askDelete(e, org.name)}>Delete</button>
+            </form>
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/if}
+
+<!-- VERIFIED ORGS: orgs with verified=true. Compact summary - operations
+     happen at the row level (revoke / delete) and the auto-pull config
+     for the same org is in the section below. -->
+{#if data.verifiedOrgs.length > 0}
+  <h2 class="section-h">
+    Verified <span class="section-count">{data.verifiedOrgs.length}</span>
+  </h2>
+  <p class="section-help">
+    These orgs can post to the callboard and submit performances using
+    their verified email address; their submissions skip per-post review.
+  </p>
+  <table class="rows">
+    <thead>
+      <tr>
+        <th>Organization</th>
+        <th>Verified email</th>
+        <th class="actions-col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each data.verifiedOrgs as org (org.id)}
+        <tr>
+          <td data-label="Organization">
+            <div class="org-name">
+              {org.name}
+              <span class="verified-badge" title="Verified">&#10003;</span>
+            </div>
+          </td>
+          <td data-label="Verified email" class="mono-cell">{org.contact_email ?? "—"}</td>
+          <td data-label="Actions" class="actions-col">
+            <form method="POST" action="?/revokeVerification" use:enhance={() => { busy = org.id; return async ({ update }) => { await update(); busy = null; }; }} style="display:inline">
+              <input type="hidden" name="id" value={org.id} />
+              <button type="submit" class="bt-link warn" disabled={busy === org.id}>Revoke</button>
+            </form>
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
 {/if}
 
 <h2 class="section-h">
   Pulled automatically <span class="section-count">{data.autoSources.length}</span>
 </h2>
 <p class="section-help">
-  These theatres list their shows in a way we can read. Once a month
-  the site visits each one's website, finds the upcoming shows, and
-  adds them to the calendar. You usually don't need to do anything
-  here — but you can edit a theatre's public details (description,
-  logo, homepage), trigger a one-off pull, or disable a theatre that's
-  been giving us junk.
+  Theatres whose shows we read automatically. Once a month the site
+  visits each one's website, finds upcoming shows, and adds them to
+  the calendar. Edit a theatre's public details, trigger a one-off
+  pull, or disable a theatre that's giving us junk.
 </p>
 
 <div class="src-list">
   {#each data.autoSources as s (s.id)}
     <article class="src-row src-row-wrap" class:inactive={!s.active}>
       <div class="src-name">
-        <h3>{s.org_name}</h3>
-        <code class="src-slug">{s.org_slug}</code>
+        <h3>
+          {s.name}
+          {#if s.verified}<span class="verified-badge" title="Verified">&#10003;</span>{/if}
+        </h3>
+        <code class="src-slug">{s.slug}</code>
         {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
       </div>
 
@@ -353,8 +460,8 @@
             type="submit"
             class="bt bt-ghost"
             title={s.active
-              ? "Disable — we stop pulling new shows from this theatre. Their existing shows stay on the calendar."
-              : "Re-enable — start pulling new shows from this theatre on the next monthly sync."}
+              ? "Disable - we stop pulling new shows from this theatre."
+              : "Re-enable - start pulling new shows on the next monthly sync."}
           >
             {s.active ? "Disable" : "Enable"}
           </button>
@@ -362,11 +469,7 @@
         <form method="POST" action="?/setAdapter" use:enhance>
           <input type="hidden" name="id" value={s.id} />
           <input type="hidden" name="adapter" value="manual" />
-          <button
-            type="submit"
-            class="bt bt-ghost"
-            title="Switch to adding shows by hand. We stop pulling automatically — useful when a theatre's site keeps giving us junk."
-          >
+          <button type="submit" class="bt bt-ghost" title="Switch to adding shows by hand.">
             Add by hand
           </button>
         </form>
@@ -380,19 +483,20 @@
   Added by hand <span class="section-count">{data.manualSources.length}</span>
 </h2>
 <p class="section-help">
-  These theatres post their schedule somewhere we can't read automatically
-  (Facebook events, image-only flyers, behind a login, etc.). Click the
-  link in each card to see what the theatre currently has running, then
-  use <a href="/admin/calendar/new">+ Add show</a> to enter it. The notes
-  on each card explain where to look on that theatre's site.
+  These theatres post their schedule somewhere we can't read automatically.
+  Click the link in each card to see what's running, then use
+  <a href="/admin/calendar/new">+ Add show</a> to enter it.
 </p>
 
 <div class="src-list">
   {#each data.manualSources as s (s.id)}
     <article class="src-row src-manual">
       <div class="src-name">
-        <h3>{s.org_name}</h3>
-        <code class="src-slug">{s.org_slug}</code>
+        <h3>
+          {s.name}
+          {#if s.verified}<span class="verified-badge" title="Verified">&#10003;</span>{/if}
+        </h3>
+        <code class="src-slug">{s.slug}</code>
         {#if s.area_name}<span class="src-area">{s.area_name}</span>{/if}
       </div>
 
@@ -401,7 +505,9 @@
       </div>
 
       <div class="src-url">
-        <a href={s.source_url} target="_blank" rel="noopener">{s.source_url}</a>
+        {#if s.source_url}
+          <a href={s.source_url} target="_blank" rel="noopener">{s.source_url}</a>
+        {/if}
         {#if s.notes}
           <div class="src-notes">{s.notes}</div>
         {/if}
@@ -412,24 +518,14 @@
         <form method="POST" action="?/setActive" use:enhance>
           <input type="hidden" name="id" value={s.id} />
           <input type="hidden" name="active" value={(!s.active).toString()} />
-          <button
-            type="submit"
-            class="bt bt-ghost"
-            title={s.active
-              ? "Hide this theatre from the Theatres page and from /admin/calendar/new."
-              : "Show this theatre again."}
-          >
+          <button type="submit" class="bt bt-ghost" title={s.active ? "Hide from /theatres." : "Show again."}>
             {s.active ? "Disable" : "Enable"}
           </button>
         </form>
         <form method="POST" action="?/setAdapter" use:enhance>
           <input type="hidden" name="id" value={s.id} />
           <input type="hidden" name="adapter" value="ai-generic" />
-          <button
-            type="submit"
-            class="bt bt-ghost"
-            title="Try pulling automatically again. We'll attempt to read their site on the next monthly sync."
-          >
+          <button type="submit" class="bt bt-ghost" title="Try pulling automatically again on the next monthly sync.">
             Try auto-pull
           </button>
         </form>
@@ -439,10 +535,18 @@
   {/each}
 </div>
 
+<ConfirmModal
+  open={pendingDeleteForm !== null}
+  title="Delete organization?"
+  body={`${pendingDeleteName} will be removed. This cannot be easily undone.`}
+  confirmLabel="Delete"
+  variant="warn"
+  onConfirm={confirmDelete}
+  onClose={cancelDelete}
+/>
+
 <style>
-  .hd {
-    margin-bottom: 1.5rem;
-  }
+  .hd { margin-bottom: 1.5rem; }
   .eyebrow {
     display: inline-block;
     font-family: var(--font-mono);
@@ -452,21 +556,14 @@
     color: var(--muted);
     margin-bottom: 0.5rem;
   }
-  .eyebrow .num {
-    color: var(--accent);
-    margin-right: 0.4em;
-  }
+  .eyebrow .num { color: var(--accent); margin-right: 0.4em; }
   .h1-display {
     font-family: var(--font-display);
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-weight: 600;
     margin: 0 0 0.5rem;
   }
-  .lede {
-    color: var(--ink-soft);
-    max-width: 60ch;
-    margin: 0;
-  }
+  .lede { color: var(--ink-soft); max-width: 60ch; margin: 0; }
   code {
     font-family: var(--font-mono);
     font-size: 0.9em;
@@ -474,24 +571,14 @@
     padding: 0 0.3em;
     border-radius: 3px;
   }
-
-  .form-error,
-  .form-ok {
+  .form-error, .form-ok {
     padding: 0.75rem 1rem;
     border-radius: var(--radius);
     margin-bottom: 1rem;
     font-size: 0.9rem;
   }
-  .form-error {
-    background: #f9e0d4;
-    color: var(--error);
-    border: 1px solid var(--error);
-  }
-  .form-ok {
-    background: #dceadd;
-    color: var(--accent);
-    border: 1px solid var(--accent);
-  }
+  .form-error { background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
+  .form-ok { background: #dceadd; color: var(--accent); border: 1px solid var(--accent); }
 
   .section-h {
     font-family: var(--font-display);
@@ -519,24 +606,31 @@
     margin: 0 0 1rem;
     max-width: 60ch;
   }
-  .src-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+
+  /* Verified-org tables (pending + verified sections) */
+  .rows { width: 100%; border-collapse: collapse; font-family: var(--font-body); font-size: 13px; margin-bottom: 1.5rem; }
+  th { text-align: left; padding: 10px 12px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); border-bottom: 1px solid var(--rule); font-weight: 500; }
+  td { padding: 12px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  .org-name { font-weight: 500; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+  .org-email { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .org-web { font-size: 12px; margin-top: 2px; }
+  .ext-link { color: var(--accent); }
+  .org-desc { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.4; }
+  .verified-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 9px; font-weight: 700;
   }
-  .src-row.src-manual {
-    background: var(--paper);
-    border-style: dashed;
-  }
-  .src-area {
-    margin-left: 0.5rem;
-    font-size: 0.7rem;
-    color: var(--muted);
-    background: var(--paper-2);
-    padding: 0.05rem 0.4rem;
-    border-radius: 999px;
-  }
+  .mono-cell { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .actions-col { text-align: right; width: 1%; white-space: nowrap; }
+  .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); text-decoration: none; display: inline-block; }
+  .bt-link.warn { color: var(--warn); }
+  .bt-link:hover { text-decoration: underline; color: var(--ink); }
+  .bt-link:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .src-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+  .src-row.src-manual { background: var(--paper); border-style: dashed; }
+  .src-area { margin-left: 0.5rem; font-size: 0.7rem; color: var(--muted); background: var(--paper-2); padding: 0.05rem 0.4rem; border-radius: 999px; }
   .src-row {
     display: grid;
     grid-template-columns: 1.5fr 1.5fr 2fr auto;
@@ -547,20 +641,18 @@
     border: 1px solid var(--rule);
     border-radius: var(--radius);
   }
-  .src-row.inactive {
-    opacity: 0.55;
-  }
+  .src-row.inactive { opacity: 0.55; }
   .src-name h3 {
     font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 600;
     margin: 0 0 0.2rem;
     color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
-  .src-slug {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
+  .src-slug { font-size: 0.75rem; color: var(--muted); }
 
   .status-pill {
     display: inline-block;
@@ -573,48 +665,15 @@
     background: var(--paper-2);
     color: var(--ink-soft);
   }
-  .status-pill.st-ok {
-    background: #dceadd;
-    color: var(--accent);
-  }
-  .status-pill.st-unchanged {
-    background: var(--paper-2);
-    color: var(--muted);
-  }
-  .status-pill.st-empty,
-  .status-pill.st-error {
-    background: #f9e0d4;
-    color: var(--error);
-  }
-  .status-pill.st-manual {
-    background: var(--paper-2);
-    color: var(--muted);
-    border: 1px dashed var(--rule);
-  }
-  .status-meta {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-top: 0.25rem;
-  }
-  .status-error {
-    margin-top: 0.4rem;
-    font-size: 0.78rem;
-    color: var(--error);
-    word-break: break-word;
-  }
+  .status-pill.st-ok { background: #dceadd; color: var(--accent); }
+  .status-pill.st-unchanged { background: var(--paper-2); color: var(--muted); }
+  .status-pill.st-empty, .status-pill.st-error { background: #f9e0d4; color: var(--error); }
+  .status-pill.st-manual { background: var(--paper-2); color: var(--muted); border: 1px dashed var(--rule); }
+  .status-meta { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+  .status-error { margin-top: 0.4rem; font-size: 0.78rem; color: var(--error); word-break: break-word; }
 
-  .src-url a {
-    color: var(--accent);
-    word-break: break-all;
-    font-size: 0.85rem;
-  }
-  .src-notes {
-    margin-top: 0.3rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    line-height: 1.4;
-  }
+  .src-url a { color: var(--accent); word-break: break-all; font-size: 0.85rem; }
+  .src-notes { margin-top: 0.3rem; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
 
   .src-actions {
     align-self: center;
@@ -624,15 +683,8 @@
     min-width: 130px;
   }
   .src-actions form { display: flex; }
-  .src-actions .bt-ghost,
-  .src-actions form .bt-ghost {
-    width: 100%;
-    text-align: center;
-  }
+  .src-actions .bt-ghost, .src-actions form .bt-ghost { width: 100%; text-align: center; }
 
-  /* Public-details edit disclosure: lives beneath the existing 4-column
-     row, hidden by default. Spans the full width when open so the form
-     fields read on a single line at desktop widths. */
   .public-edit {
     grid-column: 1 / -1;
     margin-top: 0.5rem;
@@ -650,21 +702,9 @@
     padding: 0.25rem 0;
     list-style: revert;
   }
-  .public-edit[open] summary {
-    color: var(--ink);
-    margin-bottom: 0.5rem;
-  }
-  .public-edit-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    padding-top: 0.25rem;
-  }
-  .pe-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
+  .public-edit[open] summary { color: var(--ink); margin-bottom: 0.5rem; }
+  .public-edit-form { display: flex; flex-direction: column; gap: 0.6rem; padding-top: 0.25rem; }
+  .pe-field { display: flex; flex-direction: column; gap: 0.25rem; }
   .pe-label {
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -672,8 +712,7 @@
     text-transform: uppercase;
     color: var(--muted);
   }
-  .pe-field input,
-  .pe-field textarea {
+  .pe-field input, .pe-field textarea {
     font-family: var(--font-body);
     font-size: 0.9rem;
     padding: 0.45rem 0.6rem;
@@ -683,17 +722,12 @@
     color: var(--ink);
     width: 100%;
   }
-  .pe-field input:focus,
-  .pe-field textarea:focus {
+  .pe-field input:focus, .pe-field textarea:focus {
     outline: 2px solid var(--accent);
     outline-offset: -1px;
     border-color: var(--accent);
   }
-  .pe-logo-row {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-  }
+  .pe-logo-row { display: flex; gap: 0.6rem; align-items: center; }
   .pe-logo-row input { flex: 1; }
   .pe-logo-preview-tile {
     width: 44px;
@@ -705,30 +739,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Background colour set inline - matches the chosen logo_bg so admin
-       sees what the public card will look like. */
   }
-  .pe-logo-preview {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-  .pe-bg-field {
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  .pe-bg-hint {
-    margin: 0.2rem 0 0.5rem;
-    font-size: 0.75rem;
-    color: var(--muted);
-    line-height: 1.4;
-  }
-  .pe-swatches {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
+  .pe-logo-preview { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .pe-bg-field { margin: 0; padding: 0; border: 0; }
+  .pe-bg-hint { margin: 0.2rem 0 0.5rem; font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+  .pe-swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .pe-swatch {
     position: relative;
     display: inline-flex;
@@ -741,23 +756,10 @@
     cursor: pointer;
     transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
   }
-  .pe-swatch:hover {
-    border-color: var(--ink);
-  }
-  .pe-swatch.on {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent), transparent 70%);
-  }
-  .pe-swatch input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
+  .pe-swatch:hover { border-color: var(--ink); }
+  .pe-swatch.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent), transparent 70%); }
+  .pe-swatch input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
   .pe-swatch-label {
-    /* The label sits on top of the swatch background. Use a neutral
-       grey that's legible on every palette colour - bumping into the
-       white / ink edges is rare and the on-state highlights the
-       picked one anyway. */
     font-family: var(--font-mono);
     font-size: 9px;
     letter-spacing: 0.12em;
@@ -785,34 +787,12 @@
   .pe-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
   .pe-upload-btn.disabled { cursor: progress; opacity: 0.7; }
   .pe-upload-btn input[type="file"] { display: none; }
-  .pe-progress {
-    margin-top: 0.4rem;
-    width: 100%;
-    height: 3px;
-    background: var(--paper);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .pe-progress-fill {
-    height: 100%;
-    background: var(--accent);
-    transition: width 0.15s;
-  }
-  .pe-logo-hint {
-    margin-top: 0.3rem;
-    font-size: 0.75rem;
-    color: var(--muted);
-    line-height: 1.4;
-  }
-  .pe-error {
-    display: block;
-    color: var(--error);
-    margin-top: 0.2rem;
-  }
-  .pe-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
+  .pe-progress { margin-top: 0.4rem; width: 100%; height: 3px; background: var(--paper); border-radius: 2px; overflow: hidden; }
+  .pe-progress-fill { height: 100%; background: var(--accent); transition: width 0.15s; }
+  .pe-logo-hint { margin-top: 0.3rem; font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+  .pe-error { display: block; color: var(--error); margin-top: 0.2rem; }
+  .pe-actions { display: flex; justify-content: flex-end; }
+
   .bt-pri {
     padding: 0.45rem 1rem;
     background: var(--ink);
@@ -823,14 +803,8 @@
     font-weight: 500;
     cursor: pointer;
   }
-  .bt-pri:hover:not(:disabled) {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-  .bt-pri:disabled {
-    opacity: 0.6;
-    cursor: progress;
-  }
+  .bt-pri:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
+  .bt-pri:disabled { opacity: 0.6; cursor: progress; }
   .bt-ghost {
     padding: 0.4rem 0.85rem;
     border: 1px solid var(--rule);
@@ -840,19 +814,18 @@
     font-size: 0.85rem;
     cursor: pointer;
   }
-  .bt-ghost:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .bt-ghost:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  .bt-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .bt-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
 
   @media (max-width: 720px) {
-    .src-row {
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
+    .src-row { grid-template-columns: 1fr; gap: 0.5rem; }
+    .rows, .rows thead, .rows tbody, .rows tr, .rows td, .rows th { display: block; }
+    .rows thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .rows tr { border: 1px solid var(--rule); border-radius: var(--radius); margin-bottom: 12px; padding: 12px 14px; background: var(--bg-raised); }
+    .rows td { padding: 6px 0; border-bottom: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .rows td::before { content: attr(data-label); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); flex: 0 0 auto; }
+    .rows td:first-child { flex-direction: column; align-items: flex-start; gap: 2px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--rule-soft); }
+    .rows td:first-child::before { display: none; }
+    .actions-col { text-align: left !important; width: auto !important; white-space: normal !important; }
   }
 </style>

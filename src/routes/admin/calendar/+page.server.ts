@@ -5,7 +5,7 @@
 //
 // Soft-delete (deleted_at) on productions is *permanent* unless restored
 // from the trash UI - intentionally different from profiles /
-// callboard_posts / verified_orgs which the stale-cleanup cron purges
+// callboard_posts / organizations which the stale-cleanup cron purges
 // after 30 days. Reason: the calendar-sync cron uses deleted_at as the
 // "don't re-pull this" sentinel, so if the row got hard-deleted the
 // next sync would re-create it. Keeping the row around forever (with
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ url }) => {
   let query = supabaseAdmin
     .from("productions")
     .select(
-      `id, title, organization_name, run_start, run_end, status, source_id,
+      `id, title, organization_name, run_start, run_end, status, organization_id,
        category_id, detail_url, admin_edited_at, created_at, updated_at`,
       { count: "exact" },
     )
@@ -54,9 +54,9 @@ export const load: PageServerLoad = async ({ url }) => {
     query = query.eq("status", statusFilter);
   }
   if (sourceFilter === "auto") {
-    query = query.not("source_id", "is", null);
+    query = query.not("organization_id", "is", null);
   } else if (sourceFilter === "manual") {
-    query = query.is("source_id", null);
+    query = query.is("organization_id", null);
   }
   // When filter: default 'upcoming' hides shows whose run_end is past.
   // 'past' shows just past shows. 'all' shows everything.
@@ -118,7 +118,7 @@ export const load: PageServerLoad = async ({ url }) => {
       ...p,
       performance_count: perfCountById.get(p.id) ?? 0,
       category_name: p.category_id ? categoryNameById.get(p.category_id) ?? null : null,
-      is_auto_pop: p.source_id !== null,
+      is_auto_pop: p.organization_id !== null,
       is_admin_locked: p.admin_edited_at !== null,
     })),
     total: count ?? 0,

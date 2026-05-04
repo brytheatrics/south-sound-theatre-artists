@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ params }) => {
     .from("productions")
     .select(
       `id, title, organization_name, run_start, run_end, detail_url,
-       description, category_id, area_id, source_id, status,
+       description, category_id, area_id, organization_id, status,
        rejection_reason, deleted_at, admin_edited_at, created_at, updated_at`,
     )
     .eq("id", params.id)
@@ -82,15 +82,24 @@ export const load: PageServerLoad = async ({ params }) => {
     .select("id, name, sort_order")
     .order("sort_order");
 
-  // Source info if auto-pop'd
+  // Source info if auto-pop'd. Aliases on the select keep the consumer
+  // template's `org_slug` / `org_name` references working without a
+  // template change.
   let sourceInfo = null;
-  if (prod.source_id) {
+  if (prod.organization_id) {
     const { data: src } = await supabaseAdmin
-      .from("event_sources")
-      .select("org_slug, org_name, source_url, last_checked_at")
-      .eq("id", prod.source_id)
+      .from("organizations")
+      .select("slug, name, source_url, last_checked_at")
+      .eq("id", prod.organization_id)
       .maybeSingle();
-    sourceInfo = src;
+    sourceInfo = src
+      ? {
+          org_slug: src.slug,
+          org_name: src.name,
+          source_url: src.source_url,
+          last_checked_at: src.last_checked_at,
+        }
+      : null;
   }
 
   return {
@@ -138,7 +147,7 @@ export const actions: Actions = {
         status,
         // Mark admin-edited so the cron's upsert will skip this row on
         // future syncs. Auto-pop'd entries become admin-owned the
-        // moment Lexi saves; manual entries are already source_id=null
+        // moment Lexi saves; manual entries are already organization_id=null
         // so they were never cron-managed, but we still set it for
         // consistency in admin UI ("locked" indicator).
         admin_edited_at: new Date().toISOString(),
