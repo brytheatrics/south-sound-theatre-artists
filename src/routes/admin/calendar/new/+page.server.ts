@@ -32,18 +32,46 @@ function pacificWallToUtc(wallClock: string): string | null {
   return new Date(`${wallClock}:00${pacificOffsetForDate(date)}`).toISOString();
 }
 
-export const load: PageServerLoad = async () => {
-  const { data: cats } = await supabaseAdmin
-    .from("event_categories")
-    .select("id, name, slug, sort_order")
-    .order("sort_order");
-  const { data: areas } = await supabaseAdmin
-    .from("areas")
-    .select("id, name, sort_order")
-    .order("sort_order");
+export const load: PageServerLoad = async ({ url }) => {
+  // ?org=<slug> seeds the form from an existing organization row -
+  // organization_name, area, and the FK link arrive pre-filled so admin
+  // only has to type the title + dates. Set when admin clicks "+ Add
+  // show" on /admin/organizations.
+  const orgSlug = (url.searchParams.get("org") ?? "").trim();
+
+  const [{ data: cats }, { data: areas }, orgRes] = await Promise.all([
+    supabaseAdmin
+      .from("event_categories")
+      .select("id, name, slug, sort_order")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("areas")
+      .select("id, name, sort_order")
+      .order("sort_order"),
+    orgSlug
+      ? supabaseAdmin
+          .from("organizations")
+          .select("id, name, area_id, source_url, homepage_url")
+          .eq("slug", orgSlug)
+          .is("deleted_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   return {
     categories: cats ?? [],
     areas: areas ?? [],
+    prefill: orgRes.data
+      ? {
+          organization_id: orgRes.data.id,
+          organization_name: orgRes.data.name,
+          area_id: orgRes.data.area_id,
+          // Source URL is often the season-list page, not a per-show
+          // ticket page - admin will usually overwrite this. Showing it
+          // as a default beats forcing them to look it up.
+          detail_url: orgRes.data.source_url ?? orgRes.data.homepage_url ?? null,
+        }
+      : null,
   };
 };
 
@@ -57,6 +85,11 @@ export const actions: Actions = {
     const detail_url = String(fd.get("detail_url") ?? "").trim() || null;
     const category_id = String(fd.get("category_id") ?? "").trim() || null;
     const area_id = String(fd.get("area_id") ?? "").trim() || null;
+    // organization_id is set when admin came in via "+ Add show" on a
+    // specific org row; null for a from-scratch entry. Linking the show
+    // back to its org row keeps /theatres counts + the calendar page's
+    // org-name consistency working.
+    const organization_id = String(fd.get("organization_id") ?? "").trim() || null;
 
     if (!title)
       return fail(400, { error: "Title is required.", values: Object.fromEntries(fd) });
@@ -73,7 +106,7 @@ export const actions: Actions = {
         detail_url,
         category_id,
         area_id,
-        organization_id: null,
+        organization_id,
         status: "approved",
         admin_edited_at: new Date().toISOString(),
       })

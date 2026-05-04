@@ -4,6 +4,12 @@
   let { data, form } = $props();
   const v = $derived((form?.values as Record<string, string> | undefined) ?? {});
 
+  // Org-prefill values arrive when the form was opened via
+  // /admin/calendar/new?org=<slug>. A fail-validation re-render keeps
+  // whatever the admin typed (form.values wins); the prefill only
+  // matters on first paint.
+  const pre = $derived(data.prefill);
+
   // Bind run dates for the schedule pattern editor.
   let runStart = $state<string>(v.run_start ?? "");
   let runEnd = $state<string>(v.run_end ?? "");
@@ -56,6 +62,16 @@
   }}
 >
   <input type="hidden" name="performances_json" value={JSON.stringify(perfs)} />
+  {#if pre?.organization_id}
+    <input type="hidden" name="organization_id" value={pre.organization_id} />
+  {/if}
+
+  {#if pre}
+    <p class="org-context">
+      Adding a show for <strong>{pre.organization_name}</strong>. Organization,
+      area, and link are pre-filled from the org row - edit any of them below.
+    </p>
+  {/if}
 
   <h2 class="block-title">Production details</h2>
 
@@ -67,7 +83,7 @@
 
   <label class="field">
     <span>Organization</span>
-    <input name="organization_name" type="text" required value={v.organization_name ?? ""} placeholder="Tacoma Little Theatre" />
+    <input name="organization_name" type="text" required value={v.organization_name ?? pre?.organization_name ?? ""} placeholder="Tacoma Little Theatre" />
   </label>
 
   <div class="row-2">
@@ -96,7 +112,7 @@
       <select name="area_id">
         <option value="">— pick —</option>
         {#each data.areas as a (a.id)}
-          <option value={a.id} selected={v.area_id === a.id}>{a.name}</option>
+          <option value={a.id} selected={(v.area_id ?? pre?.area_id) === a.id}>{a.name}</option>
         {/each}
       </select>
     </label>
@@ -104,8 +120,14 @@
 
   <label class="field">
     <span>Detail URL</span>
-    <input name="detail_url" type="url" value={v.detail_url ?? ""} placeholder="https://..." />
-    <span class="hint">Where calendar visitors click to learn more / buy tickets.</span>
+    <input name="detail_url" type="url" value={v.detail_url ?? pre?.detail_url ?? ""} placeholder="https://..." />
+    <span class="hint">
+      Where calendar visitors click to learn more / buy tickets.
+      {#if pre?.detail_url}
+        Pre-filled with the org's source/homepage URL — replace with the
+        per-show ticket page if you have one.
+      {/if}
+    </span>
   </label>
 
   <h2 class="block-title perf-h">Performances</h2>
@@ -157,6 +179,20 @@
   .h1-display { font-family: var(--font-display); font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 600; margin: 0 0 0.5rem; }
   .lede { color: var(--ink-soft); max-width: 60ch; margin: 0 0 1rem; }
   .form-error { padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
+  /* Org-context banner: shown on top of the form when admin arrived
+     via "+ Add show" on a specific org row. Soft moss-on-cream so it
+     reads as informational, not as a warning. */
+  .org-context {
+    margin: 0 0 1rem;
+    padding: 0.65rem 0.9rem;
+    background: color-mix(in oklch, var(--accent), var(--bg) 90%);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .org-context strong { color: var(--ink); }
 
   .card { background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.25rem; max-width: 720px; }
   .block-title {

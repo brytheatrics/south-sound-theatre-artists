@@ -514,7 +514,7 @@
       </div>
 
       <div class="src-actions">
-        <a class="bt bt-ghost" href="/admin/calendar/new">+ Add show</a>
+        <a class="bt bt-ghost" href={`/admin/calendar/new?org=${s.slug}`}>+ Add show</a>
         <form method="POST" action="?/setActive" use:enhance>
           <input type="hidden" name="id" value={s.id} />
           <input type="hidden" name="active" value={(!s.active).toString()} />
