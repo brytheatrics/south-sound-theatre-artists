@@ -63,6 +63,13 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    /* Bias the crop toward the top of the image so when the source
+       photo is taller than the box (e.g. a 4:5 portrait inside a 3:4
+       or 1:1 frame) the face is preserved and the chin / torso get
+       chopped instead of the head. Roughly the right call for every
+       headshot we've seen; admin can override at the source-image
+       level if a specific photo is composed unusually. */
+    object-position: center top;
     display: block;
     position: relative;
     z-index: 1;
