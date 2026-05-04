@@ -26,12 +26,9 @@ export type MentorshipProfile = {
 
 export const load: PageServerLoad = async ({ url }) => {
   const params = url.searchParams;
-  const discParam = params.get("d") ?? "";
-  const activeDisciplines = discParam
-    ? discParam.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
+  const activeDisciplines = params.getAll("d").filter(Boolean);
 
-  const [profileRes, disciplinesRes, contentRes] = await Promise.all([
+  const [profileRes, disciplinesRes, categoriesRes, contentRes] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select(
@@ -49,6 +46,10 @@ export const load: PageServerLoad = async ({ url }) => {
       .order("full_name"),
     supabaseAdmin
       .from("disciplines")
+      .select("name, category")
+      .order("sort_order"),
+    supabaseAdmin
+      .from("discipline_categories")
       .select("name")
       .order("sort_order"),
     supabaseAdmin
@@ -82,7 +83,12 @@ export const load: PageServerLoad = async ({ url }) => {
     offering,
     seeking,
     activeDisciplines,
-    disciplines: (disciplinesRes.data ?? []).map((d: { name: string }) => d.name),
+    options: {
+      disciplines: disciplinesRes.data ?? [],
+      disciplineCategories: (categoriesRes.data ?? []).map(
+        (c: { name: string }) => c.name,
+      ),
+    },
     lede: contentRes.data?.body_markdown ?? "",
     totalOffering: offering.length,
     totalSeeking: seeking.length,

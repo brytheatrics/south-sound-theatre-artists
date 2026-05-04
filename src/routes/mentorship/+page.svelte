@@ -2,27 +2,31 @@
   import type { PageData } from "./$types";
   import { renderMarkdownInline } from "$lib/util/markdown";
   import HeadshotPlaceholder from "$lib/components/HeadshotPlaceholder.svelte";
+  import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
 
   let { data }: { data: PageData } = $props();
 
-  // URL helper: build a /mentorship link with the active filter state,
-  // overrideable per-call. Drops empty params so the URL stays clean.
-  function buildUrl(overrides: Record<string, string | null>) {
-    const base: Record<string, string | null> = {
-      d: data.activeDisciplines.length > 0 ? data.activeDisciplines.join(",") : null,
-    };
-    const merged = { ...base, ...overrides };
-    const sp = new URLSearchParams();
-    for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, v);
-    const s = sp.toString();
-    return "/mentorship" + (s ? "?" + s : "");
+  /* svelte-ignore state_referenced_locally */
+  let selectedDisciplines = $state<Set<string>>(new Set(data.activeDisciplines));
+
+  let formEl: HTMLFormElement | undefined = $state();
+
+  function submitNow() {
+    formEl?.requestSubmit();
   }
 
-  function toggleDiscipline(d: string): string[] {
-    const set = new Set(data.activeDisciplines);
-    if (set.has(d)) set.delete(d);
-    else set.add(d);
-    return Array.from(set);
+  function toggleDiscipline(name: string) {
+    const next = new Set(selectedDisciplines);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    selectedDisciplines = next;
+    // Defer so Svelte renders the new hidden <input name="d"> before submit.
+    setTimeout(submitNow, 0);
+  }
+
+  function clearFilters() {
+    selectedDisciplines = new Set();
+    setTimeout(submitNow, 0);
   }
 </script>
 
@@ -49,23 +53,38 @@
   </div>
 </header>
 
-<!-- DISCIPLINE FILTER STRIP -->
-{#if data.disciplines.length > 0}
-  <div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
-    <span class="filter-label eyebrow">Filter by discipline</span>
-    {#each data.disciplines as d (d)}
-      <a
-        class="chip"
-        class:on={data.activeDisciplines.includes(d)}
-        href={buildUrl({ d: toggleDiscipline(d).join(",") || null })}
-      >
-        {d}
-      </a>
-    {/each}
-    {#if data.activeDisciplines.length > 0}
-      <a class="chip chip-clear" href={buildUrl({ d: null })}>Show all</a>
-    {/if}
-  </div>
+<!-- DISCIPLINE FILTER (accordion, mirrors /directory) -->
+{#if data.options.disciplines.length > 0}
+  <form
+    bind:this={formEl}
+    method="GET"
+    class="filters"
+    aria-label="Filter mentorship listings"
+    data-sveltekit-noscroll
+    data-sveltekit-replacestate
+  >
+    <div class="filter-block">
+      <div class="block-head">
+        <span class="block-label">Filter by discipline</span>
+        {#if selectedDisciplines.size > 0}
+          <button type="button" class="bt-link" onclick={clearFilters}>
+            Clear ({selectedDisciplines.size})
+          </button>
+        {/if}
+      </div>
+      <DisciplinePicker
+        items={data.options.disciplines}
+        categoryOrder={data.options.disciplineCategories}
+        selected={selectedDisciplines}
+        onToggle={toggleDiscipline}
+        inputName="d"
+        showOtherInput={false}
+      />
+    </div>
+    <noscript>
+      <button type="submit" class="bt bt-pri">Apply filters</button>
+    </noscript>
+  </form>
 {/if}
 
 <div class="cols">
@@ -226,28 +245,45 @@
   .meta-cta:hover { text-decoration: underline; }
   .meta-stat { color: var(--ink-soft); }
 
-  /* FILTER STRIP - same chip style as /directory + /calendar */
-  .filter-strip {
+  /* FILTER FORM - mirrors /directory layout + accordion picker */
+  .filters {
+    padding: 1.25rem var(--page-pad-x);
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
-    padding: 1rem var(--page-pad-x);
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: calc(900px + var(--page-pad-x) * 2);
     border-bottom: 1px solid var(--rule-soft);
   }
-  .filter-label {
-    margin-right: 0.5rem;
-    margin-bottom: 0;
+  .filter-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-  .chip.chip-clear {
+  .block-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .block-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     color: var(--muted);
-    font-style: italic;
-    border-style: dashed;
   }
-  .chip.chip-clear:hover {
-    color: var(--ink);
-    border-color: var(--ink);
+  .bt-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
   }
+  .bt-link:hover { color: var(--accent); }
 
   /* TWO COLUMNS - side-by-side at desktop, stacked on mobile */
   .cols {
