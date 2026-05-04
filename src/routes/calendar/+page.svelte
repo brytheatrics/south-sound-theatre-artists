@@ -423,7 +423,37 @@
   </section>
 {/if}
 
+<!-- WEEKLY DIGEST CTA -->
+<aside class="digest-cta">
+  <span class="eyebrow"><span class="num">·</span>Weekly digest</span>
+  <p class="digest-blurb">
+    One Sunday-evening email with new opportunities and shows opening this week.
+    <a href="/callboard/subscribe">Subscribe →</a>
+  </p>
+</aside>
+
 <style>
+  /* WEEKLY DIGEST CTA - shared shape with /callboard's strip */
+  .digest-cta {
+    margin: 1.5rem var(--page-pad-x);
+    padding: 1rem 1.25rem;
+    background: var(--bg-raised);
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .digest-blurb {
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .digest-blurb a { color: var(--accent); font-weight: 500; }
+  .digest-blurb a:hover { text-decoration: underline; }
+
   /* MASTHEAD - mirrors callboard styling */
   .masthead {
     display: flex;

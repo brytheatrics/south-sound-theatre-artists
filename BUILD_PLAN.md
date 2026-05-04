@@ -515,11 +515,23 @@ were left alone. The `.prose p:has(> img:only-child)` float quirk in
 `app.css` is now scoped to `:not(.prose-compact)` so the admin
 template-editor preview matches the rendered email.
 
-### 3. Weekly community digest (callboard + calendar)
+### 3. Weekly community digest (callboard + calendar) — **shipped (mig 069)**
 
-See full scope in "Maybe later" entry below. Estimated ~90 minutes.
-Best done after #2 so digest emails ship as proper formatted HTML
-out of the gate.
+Subscribe form lives at `/callboard/subscribe` (linked from a thin
+strip on `/callboard` and `/calendar`). Submitting inserts a dormant
+row in `callboard_subscriptions` with a `confirmation_token` (mig 069
+adds `confirmed_at` + `confirmation_token` columns) and fires a
+`subscription_confirm` template. Single-click on
+`/callboard/subscribe/confirm/[token]` flips `confirmed_at` and
+clears the token. The Sunday-evening cron now filters to
+`confirmed_at IS NOT NULL` rows and assembles two sections per email
+- new callboard posts since last digest, plus productions with a
+`run_start` in the next 14 days. Template body re-titled "Weekly
+digest" (no longer callboard-specific).
+
+Existing pre-mig-069 rows are grandfathered in as confirmed via the
+backfill so the cron doesn't silently stop sending if any subscribers
+land in the gap.
 
 ### 4. Trust-this-device admin login — **shipped (mig 066)**
 
