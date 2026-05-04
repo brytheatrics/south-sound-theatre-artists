@@ -135,6 +135,7 @@ Return a JSON array shaped like:
 Rules:
 - Only theatre productions (plays, musicals, staged readings, themed performance events like murder mystery dinners). Skip: educational programs without a public showing, summer camps, fundraising galas without a performance component, donation pages, audition notices, "next season" teasers without specific dates, non-theatrical content.
 - Skip 1-2 day events that are clearly readings, fundraisers, or galas, NOT mainstage productions.
+- title: copy the show name exactly as it appears on the page, including unusual spellings, doubled letters, exclamation points, accents, ampersands, and parentheticals. Do NOT normalize, autocorrect, or "fix" titles. "Mamma Mia!" stays "Mamma Mia!" - not "Mama Mia". "tick, tick... BOOM!" stays as-is. "August: Osage County" keeps the colon. When the page itself is inconsistent (heading vs blurb), prefer the heading.
 - All dates: YYYY-MM-DD. All times: 24-hour HH:MM.
 - weekdays use 3-letter abbreviations: Sun, Mon, Tue, Wed, Thu, Fri, Sat.
 - If a year is missing, infer it from page context (season heading, surrounding shows, current date ${today}). When the year is genuinely ambiguous, prefer the next future occurrence over a past one.
