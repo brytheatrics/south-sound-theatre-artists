@@ -15,7 +15,10 @@
 
 import { getDb, sendCronEmail, exitOk, exitFail } from "./_lib/cron.mjs";
 
-const POST_TYPE_LABEL = {
+// Fallback labels used if a post's slug isn't in callboard_post_types
+// for any reason. Real labels come from the live admin-managed table -
+// pulled once per cron run + cached in postTypeLabels (filled below).
+const POST_TYPE_LABEL_FALLBACK = {
   audition: "Audition",
   designer: "Designer call",
   crew: "Crew call",
@@ -49,6 +52,21 @@ async function main() {
        where unsubscribed_at is null
          and confirmed_at is not null`,
     );
+
+    // Live label map: pulled from the admin-managed callboard_post_types
+    // table so admin-added types render with their configured display
+    // label instead of falling through to "Opportunity". Per-cron-run
+    // fetch is fine - the table has ~5-10 rows.
+    const typeLabelRes = await db.query(
+      `select slug, label, plural_label from callboard_post_types`,
+    );
+    const postTypeLabels = new Map(
+      typeLabelRes.rows.map((r) => [r.slug, r.label]),
+    );
+    const labelFor = (slug) =>
+      postTypeLabels.get(slug) ??
+      POST_TYPE_LABEL_FALLBACK[slug] ??
+      "Opportunity";
 
     let sent = 0;
     let skipped = 0;
@@ -110,27 +128,35 @@ async function main() {
       const since = sub.last_digest_at ?? sub.confirmed_at ?? sub.created_at;
 
       // Pull approved + published posts created since the cutoff that
-      // match the subscriber's filters. Disciplines are matched against
-      // post.roles via array overlap; an empty disciplines array means
-      // "any". post_types defaults to all five.
-      const params = [since, sub.post_types];
+      // match the subscriber's filters. Both arrays use the
+      // "empty = no filter / give them everything (including future
+      // admin-added types)" sentinel - that way ticking-everything at
+      // signup means "subscribe to the full firehose" rather than a
+      // frozen list of whatever was active that day.
+      const params = [since];
       let where = `
         where status = 'approved'
           and published = true
           and deleted_at is null
-          and created_at > $1
-          and post_type = any($2::text[])`;
+          and created_at > $1`;
+
+      if (sub.post_types && sub.post_types.length > 0) {
+        params.push(sub.post_types);
+        where += `\n          and post_type = any($${params.length}::text[])`;
+      }
+
       if (sub.disciplines && sub.disciplines.length > 0) {
         // Disciplines are matched against the roles array OR the post
         // type label (so e.g. a 'designer' post matches a 'Designer'
         // discipline filter). Loose intentionally - false positives are
         // tolerable for a weekly digest, false negatives are not.
         params.push(sub.disciplines);
+        const idx = params.length;
         where += `
           and (
-            roles && $3::text[]
+            roles && $${idx}::text[]
             or exists (
-              select 1 from unnest($3::text[]) d
+              select 1 from unnest($${idx}::text[]) d
               where lower(d) = post_type
             )
           )`;
@@ -162,7 +188,7 @@ async function main() {
 
       // Build a markdown bullet list for the callboard section.
       const lines = newPosts.rows.map((p) => {
-        const label = POST_TYPE_LABEL[p.post_type] ?? "Opportunity";
+        const label = labelFor(p.post_type);
         const tail = p.deadline_text
           ? ` (${p.deadline_text})`
           : p.location

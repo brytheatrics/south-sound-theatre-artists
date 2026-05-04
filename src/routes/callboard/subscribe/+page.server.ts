@@ -58,8 +58,14 @@ export const actions: Actions = {
     }
 
     // Validate the post-type slugs against the live admin-managed
-    // table rather than a hardcoded list, so admin-added types
-    // (workshops etc.) carry through correctly.
+    // table rather than a hardcoded list, so admin-added types carry
+    // through correctly. Empty array stored = "no filter / all types,
+    // including ones admin adds in the future"; non-empty array =
+    // explicit narrowing to those slugs only.
+    //
+    // Detection rule: if the user ticked every currently-active type,
+    // we treat that as "no filter" so future-added types come through
+    // automatically. Detected by set equality (size + every check).
     const { data: validTypeRows } = await supabaseAdmin
       .from("callboard_post_types")
       .select("slug")
@@ -67,27 +73,32 @@ export const actions: Actions = {
     const validTypeSlugs = new Set(
       (validTypeRows ?? []).map((r) => r.slug as string),
     );
-    const fallbackPostTypes =
-      validTypeSlugs.size > 0 ? Array.from(validTypeSlugs) : VALID_POST_TYPES;
-    const postTypesRaw = fd.getAll("post_type").map(String).filter(Boolean);
-    const postTypes =
-      postTypesRaw.length > 0
-        ? postTypesRaw.filter((t) => validTypeSlugs.has(t))
-        : fallbackPostTypes;
+    const tickedTypes = new Set(
+      fd.getAll("post_type").map(String).filter((s) => validTypeSlugs.has(s)),
+    );
+    const tickedAllTypes =
+      tickedTypes.size === validTypeSlugs.size &&
+      Array.from(validTypeSlugs).every((s) => tickedTypes.has(s));
+    const postTypes: string[] =
+      tickedAllTypes || tickedTypes.size === 0 ? [] : Array.from(tickedTypes);
 
-    // Areas: validate uuids against the live areas table. Empty array
-    // = "all areas" (no filter); same convention as post_types.
+    // Areas: same "empty = all" convention. Validate uuids against the
+    // live areas table. Ticking every area also stores empty so a future
+    // area added by admin is included automatically.
     const areaIdsRaw = fd.getAll("area_id").map(String).filter(Boolean);
     let areaIds: string[] = [];
     if (areaIdsRaw.length > 0) {
       const { data: validAreaRows } = await supabaseAdmin
         .from("areas")
-        .select("id")
-        .in("id", areaIdsRaw);
-      const validAreaIds = new Set(
+        .select("id");
+      const allAreaIds = new Set(
         (validAreaRows ?? []).map((r) => r.id as string),
       );
-      areaIds = areaIdsRaw.filter((id) => validAreaIds.has(id));
+      const tickedAreas = new Set(areaIdsRaw.filter((id) => allAreaIds.has(id)));
+      const tickedAllAreas =
+        tickedAreas.size === allAreaIds.size &&
+        Array.from(allAreaIds).every((id) => tickedAreas.has(id));
+      areaIds = tickedAllAreas ? [] : Array.from(tickedAreas);
     }
 
     // Look up an existing row first so we can re-confirm idempotently
