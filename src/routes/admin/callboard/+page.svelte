@@ -82,6 +82,7 @@
       <a class="bt bt-ghost" href="/admin/callboard">Clear</a>
     {/if}
     <a class="bt bt-ghost" href="/admin/callboard/trash">Trash ({data.trashCount})</a>
+    <a class="bt bt-pri" href="/admin/callboard/new">+ New post</a>
   </form>
 
   <!-- Status filter chips -->
@@ -160,6 +161,9 @@
           </td>
           <td data-label="Submitted" class="mono-cell">{fmtDate(p.created_at)}</td>
           <td data-label="Actions" class="actions-col">
+            <!-- Edit (always available so admin can fix typos / area / etc) -->
+            <a class="bt-link" href="/admin/callboard/{p.id}/edit">Edit</a>
+
             <!-- Approve -->
             {#if p.status === "pending_review" || p.status === "pending_email"}
               <form
