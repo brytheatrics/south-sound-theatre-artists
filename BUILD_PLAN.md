@@ -454,11 +454,22 @@ Committed to build, not yet started. Listed in build order.
 Since the last push (`85c1c9b` env fix), the following land local but
 not on staging. Push when ready:
 
-- `32037b5` Theme: drop Auto mode (light/dark only)
+- `32037b5` Theme: drop Auto mode
 - `36c0d95` Resources: multi-category tagging
-- `5dab51c` Compat shim: re-add `resources.category_id` so deployed code keeps working
-- `200b172` Resources: trigger to keep `category_id` in sync with `category_ids[1]`
-- `22b832f` Mentorship: dedicated /mentorship discovery page
+- `5dab51c` Compat shim: re-add `resources.category_id` temporarily
+- `200b172` Resources: trigger to sync `category_id <- category_ids[1]`
+- `22b832f` Mentorship: dedicated `/mentorship` discovery page
+- `362287e` Homepage: playbill redesign + three-door nav + spotlight rework
+- `a0ae07f` Mentorship: accordion discipline filter to match `/directory`
+- `27051ed` Calendar org consolidation -> single `organizations` table (mig 065)
+- `7a2da7e` Trust-this-device admin login (mig 066)
+- `2849902` Marquee: calendar items deep-link with `?highlight=` and pulse
+- `5d502ac` Email: HTML pipeline with signature substitution (migs 067 + 068)
+- `c1197c0` Weekly community digest: double-opt-in + calendar slice (mig 069)
+
+After this batch ships to staging, run the parked
+`_pending/070_resources_cleanup.sql` migration to drop the
+`resources.category_id` compat shim (see #5 below).
 
 ### 1. Calendar org consolidation (Option C) — **shipped (mig 065)**
 
@@ -543,16 +554,21 @@ out, going straight to a fresh session. Password is still required
 every time. Cookie + session are independent so revoking one doesn't
 nuke the other.
 
-### 5. Resources cleanup migration (post-push)
+### 5. Resources cleanup migration (post-push) — **parked (070)**
 
-Once the local-only commits ship to staging, write migration 065 that:
-- Drops the `resources_sync_category_id_trg` trigger
-- Drops the `resources_sync_category_id` function
-- Drops the `resources.category_id` column
+Migration is written and lives at
+`supabase/migrations/_pending/070_resources_cleanup.sql`. The
+`_pending/` subfolder is invisible to `pnpm db:migrate` (runner uses
+non-recursive `readdirSync`). To apply after the multi-category
+resources commits land on staging:
 
-Both the trigger and the column are pre-push compat shims (mig 062 +
-063). After the next push, no deployed code reads `category_id`, so
-the cleanup is safe.
+```
+mv supabase/migrations/_pending/070_resources_cleanup.sql supabase/migrations/
+pnpm db:migrate
+```
+
+The migration drops the trigger, function, and `resources.category_id`
+column — the three compat shims added by migs 062 + 063.
 
 ### 6. Marquee → calendar highlight on click — **shipped**
 
