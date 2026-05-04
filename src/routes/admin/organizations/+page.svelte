@@ -437,6 +437,7 @@
       </div>
 
       <div class="src-actions">
+        <a class="bt bt-ghost" href={`/admin/calendar/new?org=${s.slug}`} title="Add a one-off show the auto-pull missed - skips the cron and saves directly to the calendar.">+ Add show</a>
         <form
           method="POST"
           action="?/refresh"
