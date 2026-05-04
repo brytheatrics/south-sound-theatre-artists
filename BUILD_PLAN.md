@@ -445,6 +445,96 @@ These came up in planning and were explicitly cut. Do not add without revisiting
 - One-click email-based admin approval links (more attack surface than benefit)
 - WYSIWYG editor in v1 (markdown + toolbar covers 99% of needs; migration path exists if Lexi struggles)
 
+## Active queue (next up)
+
+Committed to build, not yet started. Listed in build order.
+
+### Local-only commits (need push to deploy)
+
+Since the last push (`85c1c9b` env fix), the following land local but
+not on staging. Push when ready:
+
+- `32037b5` Theme: drop Auto mode (light/dark only)
+- `36c0d95` Resources: multi-category tagging
+- `5dab51c` Compat shim: re-add `resources.category_id` so deployed code keeps working
+- `200b172` Resources: trigger to keep `category_id` in sync with `category_ids[1]`
+- `22b832f` Mentorship: dedicated /mentorship discovery page
+
+### 1. Calendar org consolidation (Option C)
+
+Merge `event_sources` and `verified_orgs` into a single `organizations`
+table. Decided in this session — Blake said "let's do C" once SSTA is
+launched. Scope:
+- New migration creates `organizations` with the union of both tables'
+  columns. Suggested column shape:
+  - From `event_sources`: id, slug, name, area_id, adapter, source_url,
+    cadence_days, active, last_status, last_show_count, last_checked_at,
+    last_successful_at, last_error, last_hash, cooldown_until, notes,
+    description, homepage_url, public_email, logo_url, logo_bg
+  - From `verified_orgs`: contact_email, verified, deleted_at
+  - Drop `event_sources.org_slug` / `org_name` rename to plain `slug` / `name`
+- Backfill: copy every `event_sources` row into `organizations` with
+  `verified=false`. Then merge `verified_orgs` rows by name match (or
+  email match) — set `verified=true` on the matching organizations row;
+  for `verified_orgs` rows with no match, insert as `adapter='manual'`
+  organizations.
+- Repoint FKs:
+  - `productions.source_id` → `organizations.id`
+  - `productions.verified_org_id` → `organizations.id`
+  - `callboard_posts.verified_org_id` → `organizations.id`
+- Rewrite consumer pages:
+  - `/admin/event-sources` → `/admin/organizations`
+  - `/admin/orgs` collapses into the same page (verified flag becomes a
+    column on each row)
+  - `/theatres` reads from `organizations` instead of `event_sources`
+  - Calendar-sync cron (`scripts/_lib/calendar-sync.mjs`) reads from
+    `organizations`
+  - Callboard verify (`/callboard/verify/[token]`) and Calendar verify
+    (`/calendar/verify/[token]`) auto-publish lookups
+- Drop `event_sources` and `verified_orgs` tables.
+- Naming consideration: Blake explicitly preferred "organizations" as
+  the table name in earlier discussion.
+- Estimated ~3 hours of focused work. Real migration risk; do in a
+  single session with backup verified beforehand.
+
+### 2. HTML email with logo + branded signature
+
+See full scope in "Maybe later" entry below. Estimated ~2 hours.
+Lexi explicitly wants visual branding — this is now active, not parked.
+
+### 3. Weekly community digest (callboard + calendar)
+
+See full scope in "Maybe later" entry below. Estimated ~90 minutes.
+Best done after #2 so digest emails ship as proper formatted HTML
+out of the gate.
+
+### 4. Trust-this-device admin login
+
+Blake's work-laptop convenience. "Remember this device for 30 days"
+checkbox on `/admin/verify`. After successful 2FA, drop a separate
+long-lived cookie. Next login from same browser: password is still
+required, but 2FA gets skipped automatically. Estimated ~30 minutes.
+- New cookie name (e.g. `ssta_admin_trusted_device`), separate from
+  the session cookie.
+- Bootstrap on `/admin/login` POST: if cookie present + valid, skip
+  the 2FA send + redirect, issue session cookie directly.
+- Cookie generation: random token + DB row in a new
+  `admin_trusted_devices` table (or extend `admin_sessions` with a
+  `trusted_device` flag — designer's choice).
+
+### 5. Resources cleanup migration (post-push)
+
+Once the local-only commits ship to staging, write migration 065 that:
+- Drops the `resources_sync_category_id_trg` trigger
+- Drops the `resources_sync_category_id` function
+- Drops the `resources.category_id` column
+
+Both the trigger and the column are pre-push compat shims (mig 062 +
+063). After the next push, no deployed code reads `category_id`, so
+the cleanup is safe.
+
+---
+
 ## Maybe later (revisit if it comes up in real use)
 
 Discussed and parked. None are committed; if usage patterns or user requests surface them, they're cheap to revisit.
