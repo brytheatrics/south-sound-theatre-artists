@@ -260,7 +260,20 @@
     orgs ({data.verifiedOrgs.length}) can post to the callboard and
     submit performances directly without per-post admin review.
   </p>
+  <div class="hd-actions">
+    <a class="bt bt-pri" href="/admin/organizations/new">+ Add organization</a>
+  </div>
 </header>
+
+{#if data.justCreated}
+  <div class="form-ok" role="status">
+    Added <strong>{data.justCreated}</strong> as a manual entry. Click
+    "Edit public details" on its row below to upload a logo + tweak
+    homepage / description. Once Blake verifies the source page is
+    scrape-friendly, flip the adapter to "ai-generic" via the Try
+    auto-pull button.
+  </div>
+{/if}
 
 {#if form?.error}
   <div class="form-error" role="alert">{form.error}</div>
@@ -548,6 +561,19 @@
 
 <style>
   .hd { margin-bottom: 1.5rem; }
+  .hd-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+  .hd-actions .bt-pri {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    text-decoration: none;
+  }
+  .hd-actions .bt-pri:hover { background: var(--accent); border-color: var(--accent); }
   .eyebrow {
     display: inline-block;
     font-family: var(--font-mono);

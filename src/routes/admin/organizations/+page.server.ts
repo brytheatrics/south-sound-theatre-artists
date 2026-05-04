@@ -20,7 +20,9 @@ import { env as privateEnv } from "$env/dynamic/private";
 
 const { Client } = pg;
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
+  const justCreated = url.searchParams.get("created") ?? "";
+
   const { data: orgs, error } = await supabaseAdmin
     .from("organizations")
     .select(
@@ -53,6 +55,7 @@ export const load: PageServerLoad = async () => {
     verifiedOrgs: enriched.filter((o) => o.verified),
     autoSources: enriched.filter((o) => !o.is_manual),
     manualSources: enriched.filter((o) => o.is_manual),
+    justCreated,
   };
 };
 
