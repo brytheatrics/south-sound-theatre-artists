@@ -8,6 +8,13 @@
   let postType = $state(
     (form?.values?.postType as string) ?? data.postTypes[0]?.slug ?? "audition",
   );
+
+  // Picked area mirror in $state - drives class:on directly so the
+  // chip repaints on click. (Pure-CSS :has(input:checked) hit a Chrome
+  // invalidation issue where the matching label didn't repaint when
+  // the radio's :checked flipped.)
+  /* svelte-ignore state_referenced_locally */
+  let pickedAreaId = $state<string>((form?.values?.areaId as string) ?? "");
   let keyDatesRaw = $state(
     form?.values?.keyDates ? JSON.stringify(form.values.keyDates) : "[]",
   );
@@ -139,12 +146,13 @@
           <span class="label">Area <span class="req">*</span></span>
           <div class="chip-row" class:error={!!form?.errors?.area_id}>
             {#each data.areas as area (area.id)}
-              <label class="chip" class:on={(form?.values?.areaId ?? "") === area.id}>
+              <label class="chip" class:on={pickedAreaId === area.id}>
                 <input
                   type="radio"
                   name="area_id"
                   value={area.id}
-                  checked={(form?.values?.areaId ?? "") === area.id}
+                  checked={pickedAreaId === area.id}
+                  onchange={() => (pickedAreaId = area.id)}
                   required
                 />
                 <span>{area.name}</span>
@@ -562,7 +570,14 @@
     transition: border-color 0.12s, background 0.12s, color 0.12s;
   }
   .chip:hover { border-color: var(--ink); color: var(--ink); }
-  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  /* "Selected" treatment driven by Svelte $state via class:on. The
+     .chip-row anchor + !important on background bumps specificity past
+     the global .chip rule in app.css. */
+  .chip-row .chip.on {
+    background: var(--ink) !important;
+    color: var(--bg);
+    border-color: var(--ink);
+  }
   .chip input[type="radio"] {
     position: absolute;
     opacity: 0;

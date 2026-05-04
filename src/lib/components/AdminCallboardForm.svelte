@@ -34,6 +34,15 @@
 
   let { mode, actionUrl, initial, areas, postTypes, formErrors = {} }: Props = $props();
 
+  // Mirror the picked radio values in $state so we can drive class:on
+  // directly. CSS-only :has(input:checked) styling has a Chrome
+  // invalidation issue where the matching label doesn't repaint when
+  // the radio's :checked flips - explicit JS state sidesteps it.
+  /* svelte-ignore state_referenced_locally */
+  let pickedAreaId = $state<string>(initial.area_id ?? "");
+  /* svelte-ignore state_referenced_locally */
+  let pickedPostType = $state<string>(initial.post_type ?? "");
+
   // Convert ISO timestamp -> "YYYY-MM-DDTHH:MM" for <input type="datetime-local">.
   function toLocalInput(iso: string | null | undefined): string {
     if (!iso) return "";
@@ -69,12 +78,13 @@
     <span class="label">Area <span class="req">*</span></span>
     <div class="chip-row">
       {#each areas as a (a.id)}
-        <label class="chip" class:on={(initial.area_id ?? "") === a.id}>
+        <label class="chip" class:on={pickedAreaId === a.id}>
           <input
             type="radio"
             name="area_id"
             value={a.id}
-            checked={(initial.area_id ?? "") === a.id}
+            checked={pickedAreaId === a.id}
+            onchange={() => (pickedAreaId = a.id)}
             required
           />
           <span>{a.name}</span>
@@ -102,12 +112,13 @@
     <span class="label">Post type <span class="req">*</span></span>
     <div class="chip-row">
       {#each postTypes as t (t.slug)}
-        <label class="chip" class:on={(initial.post_type ?? "") === t.slug}>
+        <label class="chip" class:on={pickedPostType === t.slug}>
           <input
             type="radio"
             name="post_type"
             value={t.slug}
-            checked={(initial.post_type ?? "") === t.slug}
+            checked={pickedPostType === t.slug}
+            onchange={() => (pickedPostType = t.slug)}
             required
           />
           <span>{t.label}</span>
@@ -300,7 +311,16 @@
     transition: border-color 0.12s, background 0.12s, color 0.12s;
   }
   .chip:hover { border-color: var(--ink); color: var(--ink); }
-  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  /* "Selected" treatment driven by Svelte $state via class:on. Pure-CSS
+     :has(input:checked) was unreliable in Chrome - the matching label
+     reports as matching the selector but the cascade doesn't repaint
+     it on radio toggle. The .chip-row anchor + !important also bumps
+     specificity past the global .chip rule in app.css. */
+  .chip-row .chip.on {
+    background: var(--ink) !important;
+    color: var(--bg);
+    border-color: var(--ink);
+  }
   .chip input[type="radio"] {
     position: absolute;
     opacity: 0;
