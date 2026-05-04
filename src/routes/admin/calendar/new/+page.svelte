@@ -77,13 +77,13 @@
 
   <label class="field">
     <span>Title</span>
-    <input name="title" type="text" required value={v.title ?? ""} placeholder="DA VINCI CODE" />
+    <input name="title" type="text" required value={v.title ?? ""} />
     <span class="hint">Will be stored in ALL CAPS for consistency.</span>
   </label>
 
   <label class="field">
     <span>Organization</span>
-    <input name="organization_name" type="text" required value={v.organization_name ?? pre?.organization_name ?? ""} placeholder="Tacoma Little Theatre" />
+    <input name="organization_name" type="text" required value={v.organization_name ?? pre?.organization_name ?? ""} />
   </label>
 
   <div class="row-2">
