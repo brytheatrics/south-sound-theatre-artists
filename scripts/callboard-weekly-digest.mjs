@@ -43,7 +43,7 @@ async function main() {
   await db.connect();
   try {
     const subsRes = await db.query(
-      `select id, subscriber_email, disciplines, post_types,
+      `select id, subscriber_email, disciplines, post_types, area_ids,
               last_digest_at, confirmed_at, created_at, unsubscribe_token
        from callboard_subscriptions
        where unsubscribed_at is null
@@ -55,15 +55,15 @@ async function main() {
     let errored = 0;
 
     // Calendar slice: productions opening (run_start >= today) in the
-    // next 14 days. Same set across all subscribers - we don't filter
-    // calendar items by their post-type/discipline preferences because
-    // shows aren't tagged by discipline. Light dedup by production id.
+    // next 14 days. Fetched once globally; we filter per-subscriber by
+    // area_ids when assembling each digest. Includes area_id on the
+    // select so the per-sub filter doesn't need a second roundtrip.
     const today = new Date().toISOString().slice(0, 10);
     const horizon = new Date(Date.now() + 14 * 86_400_000)
       .toISOString()
       .slice(0, 10);
     const upcomingProdRes = await db.query(
-      `select id, title, organization_name, run_start, run_end
+      `select id, title, organization_name, run_start, run_end, area_id
          from productions
         where status = 'approved'
           and deleted_at is null
@@ -71,19 +71,37 @@ async function main() {
           and run_start >= $1::date
           and run_start <= $2::date
         order by run_start asc
-        limit 30`,
+        limit 60`,
       [today, horizon],
     );
-    const productionLines = upcomingProdRes.rows.map((p) => {
-      const start = p.run_start ? formatRunDate(p.run_start) : "";
-      const end = p.run_end && p.run_end !== p.run_start ? `-${formatRunDate(p.run_end)}` : "";
-      const window = start ? ` (${start}${end})` : "";
-      return `- ${p.organization_name} - ${p.title}${window}`;
-    });
-    const productionsBlock =
-      productionLines.length > 0
-        ? productionLines.join("\n")
-        : "_Nothing new on the calendar this week._";
+    const allUpcomingProds = upcomingProdRes.rows;
+
+    function buildProductionsBlock(areaIds) {
+      // Empty area_ids = no filter, include everything.
+      const filtered =
+        areaIds && areaIds.length > 0
+          ? allUpcomingProds.filter((p) =>
+              p.area_id ? areaIds.includes(p.area_id) : false,
+            )
+          : allUpcomingProds;
+      if (filtered.length === 0) {
+        return "_Nothing new on the calendar this week._";
+      }
+      // Cap at 30 lines to keep the email a reasonable length even when
+      // a region has a busy two weeks ahead.
+      return filtered
+        .slice(0, 30)
+        .map((p) => {
+          const start = p.run_start ? formatRunDate(p.run_start) : "";
+          const end =
+            p.run_end && p.run_end !== p.run_start
+              ? `-${formatRunDate(p.run_end)}`
+              : "";
+          const window = start ? ` (${start}${end})` : "";
+          return `- ${p.organization_name} - ${p.title}${window}`;
+        })
+        .join("\n");
+    }
 
     for (const sub of subsRes.rows) {
       // Use confirmed_at (when admin first activated this row) as the
@@ -128,12 +146,16 @@ async function main() {
         params,
       );
 
+      // Per-subscriber productions slice (filtered by their area_ids).
+      const productionsBlock = buildProductionsBlock(sub.area_ids);
+      const hasProductions = !productionsBlock.startsWith("_Nothing");
+
       // Skip the send only when BOTH halves are empty - if there are
       // new shows opening but no callboard hits, we still want to
       // surface the calendar slice. The template renders both
       // sections; an empty slice is a placeholder line so the section
       // doesn't look broken.
-      if (newPosts.rowCount === 0 && upcomingProdRes.rowCount === 0) {
+      if (newPosts.rowCount === 0 && !hasProductions) {
         skipped++;
         continue;
       }
@@ -165,6 +187,10 @@ async function main() {
           unsubscribe_url: sub.unsubscribe_token
             ? `${siteUrl}/callboard/unsubscribe/${sub.unsubscribe_token}`
             : `${siteUrl}/callboard`,
+          // Subscribe URL for re-confirmation if they ever want to
+          // tweak their filter set; the form supports updating an
+          // existing email's filters by re-submitting.
+          subscribe_url: `${siteUrl}/callboard/subscribe`,
         },
       });
 

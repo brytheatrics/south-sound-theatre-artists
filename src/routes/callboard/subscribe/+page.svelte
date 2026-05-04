@@ -1,5 +1,32 @@
 <script lang="ts">
   let { data, form } = $props();
+
+  // Local checkbox state. Defaults to "everything selected" since
+  // empty selection is interpreted as "no filter / show me all" on
+  // the server. We pre-tick everything so the form reads the way a
+  // user expects: untick to narrow, leave fully ticked for the
+  // default behaviour.
+  /* svelte-ignore state_referenced_locally */
+  let pickedTypes = $state<Set<string>>(
+    new Set(data.postTypes.map((t: { slug: string }) => t.slug)),
+  );
+  /* svelte-ignore state_referenced_locally */
+  let pickedAreas = $state<Set<string>>(
+    new Set(data.areas.map((a: { id: string }) => a.id)),
+  );
+
+  function toggleType(slug: string) {
+    const next = new Set(pickedTypes);
+    if (next.has(slug)) next.delete(slug);
+    else next.add(slug);
+    pickedTypes = next;
+  }
+  function toggleArea(id: string) {
+    const next = new Set(pickedAreas);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    pickedAreas = next;
+  }
 </script>
 
 <svelte:head>
@@ -34,6 +61,55 @@
           value={(form?.values?.email) ?? ""}
         />
       </label>
+
+      <!-- POST TYPE FILTER: narrows the callboard slice. Untick anything
+           you don't want. Leave fully ticked = "all post types". -->
+      <fieldset class="field-group">
+        <legend>What kinds of opportunities?</legend>
+        <p class="group-hint">
+          Untick to narrow the callboard slice of your digest. Leaving
+          everything ticked means "all kinds."
+        </p>
+        <div class="check-grid">
+          {#each data.postTypes as t (t.slug)}
+            <label class="check">
+              <input
+                type="checkbox"
+                name="post_type"
+                value={t.slug}
+                checked={pickedTypes.has(t.slug)}
+                onchange={() => toggleType(t.slug)}
+              />
+              <span>{t.plural_label ?? t.label}</span>
+            </label>
+          {/each}
+        </div>
+      </fieldset>
+
+      <!-- AREA FILTER: narrows the calendar productions slice by region.
+           Empty = "everywhere". -->
+      <fieldset class="field-group">
+        <legend>Which areas?</legend>
+        <p class="group-hint">
+          Applies to the calendar slice (upcoming productions). Untick
+          to narrow; leaving everything ticked means "everywhere."
+        </p>
+        <div class="chip-row">
+          {#each data.areas as a (a.id)}
+            <label class="chip" class:on={pickedAreas.has(a.id)}>
+              <input
+                type="checkbox"
+                name="area_id"
+                value={a.id}
+                checked={pickedAreas.has(a.id)}
+                onchange={() => toggleArea(a.id)}
+              />
+              <span>{a.name}</span>
+            </label>
+          {/each}
+        </div>
+      </fieldset>
+
       <!-- Honeypot: hidden from users + screen-readers, irresistible to bots. -->
       <label class="hp" aria-hidden="true">
         Website (leave blank): <input type="text" name="website" tabindex="-1" autocomplete="off" />
@@ -70,7 +146,68 @@
     margin: 0 0 1.5rem;
     max-width: 50ch;
   }
-  .form { display: flex; flex-direction: column; gap: 1rem; max-width: 420px; }
+  .form { display: flex; flex-direction: column; gap: 1.25rem; max-width: 460px; }
+
+  .field-group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .field-group legend {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0;
+  }
+  .group-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .check-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.4rem 0.75rem;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ink);
+    cursor: pointer;
+    user-select: none;
+  }
+  .check input[type="checkbox"] { accent-color: var(--accent); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+  }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field span {
     font-family: var(--font-mono);

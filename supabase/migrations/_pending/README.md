@@ -22,3 +22,8 @@ migrate command.
   resources work (commits `36c0d95`, `5dab51c`, `200b172`) ships
   to staging. The compat shim added by migs 062 + 063 is what's
   keeping the deployed code from breaking right now.
+
+  **Note**: the active migration sequence has now claimed `070`
+  for `070_subscription_area_filter.sql`. When you move this file
+  out, **rename it to whatever the next available slot is**
+  (probably `071_resources_cleanup.sql` or higher).
