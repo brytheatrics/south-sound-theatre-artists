@@ -15,6 +15,7 @@ type ProfileRow = {
   city: string | null;
   member_since: string;
   headshot_url: string | null;
+  bio: string | null;
 };
 
 export type MarqueeItem = {
@@ -30,7 +31,17 @@ export type MarqueeItem = {
 // possible if a slug was renamed without re-tagging existing posts.
 
 export const load: PageServerLoad = async () => {
-  const [countRes, curatedRes, fallbackRes, recentRes, homeRes, marqueeRes] = await Promise.all([
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [
+    countRes,
+    curatedRes,
+    fallbackRes,
+    recentRes,
+    homeRes,
+    marqueeRes,
+    openCallsRes,
+    upcomingProdRes,
+  ] = await Promise.all([
     supabaseAdmin
       .from("profiles")
       .select("*", { count: "exact", head: true })
@@ -40,21 +51,21 @@ export const load: PageServerLoad = async () => {
     supabaseAdmin
       .from("featured_profiles")
       .select(
-        "profiles(slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url)",
+        "profiles(slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url, bio)",
       )
       .eq("active", true)
       .order("sort_order"),
     supabaseAdmin
       .from("profiles")
       .select(
-        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url",
+        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url, bio",
       )
       .eq("published", true)
       .is("deleted_at", null),
     supabaseAdmin
       .from("profiles")
       .select(
-        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url",
+        "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url, bio",
       )
       .eq("published", true)
       .is("deleted_at", null)
@@ -76,6 +87,18 @@ export const load: PageServerLoad = async () => {
       )
       .eq("id", 1)
       .maybeSingle(),
+    supabaseAdmin
+      .from("callboard_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved")
+      .eq("published", true)
+      .is("deleted_at", null),
+    supabaseAdmin
+      .from("productions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved")
+      .is("deleted_at", null)
+      .or(`run_end.is.null,run_end.gte.${todayIso}`),
   ]);
 
   if (curatedRes.error) throw curatedRes.error;
@@ -176,21 +199,49 @@ export const load: PageServerLoad = async () => {
     })
     .filter((p): p is ProfileRow => !!p);
 
-  let featured: ProfileRow[];
-  if (curated.length >= 4) {
-    const today = new Date().toISOString().slice(0, 10);
-    featured = pickDailyFeatured(curated, today, 4);
-  } else if (curated.length > 0) {
-    featured = curated;
-  } else {
-    const all = (fallbackRes.data ?? []) as ProfileRow[];
-    const today = new Date().toISOString().slice(0, 10);
-    featured = pickDailyFeatured(all, today, 4);
-  }
+  // Source pool for daily seeding: curated when there are enough,
+  // otherwise the full published set.
+  const pool: ProfileRow[] =
+    curated.length >= 4 ? curated : ((fallbackRes.data ?? []) as ProfileRow[]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterdayDate = new Date(Date.now() - 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const tomorrowDate = new Date(Date.now() + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  // Today's spotlight = first of a 4-deep daily-seeded pick. Same picker
+  // run with yesterday's / tomorrow's date powers the rotation footer.
+  // Filter the pool so yesterday/today/tomorrow are guaranteed distinct
+  // even when the curated pool is small enough that independent seeds
+  // would otherwise collide.
+  const featured =
+    pool.length === 0 ? [] : pickDailyFeatured(pool, today, 4);
+  const todayPick = featured[0] ?? null;
+  const yesterdayPool = pool.filter((p) => p.slug !== todayPick?.slug);
+  const yesterdayPick =
+    yesterdayPool.length === 0
+      ? null
+      : pickDailyFeatured(yesterdayPool, yesterdayDate, 1)[0];
+  const tomorrowPool = pool.filter(
+    (p) => p.slug !== todayPick?.slug && p.slug !== yesterdayPick?.slug,
+  );
+  const tomorrowPick =
+    tomorrowPool.length === 0
+      ? null
+      : pickDailyFeatured(tomorrowPool, tomorrowDate, 1)[0];
 
   return {
     artistCount: countRes.count ?? 0,
+    openCallCount: openCallsRes.count ?? 0,
+    upcomingProductionCount: upcomingProdRes.count ?? 0,
     featured,
+    yesterdayName: yesterdayPick?.full_name ?? null,
+    yesterdaySlug: yesterdayPick?.slug ?? null,
+    tomorrowName: tomorrowPick?.full_name ?? null,
+    tomorrowSlug: tomorrowPick?.slug ?? null,
     recent: (recentRes.data ?? []) as ProfileRow[],
     homeBody: homeRes.data?.body_markdown ?? "",
     marquee,

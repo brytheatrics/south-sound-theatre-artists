@@ -533,6 +533,27 @@ Both the trigger and the column are pre-push compat shims (mig 062 +
 063). After the next push, no deployed code reads `category_id`, so
 the cleanup is safe.
 
+### 6. Marquee → calendar highlight on click
+
+Right now callboard items in the homepage marquee deep-link to
+`/callboard/[id]` (their detail page) but calendar/production items
+just dump the user on `/calendar` with no indication of which show
+they clicked. Goal: click a calendar item, land on `/calendar` with
+that production highlighted and scrolled into view, so the marquee
+acts as a discovery tease that hands off to context (neighboring
+shows, full season). Scope:
+- Append `?highlight=<production_id>` to calendar marquee hrefs in
+  `src/routes/+page.server.ts`.
+- In `src/routes/calendar/+page.svelte`, read the param and on mount
+  apply a `.is-highlighted` class to matching `.perf-pill`s in the
+  grid view AND matching rows in the list view (a production with
+  multiple performances has multiple cards; highlight all of them).
+- Scroll the first match into view.
+- Open question for Blake: persistent outline that stays until they
+  navigate, or a 2-second pulse that clears? Lean pulse — the URL
+  param sticks around so a refresh re-triggers it.
+- Estimated 30-45 minutes.
+
 ---
 
 ## Maybe later (revisit if it comes up in real use)
