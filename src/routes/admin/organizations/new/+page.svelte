@@ -7,11 +7,121 @@
   const v = $derived((form?.values ?? {}) as Record<string, string>);
   const errs = $derived((form?.errors ?? {}) as Record<string, string>);
 
-  // $state mirror so the area chip visually flips on click - same
-  // pattern as the callboard form (Chrome's :has(input:checked) was
-  // unreliable for live repaint).
   /* svelte-ignore state_referenced_locally */
   let pickedAreaId = $state<string>(v.area_id ?? "");
+
+  // Slug: required, lowercase ASCII + dashes, 2-60 chars. We auto-fill
+  // the field from the name as the user types - but only while the
+  // user hasn't manually edited the slug (slugTouched=false). Once they
+  // touch it, we stop overwriting so admin can hand-pick e.g. "tlt"
+  // instead of "tacoma-little-theatre".
+  /* svelte-ignore state_referenced_locally */
+  let nameInput = $state<string>(v.name ?? "");
+  /* svelte-ignore state_referenced_locally */
+  let slugInput = $state<string>(v.slug ?? "");
+  let slugTouched = $state<boolean>(false);
+
+  function autoSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 60);
+  }
+
+  function onNameInput(e: Event) {
+    nameInput = (e.target as HTMLInputElement).value;
+    if (!slugTouched) slugInput = autoSlug(nameInput);
+  }
+
+  function onSlugInput(e: Event) {
+    slugTouched = true;
+    slugInput = (e.target as HTMLInputElement).value;
+  }
+
+  // Logo upload state. Same Cloudinary signed-upload flow as the per-row
+  // editor on /admin/organizations - just simplified for a single-form
+  // context (no per-id keying since we don't have an id yet).
+  /* svelte-ignore state_referenced_locally */
+  let logoUrl = $state<string>(v.logo_url ?? "");
+  /* svelte-ignore state_referenced_locally */
+  let logoBg = $state<string>(v.logo_bg ?? "paper");
+  let uploading = $state<boolean>(false);
+  let uploadProgress = $state<number>(0);
+  let uploadError = $state<string | null>(null);
+
+  const LOGO_BG_OPTIONS: Array<{ value: string; label: string; hex: string }> = [
+    { value: "paper", label: "Paper", hex: "#f1ede0" },
+    { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
+    { value: "bg-raised", label: "White", hex: "#ffffff" },
+    { value: "ink", label: "Ink", hex: "#0e0d0c" },
+    { value: "accent", label: "Moss", hex: "#3b6f4a" },
+  ];
+
+  async function uploadLogo(file: File) {
+    uploading = true;
+    uploadProgress = 0;
+    uploadError = null;
+    try {
+      const sigResp = await fetch("/api/cloudinary/sign-logo", { method: "POST" });
+      if (!sigResp.ok) throw new Error("Could not start the upload.");
+      const sig = await sigResp.json();
+
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", sig.api_key);
+      fd.append("timestamp", String(sig.timestamp));
+      fd.append("signature", sig.signature);
+      fd.append("folder", sig.folder);
+      fd.append("transformation", sig.transformation);
+
+      const result = await xhrUpload(
+        `https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
+        fd,
+        (pct) => (uploadProgress = pct),
+      );
+      if (!result.secure_url) throw new Error("Upload finished but no URL came back.");
+      logoUrl = result.secure_url;
+    } catch (err) {
+      uploadError = err instanceof Error ? err.message : "Upload failed.";
+    } finally {
+      uploading = false;
+      uploadProgress = 0;
+    }
+  }
+
+  function xhrUpload(
+    url: string,
+    body: FormData,
+    onProgress: (pct: number) => void,
+  ): Promise<{ secure_url: string }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) resolve(res);
+          else reject(new Error(res?.error?.message || `Upload failed (${xhr.status}).`));
+        } catch {
+          reject(new Error("Upload failed: response could not be read."));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed: network error."));
+      xhr.send(body);
+    });
+  }
+
+  function onLogoFileChange(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) uploadLogo(file);
+    (e.target as HTMLInputElement).value = "";
+  }
 </script>
 
 <svelte:head>
@@ -44,7 +154,8 @@
       name="name"
       type="text"
       required
-      value={v.name ?? ""}
+      value={nameInput}
+      oninput={onNameInput}
       placeholder="Tacoma Little Theatre"
     />
     <span class="hint">
@@ -52,6 +163,27 @@
       productions linked back to this org, and the calendar.
     </span>
     {#if errs.name}<p class="field-error">{errs.name}</p>{/if}
+  </label>
+
+  <label class="field">
+    <span>Slug <span class="req">*</span></span>
+    <input
+      name="slug"
+      type="text"
+      required
+      value={slugInput}
+      oninput={onSlugInput}
+      placeholder="tlt"
+      maxlength="60"
+      pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+    />
+    <span class="hint">
+      Short identifier. We auto-suggest one from the name, but admin
+      convention is hand-picked + concise (e.g. "tlt" not
+      "tacoma-little-theatre", "harlequin" not "harlequin-productions").
+      Lowercase letters / numbers / dashes only.
+    </span>
+    {#if errs.slug}<p class="field-error">{errs.slug}</p>{/if}
   </label>
 
   <div class="field">
@@ -111,6 +243,74 @@
     >{v.description ?? ""}</textarea>
     {#if errs.description}<p class="field-error">{errs.description}</p>{/if}
   </label>
+
+  <div class="field">
+    <span class="label">Logo</span>
+    <input type="hidden" name="logo_url" value={logoUrl} />
+    <div class="logo-row">
+      <input
+        type="url"
+        value={logoUrl}
+        oninput={(e) => (logoUrl = (e.target as HTMLInputElement).value)}
+        placeholder="Paste a URL or upload a file →"
+        class="logo-url-input"
+      />
+      <label class="upload-btn" class:disabled={uploading}>
+        {uploading ? `Uploading… ${uploadProgress}%` : "Upload"}
+        <input
+          type="file"
+          accept="image/*"
+          onchange={onLogoFileChange}
+          disabled={uploading}
+        />
+      </label>
+      {#if logoUrl}
+        <div
+          class="logo-preview-tile"
+          style:background={LOGO_BG_OPTIONS.find((o) => o.value === logoBg)?.hex ?? "#f1ede0"}
+        >
+          <img class="logo-preview" src={logoUrl} alt="" />
+        </div>
+      {/if}
+    </div>
+    {#if uploading}
+      <div class="progress"><div class="progress-fill" style:width="{uploadProgress}%"></div></div>
+    {/if}
+    <span class="hint">
+      PNG with transparent background looks best. Files get auto-resized.
+      {#if uploadError}<span class="upload-error"> {uploadError}</span>{/if}
+    </span>
+    {#if errs.logo_url}<p class="field-error">{errs.logo_url}</p>{/if}
+  </div>
+
+  <fieldset class="bg-field">
+    <legend class="label">Logo background</legend>
+    <p class="hint">
+      Pick a tile colour that makes the logo readable. White logos need
+      a dark tile (Ink or Moss); black or coloured logos usually look
+      best on Paper, Cream, or White.
+    </p>
+    <div class="swatches">
+      {#each LOGO_BG_OPTIONS as opt (opt.value)}
+        <label
+          class="swatch"
+          class:on={logoBg === opt.value}
+          style:background={opt.hex}
+          title={opt.label}
+        >
+          <input
+            type="radio"
+            name="logo_bg"
+            value={opt.value}
+            checked={logoBg === opt.value}
+            onchange={() => (logoBg = opt.value)}
+          />
+          <span class="swatch-label">{opt.label}</span>
+        </label>
+      {/each}
+    </div>
+    {#if errs.logo_bg}<p class="field-error">{errs.logo_bg}</p>{/if}
+  </fieldset>
 
   <label class="field">
     <span>Internal notes</span>
@@ -251,4 +451,89 @@
     line-height: 1.5;
   }
   .follow-up a { color: var(--accent); }
+
+  /* Logo upload row */
+  .logo-row { display: flex; gap: 0.6rem; align-items: center; }
+  .logo-url-input { flex: 1; }
+  .upload-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    min-width: 90px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-family: var(--font-body);
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .upload-btn.disabled { cursor: progress; opacity: 0.7; }
+  .upload-btn input[type="file"] { display: none; }
+  .logo-preview-tile {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius);
+    padding: 3px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-preview { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .progress {
+    margin-top: 0.4rem;
+    width: 100%;
+    height: 3px;
+    background: var(--paper);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.15s; }
+  .upload-error { color: var(--warn); }
+
+  /* Logo background swatches */
+  .bg-field { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+  .swatch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 38px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  }
+  .swatch:hover { border-color: var(--ink); }
+  .swatch.on {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent), transparent 70%);
+  }
+  .swatch input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .swatch-label {
+    /* Hex backgrounds vary - this neutral grey + translucent white
+       label box reads on every option. */
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5e5b56;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
 </style>
