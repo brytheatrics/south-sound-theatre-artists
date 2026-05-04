@@ -109,7 +109,7 @@
                 <HeadshotPlaceholder
                   name={p.full_name}
                   src={p.is_minor ? null : p.headshot_url}
-                  ratio="3 / 4"
+                  ratio="1"
                 />
               </div>
               <div class="tile-meta">
@@ -163,7 +163,7 @@
                 <HeadshotPlaceholder
                   name={p.full_name}
                   src={p.is_minor ? null : p.headshot_url}
-                  ratio="3 / 4"
+                  ratio="1"
                 />
               </div>
               <div class="tile-meta">
