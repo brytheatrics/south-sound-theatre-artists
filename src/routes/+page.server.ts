@@ -177,7 +177,10 @@ export const load: PageServerLoad = async () => {
           id: `cal-${p.id}`,
           glyph: "▦",
           text: `${p.organization_name} - ${p.title}${tail}`,
-          href: `/calendar`,
+          // ?highlight=<production_id> tells the calendar page which
+          // performances to pulse + scroll to. The param sticks around
+          // so a refresh re-triggers the highlight.
+          href: `/calendar?highlight=${p.id}`,
         };
       });
     }

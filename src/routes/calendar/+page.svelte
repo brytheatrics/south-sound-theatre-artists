@@ -1,8 +1,44 @@
 <script lang="ts">
   import type { PageData } from "./$types";
   import { renderMarkdownInline } from "$lib/util/markdown";
+  import { page } from "$app/state";
+  import { onMount } from "svelte";
 
   let { data }: { data: PageData } = $props();
+
+  // Highlight support: when the homepage marquee deep-links here with
+  // ?highlight=<production_id>, find every grid perf-pill + list row
+  // tagged with that production, scroll the first match into view if
+  // it isn't already, and pulse the highlight class on each. The class
+  // is auto-removed after 2s so the page settles back to normal; the
+  // URL param sticks around so a refresh re-triggers the pulse.
+  onMount(() => {
+    const productionId = page.url.searchParams.get("highlight");
+    if (!productionId) return;
+    requestAnimationFrame(() => {
+      const matches = document.querySelectorAll<HTMLElement>(
+        `[data-production-id="${CSS.escape(productionId)}"]`,
+      );
+      if (matches.length === 0) return;
+
+      // Scroll the first match into view if it isn't already on-screen.
+      // A view-port test (vs unconditional scroll) prevents jolting the
+      // user when the show is already where they're looking.
+      const first = matches[0];
+      const rect = first.getBoundingClientRect();
+      const viewH = window.innerHeight;
+      const inView = rect.top >= 0 && rect.bottom <= viewH;
+      if (!inView) {
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      // Pulse: add the class, then remove it after the animation.
+      for (const el of matches) el.classList.add("is-highlighted");
+      window.setTimeout(() => {
+        for (const el of matches) el.classList.remove("is-highlighted");
+      }, 2000);
+    });
+  });
 
   // ---- URL state helper ------------------------------------------
   function buildUrl(overrides: Record<string, string | null>) {
@@ -318,6 +354,7 @@
                     target="_blank"
                     rel="noopener"
                     title={baseTitle + ' (opens in a new tab)'}
+                    data-production-id={p.production.id}
                   >
                     <span class="perf-time">{fmtTime(p.performs_at)}</span>
                     <span class="perf-title">{p.production.title}</span>
@@ -327,7 +364,12 @@
                     {/if}
                   </a>
                 {:else}
-                  <div class="perf-pill" class:has-note={!!p.note} title={baseTitle}>
+                  <div
+                    class="perf-pill"
+                    class:has-note={!!p.note}
+                    title={baseTitle}
+                    data-production-id={p.production.id}
+                  >
                     <span class="perf-time">{fmtTime(p.performs_at)}</span>
                     <span class="perf-title">{p.production.title}</span>
                     <span class="perf-org">{p.production.organization_name}</span>
@@ -359,7 +401,7 @@
         <h2 class="day-heading">{fmtDateLong(key)}</h2>
         <ul class="perf-list">
           {#each byDate.get(key) ?? [] as p (p.id)}
-            <li class="perf-row">
+            <li class="perf-row" data-production-id={p.production.id}>
               <span class="perf-time-list">{fmtTime(p.performs_at)}</span>
               <div class="perf-meat">
                 <div class="perf-title-list">{p.production.title}</div>
@@ -663,6 +705,38 @@
     pointer-events: none;
   }
   .perf-pill.has-note { padding-right: 1rem; }
+
+  /* Highlight pulse: applied for ~2 seconds when the page is reached
+     via /calendar?highlight=<production_id> (e.g. clicking a calendar
+     item in the homepage marquee). The class is added at runtime via
+     JS, so Svelte's scoper can't see it - hence :global() selectors.
+     Animation runs once, then the class is removed by setTimeout. */
+  .perf-pill:global(.is-highlighted) {
+    animation: highlight-pulse 2s ease-out;
+  }
+  .perf-row:global(.is-highlighted) {
+    animation: highlight-pulse-row 2s ease-out;
+  }
+  @keyframes highlight-pulse {
+    0% {
+      background: color-mix(in oklch, var(--accent), transparent 40%);
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent), transparent 60%);
+    }
+    100% {
+      background: var(--paper);
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  @keyframes highlight-pulse-row {
+    0% {
+      background: color-mix(in oklch, var(--accent), transparent 40%);
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent), transparent 60%);
+    }
+    100% {
+      background: transparent;
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
   /* When the pill is a link, make the affordance visible: cursor change,
      subtle hover paint, and a thicker accent rule. */
   .perf-pill-link {
