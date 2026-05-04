@@ -17,12 +17,14 @@ import { sendEmail } from "$lib/server/email";
 import {
   checkLoginRateLimit,
   checkPassword,
+  findValidTrustedDevice,
   generateSessionToken,
   generateTwoFaCode,
   hashSecret,
   logLoginAttempt,
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  TRUSTED_DEVICE_COOKIE,
   TWOFA_TTL_MS,
 } from "$lib/server/admin-auth";
 
@@ -79,6 +81,42 @@ export const actions: Actions = {
       });
       await logLoginAttempt(ip, true, "password_ok_2fa_bypassed_DEV");
       throw redirect(303, "/admin");
+    }
+
+    // Trusted-device bypass: if the browser has a valid
+    // ssta_admin_trusted_device cookie, skip the 2FA round-trip and cut
+    // a session straight away. Password was just validated above; the
+    // cookie just substitutes for "we already proved this device once."
+    const trustedToken = cookies.get(TRUSTED_DEVICE_COOKIE);
+    if (trustedToken) {
+      const trusted = await findValidTrustedDevice(
+        trustedToken,
+        ADMIN_EMAIL,
+      );
+      if (trusted) {
+        const sessionToken = generateSessionToken();
+        const sessionHash = hashSecret(sessionToken);
+        const expires = new Date(Date.now() + SESSION_TTL_MS);
+        await supabaseAdmin.from("admin_sessions").insert({
+          token_hash: sessionHash,
+          email: ADMIN_EMAIL.toLowerCase(),
+          expires_at: expires.toISOString(),
+          ip_address: ip,
+          user_agent: request.headers.get("user-agent") ?? null,
+        });
+        cookies.set(SESSION_COOKIE, sessionToken, {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: !import.meta.env.DEV,
+          expires,
+        });
+        await logLoginAttempt(ip, true, "password_ok_trusted_device");
+        throw redirect(303, "/admin");
+      }
+      // Cookie present but invalid (expired / revoked). Fall through to
+      // the normal 2FA flow; we deliberately don't clear the bad cookie
+      // here - the verify page can re-set or replace it.
     }
 
     // Password is valid - issue a 2FA code and stash a short-lived cookie

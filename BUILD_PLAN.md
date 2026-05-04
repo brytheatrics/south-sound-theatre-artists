@@ -513,19 +513,15 @@ See full scope in "Maybe later" entry below. Estimated ~90 minutes.
 Best done after #2 so digest emails ship as proper formatted HTML
 out of the gate.
 
-### 4. Trust-this-device admin login
+### 4. Trust-this-device admin login — **shipped (mig 066)**
 
-Blake's work-laptop convenience. "Remember this device for 30 days"
-checkbox on `/admin/verify`. After successful 2FA, drop a separate
-long-lived cookie. Next login from same browser: password is still
-required, but 2FA gets skipped automatically. Estimated ~30 minutes.
-- New cookie name (e.g. `ssta_admin_trusted_device`), separate from
-  the session cookie.
-- Bootstrap on `/admin/login` POST: if cookie present + valid, skip
-  the 2FA send + redirect, issue session cookie directly.
-- Cookie generation: random token + DB row in a new
-  `admin_trusted_devices` table (or extend `admin_sessions` with a
-  `trusted_device` flag — designer's choice).
+"Remember this device for 30 days" checkbox on `/admin/verify`.
+On successful 2FA, mints a long-lived `ssta_admin_trusted_device`
+cookie backed by an `admin_trusted_devices` row (mig 066). Subsequent
+`/admin/login` POSTs short-circuit the 2FA send when the cookie checks
+out, going straight to a fresh session. Password is still required
+every time. Cookie + session are independent so revoking one doesn't
+nuke the other.
 
 ### 5. Resources cleanup migration (post-push)
 

@@ -33,6 +33,11 @@
       />
     </label>
 
+    <label class="trust-device">
+      <input type="checkbox" name="trust_device" />
+      <span>Trust this device for 30 days (skip the code on this browser)</span>
+    </label>
+
     {#if form?.error}
       <p class="error" role="alert">{form.error}</p>
     {/if}
@@ -134,5 +139,20 @@
   }
   .meta a {
     color: var(--accent);
+  }
+  .trust-device {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+  }
+  .trust-device input[type="checkbox"] {
+    margin-top: 2px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
   }
 </style>

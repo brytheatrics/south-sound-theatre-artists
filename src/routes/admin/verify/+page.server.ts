@@ -5,10 +5,12 @@ import type { Actions, PageServerLoad } from "./$types";
 import { ADMIN_EMAIL } from "$env/static/private";
 import { supabaseAdmin } from "$lib/server/supabase";
 import {
+  createTrustedDevice,
   generateSessionToken,
   hashSecret,
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  TRUSTED_DEVICE_COOKIE,
 } from "$lib/server/admin-auth";
 
 export const load: PageServerLoad = async ({ cookies, locals }) => {
@@ -80,6 +82,24 @@ export const actions: Actions = {
       secure: !import.meta.env.DEV,
       expires,
     });
+
+    // "Remember this device for 30 days" - opt-in. Mints a separate
+    // long-lived token + cookie so future logins from this browser can
+    // bypass the 2FA send (password is still required).
+    if (data.get("trust_device") === "on") {
+      const { rawToken, expiresAt } = await createTrustedDevice(token.email, {
+        ip: getClientAddress(),
+        userAgent: request.headers.get("user-agent"),
+      });
+      cookies.set(TRUSTED_DEVICE_COOKIE, rawToken, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: !import.meta.env.DEV,
+        expires: expiresAt,
+      });
+    }
+
     cookies.delete("ssta_admin_pending", { path: "/admin" });
 
     throw redirect(303, "/admin");

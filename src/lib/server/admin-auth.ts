@@ -23,6 +23,13 @@ export const TWOFA_TTL_MS = 10 * 60 * 1000; // 10 minutes
 export const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 export const RATE_LIMIT_MAX_FAILS = 5;
 
+// "Remember this device for 30 days" - cookie minted at /admin/verify
+// when admin checks the box, consumed at /admin/login to skip the 2FA
+// send. Separate from SESSION_COOKIE so revoking a session doesn't kill
+// the trusted-device pass and vice versa.
+export const TRUSTED_DEVICE_COOKIE = "ssta_admin_trusted_device";
+export const TRUSTED_DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 export function checkPassword(submitted: string): boolean {
   const a = Buffer.from(submitted, "utf8");
   const b = Buffer.from(ADMIN_PASSWORD, "utf8");
@@ -106,4 +113,44 @@ export async function revokeSession(rawToken: string): Promise<void> {
     .from("admin_sessions")
     .delete()
     .eq("token_hash", hashSecret(rawToken));
+}
+
+/** Returns the trusted-device row if the cookie is still valid. */
+export async function findValidTrustedDevice(
+  rawToken: string,
+  email: string,
+): Promise<{ id: string } | null> {
+  if (!rawToken || rawToken.length < 16) return null;
+  const tokenHash = hashSecret(rawToken);
+  const { data } = await supabaseAdmin
+    .from("admin_trusted_devices")
+    .select("id, expires_at, email")
+    .eq("token_hash", tokenHash)
+    .eq("email", email.toLowerCase())
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  if (!data) return null;
+  await supabaseAdmin
+    .from("admin_trusted_devices")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", data.id);
+  return { id: data.id };
+}
+
+/** Mints a new trusted-device row + returns the raw token to set as cookie. */
+export async function createTrustedDevice(
+  email: string,
+  meta: { ip?: string; userAgent?: string | null },
+): Promise<{ rawToken: string; expiresAt: Date }> {
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = hashSecret(rawToken);
+  const expiresAt = new Date(Date.now() + TRUSTED_DEVICE_TTL_MS);
+  await supabaseAdmin.from("admin_trusted_devices").insert({
+    token_hash: tokenHash,
+    email: email.toLowerCase(),
+    expires_at: expiresAt.toISOString(),
+    ip_address: meta.ip ?? null,
+    user_agent: meta.userAgent ?? null,
+  });
+  return { rawToken, expiresAt };
 }
