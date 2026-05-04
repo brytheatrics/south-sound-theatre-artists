@@ -144,7 +144,12 @@
                 <span class="verified-badge" title="Verified org">&#10003;</span>
               {/if}
             </div>
-            <div class="post-sub">{p.organization_name}{p.location ? ` · ${p.location}` : ""}</div>
+            <div class="post-sub">
+              {p.organization_name}{p.area_name ? ` · ${p.area_name}` : ""}{p.location ? ` · ${p.location}` : ""}
+              {#if !p.area_name}
+                <span class="area-missing" title="No area set - cron treats this as universal until backfilled">no area</span>
+              {/if}
+            </div>
             <div class="post-email">{p.submitter_email}</div>
           </td>
           <td data-label="Type">
@@ -303,6 +308,22 @@
 
   .post-title { display: flex; align-items: center; gap: 6px; }
   .post-sub { color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+  /* "no area" pill: small warn-tone badge on rows that pre-date mig 071's
+     area_id requirement. Click-to-edit isn't built yet - admin can re-
+     submit or hand-edit via SQL if they want to backfill. */
+  .area-missing {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
+    color: var(--warn);
+    border: 1px solid var(--warn);
+  }
   .post-email { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
   .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 8px; font-weight: 700; }

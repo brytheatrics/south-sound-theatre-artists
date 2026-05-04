@@ -136,22 +136,41 @@
           {/if}
         </div>
         <div class="field">
-          <label for="location" class="label">City / area</label>
-          <input
-            id="location"
-            name="location"
-            type="text"
-            class="input"
-            value={form?.values?.location ?? ""}
-            placeholder="Tacoma, Olympia, Gig Harbor..."
-            list="areas-list"
-          />
-          <datalist id="areas-list">
-            {#each data.areas as area}
-              <option value={area}></option>
+          <span class="label">Area <span class="req">*</span></span>
+          <div class="chip-row" class:error={!!form?.errors?.area_id}>
+            {#each data.areas as area (area.id)}
+              <label class="chip" class:on={(form?.values?.areaId ?? "") === area.id}>
+                <input
+                  type="radio"
+                  name="area_id"
+                  value={area.id}
+                  checked={(form?.values?.areaId ?? "") === area.id}
+                  required
+                />
+                <span>{area.name}</span>
+              </label>
             {/each}
-          </datalist>
+          </div>
+          {#if form?.errors?.area_id}
+            <p class="field-error">{form.errors.area_id}</p>
+          {/if}
         </div>
+      </div>
+
+      <div class="field">
+        <label for="location" class="label">Venue / address</label>
+        <input
+          id="location"
+          name="location"
+          type="text"
+          class="input"
+          value={form?.values?.location ?? ""}
+          placeholder="Tacoma Little Theatre, 210 N I St..."
+        />
+        <span class="label-hint">
+          Optional. The area above is what the digest filters use; the venue
+          / address shows up on the post for visitors.
+        </span>
       </div>
 
       <div class="field">
@@ -524,6 +543,33 @@
   .input.error, .textarea.error { border-color: var(--warn); }
   .textarea { resize: vertical; line-height: 1.5; }
   .select { cursor: pointer; }
+
+  /* Area picker: chip-style radio group. Mirrors the directory + calendar
+     submit forms so the picker reads the same across surfaces. */
+  .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .chip-row.error { outline: 1px solid var(--warn); border-radius: 6px; padding: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+  }
   .field-error {
     font-size: 12px;
     color: var(--warn);

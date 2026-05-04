@@ -4,9 +4,14 @@
 // The subscription is dormant until the user clicks the link, defending
 // against drive-by signups (someone typing other people's emails).
 //
+// Filter model (post mig 071): four dimensions stored as id/slug arrays,
+// each with the "empty array = no filter / give me everything (including
+// admin-added options later)" sentinel. Subscriber narrows by unticking;
+// firehose subscribers store empty arrays and pick up new options for
+// free as admin adds them.
+//
 // Reachable directly via GET too: shows a thanks-page state after the
-// form POST redirects here. The thanks page also covers the case where
-// someone hits the URL by hand without submitting first.
+// form POST redirects here.
 
 import { fail, redirect } from "@sveltejs/kit";
 import { randomBytes } from "node:crypto";
@@ -15,14 +20,10 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 
-const VALID_POST_TYPES = ["audition", "designer", "crew", "production", "general"];
-
 export const load: PageServerLoad = async ({ url }) => {
-  // Pull options for the form: callboard post types (admin-managed
-  // table, so admin-added types like "Workshop" can be filtered too)
-  // and the area list. Empty arrays in either selection mean "no
-  // filter / show me everything."
-  const [postTypesRes, areasRes] = await Promise.all([
+  // Pull options for the form. All four lists are admin-managed so any
+  // future-added rows surface here without a code change.
+  const [postTypesRes, areasRes, categoriesRes] = await Promise.all([
     supabaseAdmin
       .from("callboard_post_types")
       .select("slug, label, plural_label, sort_order")
@@ -32,22 +33,38 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("areas")
       .select("id, name, sort_order")
       .order("sort_order"),
+    supabaseAdmin
+      .from("event_categories")
+      .select("id, name, slug, sort_order")
+      .order("sort_order"),
   ]);
 
   return {
     sent: url.searchParams.get("sent") === "1",
     postTypes: postTypesRes.data ?? [],
     areas: areasRes.data ?? [],
+    categories: categoriesRes.data ?? [],
   };
 };
+
+// Helper: collapse "ticked everything available" to an empty array
+// (= no filter, future-additions auto-included). Otherwise return the
+// explicit picked list. Empty input also collapses to empty array
+// (defaulting to firehose if user picks nothing - friendlier than
+// rejecting the submit).
+function collapseTickedAll(picked: Set<string>, allValid: Set<string>): string[] {
+  const tickedAll =
+    picked.size === allValid.size &&
+    Array.from(allValid).every((v) => picked.has(v));
+  if (tickedAll || picked.size === 0) return [];
+  return Array.from(picked);
+}
 
 export const actions: Actions = {
   default: async ({ request }) => {
     const fd = await request.formData();
 
-    // Honeypot: a hidden form field bots tend to fill in. If anything
-    // landed in `website` we silently 303 to the thanks state without
-    // doing the real work.
+    // Honeypot
     if ((fd.get("website") as string)?.trim()) {
       throw redirect(303, "/callboard/subscribe?sent=1");
     }
@@ -57,53 +74,42 @@ export const actions: Actions = {
       return fail(400, { error: "Enter a valid email address.", values: { email } });
     }
 
-    // Validate the post-type slugs against the live admin-managed
-    // table rather than a hardcoded list, so admin-added types carry
-    // through correctly. Empty array stored = "no filter / all types,
-    // including ones admin adds in the future"; non-empty array =
-    // explicit narrowing to those slugs only.
-    //
-    // Detection rule: if the user ticked every currently-active type,
-    // we treat that as "no filter" so future-added types come through
-    // automatically. Detected by set equality (size + every check).
-    const { data: validTypeRows } = await supabaseAdmin
-      .from("callboard_post_types")
-      .select("slug")
-      .eq("active", true);
-    const validTypeSlugs = new Set(
-      (validTypeRows ?? []).map((r) => r.slug as string),
-    );
+    // Live validation against admin-managed source tables.
+    const [validTypeRes, validAreaRes, validCategoryRes] = await Promise.all([
+      supabaseAdmin
+        .from("callboard_post_types")
+        .select("slug")
+        .eq("active", true),
+      supabaseAdmin.from("areas").select("id"),
+      supabaseAdmin.from("event_categories").select("id"),
+    ]);
+    const validTypeSlugs = new Set((validTypeRes.data ?? []).map((r) => r.slug as string));
+    const validAreaIds = new Set((validAreaRes.data ?? []).map((r) => r.id as string));
+    const validCategoryIds = new Set((validCategoryRes.data ?? []).map((r) => r.id as string));
+
     const tickedTypes = new Set(
       fd.getAll("post_type").map(String).filter((s) => validTypeSlugs.has(s)),
     );
-    const tickedAllTypes =
-      tickedTypes.size === validTypeSlugs.size &&
-      Array.from(validTypeSlugs).every((s) => tickedTypes.has(s));
-    const postTypes: string[] =
-      tickedAllTypes || tickedTypes.size === 0 ? [] : Array.from(tickedTypes);
+    const tickedCallboardAreas = new Set(
+      fd.getAll("callboard_area_id").map(String).filter((s) => validAreaIds.has(s)),
+    );
+    const tickedCategories = new Set(
+      fd.getAll("calendar_category_id").map(String).filter((s) => validCategoryIds.has(s)),
+    );
+    const tickedCalendarAreas = new Set(
+      fd.getAll("calendar_area_id").map(String).filter((s) => validAreaIds.has(s)),
+    );
 
-    // Areas: same "empty = all" convention. Validate uuids against the
-    // live areas table. Ticking every area also stores empty so a future
-    // area added by admin is included automatically.
-    const areaIdsRaw = fd.getAll("area_id").map(String).filter(Boolean);
-    let areaIds: string[] = [];
-    if (areaIdsRaw.length > 0) {
-      const { data: validAreaRows } = await supabaseAdmin
-        .from("areas")
-        .select("id");
-      const allAreaIds = new Set(
-        (validAreaRows ?? []).map((r) => r.id as string),
-      );
-      const tickedAreas = new Set(areaIdsRaw.filter((id) => allAreaIds.has(id)));
-      const tickedAllAreas =
-        tickedAreas.size === allAreaIds.size &&
-        Array.from(allAreaIds).every((id) => tickedAreas.has(id));
-      areaIds = tickedAllAreas ? [] : Array.from(tickedAreas);
-    }
+    const postTypes = collapseTickedAll(tickedTypes, validTypeSlugs);
+    const callboardAreaIds = collapseTickedAll(tickedCallboardAreas, validAreaIds);
+    const calendarCategoryIds = collapseTickedAll(tickedCategories, validCategoryIds);
+    const calendarAreaIds = collapseTickedAll(tickedCalendarAreas, validAreaIds);
 
-    // Look up an existing row first so we can re-confirm idempotently
-    // without losing history (and without leaking that the email
-    // already exists - we always show the same thanks state).
+    // Look up existing subscription. We only re-fire confirmation when
+    // the row hasn't been confirmed yet OR was unsubscribed; an active
+    // confirmed subscription updating their filters from the public
+    // form is unusual (we expect that traffic on the manage page
+    // instead) so we silently no-op there.
     const { data: existing } = await supabaseAdmin
       .from("callboard_subscriptions")
       .select("id, confirmed_at, unsubscribed_at")
@@ -111,11 +117,9 @@ export const actions: Actions = {
       .maybeSingle();
 
     const confirmToken = randomBytes(24).toString("base64url");
+    const nowIso = new Date().toISOString();
 
     if (existing) {
-      // If they had unsubscribed, re-activate the row. If they've never
-      // confirmed, refresh their confirmation token + post-type filter.
-      // Already-confirmed + active: silently no-op (don't spam them).
       const isActive = existing.confirmed_at && !existing.unsubscribed_at;
       if (isActive) {
         throw redirect(303, "/callboard/subscribe?sent=1");
@@ -124,12 +128,13 @@ export const actions: Actions = {
         .from("callboard_subscriptions")
         .update({
           post_types: postTypes,
-          area_ids: areaIds,
+          callboard_area_ids: callboardAreaIds,
+          calendar_category_ids: calendarCategoryIds,
+          calendar_area_ids: calendarAreaIds,
           confirmation_token: confirmToken,
-          // Reset confirmed_at on a re-subscribe attempt so the click
-          // is required again.
           confirmed_at: null,
           unsubscribed_at: null,
+          preferences_updated_at: nowIso,
         })
         .eq("id", existing.id);
     } else {
@@ -138,10 +143,11 @@ export const actions: Actions = {
         .insert({
           subscriber_email: email,
           post_types: postTypes,
-          area_ids: areaIds,
+          callboard_area_ids: callboardAreaIds,
+          calendar_category_ids: calendarCategoryIds,
+          calendar_area_ids: calendarAreaIds,
           confirmation_token: confirmToken,
-          // unsubscribe_token defaults via mig 033's column default for
-          // new rows; it stays the same across confirm/unsub cycles.
+          preferences_updated_at: nowIso,
         });
       if (insErr) {
         console.error("subscription insert failed", insErr);

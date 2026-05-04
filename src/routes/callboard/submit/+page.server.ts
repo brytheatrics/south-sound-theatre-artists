@@ -17,10 +17,10 @@ type PostType = string;
 const VALID_COMP_TYPES = ["paid", "stipend", "volunteer", "none"] as const;
 
 export const load: PageServerLoad = async () => {
-  // Provide areas for the location field hint, plus the active
-  // callboard post types for the radio picker.
+  // Areas now drive a required area picker (mig 071); return id +
+  // name so the form can post the FK and display the label.
   const [areasRes, typesRes] = await Promise.all([
-    supabaseAdmin.from("areas").select("name").order("sort_order"),
+    supabaseAdmin.from("areas").select("id, name").order("sort_order"),
     supabaseAdmin
       .from("callboard_post_types")
       .select("slug, label, plural_label, description, sort_order")
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async () => {
       .order("sort_order"),
   ]);
   return {
-    areas: (areasRes.data ?? []).map((a: { name: string }) => a.name),
+    areas: areasRes.data ?? [],
     postTypes: typesRes.data ?? [],
   };
 };
@@ -39,6 +39,7 @@ type Values = {
   postType: PostType;
   title: string;
   organizationName: string;
+  areaId: string;
   location: string;
   description: string;
   roles: string;
@@ -102,6 +103,7 @@ export const actions: Actions = {
       postType,
       title: ((data.get("title") as string) ?? "").trim(),
       organizationName: ((data.get("organization_name") as string) ?? "").trim(),
+      areaId: ((data.get("area_id") as string) ?? "").trim(),
       location: ((data.get("location") as string) ?? "").trim(),
       description: ((data.get("description") as string) ?? "").trim(),
       roles: ((data.get("roles") as string) ?? "").trim(),
@@ -133,6 +135,20 @@ export const actions: Actions = {
     if (!values.submitterName) errors.submitter_name = "Required.";
     if (!isValidEmail(values.submitterEmail)) errors.submitter_email = "Enter a valid email address.";
     if (!values.description) errors.description = "Required.";
+
+    // Area is required at submit time going forward (mig 071). Validate
+    // the FK against the live areas table so we don't write a dangling
+    // uuid even if the form is bypassed.
+    if (!values.areaId) {
+      errors.area_id = "Pick an area.";
+    } else {
+      const { data: areaRow } = await supabaseAdmin
+        .from("areas")
+        .select("id")
+        .eq("id", values.areaId)
+        .maybeSingle();
+      if (!areaRow) errors.area_id = "That area isn't recognised.";
+    }
 
     if (values.compensationType && !VALID_COMP_TYPES.includes(values.compensationType as typeof VALID_COMP_TYPES[number])) {
       errors.compensation_type = "Invalid compensation type.";
@@ -188,6 +204,7 @@ export const actions: Actions = {
         post_type: values.postType,
         title: values.title,
         organization_name: values.organizationName,
+        area_id: values.areaId,
         location: values.location || null,
         description: values.description,
         roles,

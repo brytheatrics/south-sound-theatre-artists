@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ url }) => {
   let query = supabaseAdmin
     .from("callboard_posts")
     .select(
-      `id, post_type, title, organization_name, location, submitter_email,
+      `id, post_type, title, organization_name, location, area_id, submitter_email,
        status, published, organization_id, expires_at, created_at, reviewed_at,
        rejection_reason`,
       { count: "exact" },
@@ -65,8 +65,21 @@ export const load: PageServerLoad = async ({ url }) => {
     .eq("status", "pending_review")
     .is("deleted_at", null);
 
+  // Areas for resolving area_id -> name in the row display. Cheap and
+  // small (~6 rows) - fine to refetch per page load.
+  const { data: areaRows } = await supabaseAdmin
+    .from("areas")
+    .select("id, name");
+  const areaNameById = new Map(
+    (areaRows ?? []).map((a) => [a.id, a.name]),
+  );
+  const enrichedPosts = (data ?? []).map((p) => ({
+    ...p,
+    area_name: p.area_id ? areaNameById.get(p.area_id) ?? null : null,
+  }));
+
   return {
-    posts: data ?? [],
+    posts: enrichedPosts,
     total: count ?? 0,
     trashCount: trashCount ?? 0,
     pendingCount: pendingCount ?? 0,
