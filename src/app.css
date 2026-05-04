@@ -267,8 +267,11 @@ a:hover {
 /* Standalone image (markdown emits <p><img></p>): float left so the
    adjacent heading + bio paragraph wrap around it. Used by the team
    section on /about. Hard cap on width keeps the headshot a portrait
-   tile instead of full-bleed. */
-.prose p:has(> img:only-child) {
+   tile instead of full-bleed.
+   Scoped to .prose:not(.prose-compact) so the admin email-template
+   preview (which uses .prose-compact) doesn't float its inline images
+   to the side and pretend they're team-headshot tiles. */
+.prose:not(.prose-compact) p:has(> img:only-child) {
   float: left;
   max-width: 200px;
   margin: 0.25rem 1.5rem 0.75rem 0;
@@ -278,7 +281,7 @@ a:hover {
      left edge. */
   clear: both;
 }
-.prose p:has(> img:only-child) img {
+.prose:not(.prose-compact) p:has(> img:only-child) img {
   width: 200px;
   height: auto;
   margin: 0;

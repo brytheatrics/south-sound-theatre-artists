@@ -94,7 +94,10 @@
         ></textarea>
         <span class="hint">
           Variables in {"{{double_braces}}"} are filled in at send time
-          (they show literally in the preview here).
+          (they show literally in the preview here). The
+          <code>{"{{signature}}"}</code> variable is auto-filled from
+          the <a href="/admin/content?slug=email_signature">Email signature</a>
+          page; insert it where you want the sign-off to appear.
         </span>
       </div>
       <div class="preview">

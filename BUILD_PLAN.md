@@ -502,10 +502,18 @@ Original scope (kept as historical record):
 - Estimated ~3 hours of focused work. Real migration risk; do in a
   single session with backup verified beforehand.
 
-### 2. HTML email with logo + branded signature
+### 2. HTML email with logo + branded signature — **shipped (mig 067 + 068)**
 
-See full scope in "Maybe later" entry below. Estimated ~2 hours.
-Lexi explicitly wants visual branding — this is now active, not parked.
+Every send now produces a plain-text fallback AND an HTML version
+rendered via `renderMarkdown()` + a 600px-centered email-safe table
+shell with inline styles. New `email_signature` row in `site_content`
+(mig 067) drives the sign-off; the send pipeline auto-injects
+`{{signature}}` into every template's vars so Lexi edits once, every
+template picks it up. Mig 068 appended the placeholder to every
+existing `audience='community'` template; admin-internal templates
+were left alone. The `.prose p:has(> img:only-child)` float quirk in
+`app.css` is now scoped to `:not(.prose-compact)` so the admin
+template-editor preview matches the rendered email.
 
 ### 3. Weekly community digest (callboard + calendar)
 
