@@ -580,6 +580,18 @@ for 2 seconds. URL param sticks around, so a refresh re-triggers the pulse.
 
 ---
 
+## Notes for later (untriaged)
+
+Scratchpad for half-formed thoughts. Items here haven't been scoped or
+decided on - they're dropped here so they don't get lost between
+sessions. When one of these solidifies, it moves into **Active queue**
+(committed to build), **Maybe later** (parked with full scope), or
+**Confirmed Skips** (explicitly cut).
+
+_(Empty - drop notes here as you think of things.)_
+
+---
+
 ## Maybe later (revisit if it comes up in real use)
 
 Discussed and parked. None are committed; if usage patterns or user requests surface them, they're cheap to revisit.
