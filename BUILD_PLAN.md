@@ -588,13 +588,7 @@ sessions. When one of these solidifies, it moves into **Active queue**
 (committed to build), **Maybe later** (parked with full scope), or
 **Confirmed Skips** (explicitly cut).
 
-- **Marquee -> calendar highlight pulse duration.** The flash on the
-  matched show currently runs ~2s (commit 2849902, both
-  `highlight-pulse` and `highlight-pulse-row` keyframes in
-  `src/routes/calendar/+page.svelte`). Blake wants it a couple seconds
-  longer - probably 4-5s. Tiny tweak, just bump both `animation`
-  durations + the `setTimeout` in the onMount handler that removes the
-  class.
+_(Empty - drop notes here as you think of things.)_
 
 ---
 

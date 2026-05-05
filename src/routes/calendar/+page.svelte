@@ -33,10 +33,13 @@
       }
 
       // Pulse: add the class, then remove it after the animation.
+      // 4s feels right - 2s reads as "did something just flash?", 4s
+      // gives the eye time to track the highlighted show without the
+      // flash overstaying its welcome.
       for (const el of matches) el.classList.add("is-highlighted");
       window.setTimeout(() => {
         for (const el of matches) el.classList.remove("is-highlighted");
-      }, 2000);
+      }, 4000);
     });
   });
 
@@ -742,10 +745,10 @@
      JS, so Svelte's scoper can't see it - hence :global() selectors.
      Animation runs once, then the class is removed by setTimeout. */
   .perf-pill:global(.is-highlighted) {
-    animation: highlight-pulse 2s ease-out;
+    animation: highlight-pulse 4s ease-out;
   }
   .perf-row:global(.is-highlighted) {
-    animation: highlight-pulse-row 2s ease-out;
+    animation: highlight-pulse-row 4s ease-out;
   }
   @keyframes highlight-pulse {
     0% {
