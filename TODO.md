@@ -91,15 +91,8 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 - [ ] **Submit dropdown copy** in `Nav.svelte` (`submitOptions`): "Get listed in the artist directory" / "Auditions, designer + crew calls, talent opportunities" / "Add an upcoming show to the calendar." Tweak if any feel off.
 - [ ] **Minor profile copy.** "◐ Parent / guardian managed profile" pill on public profile, "Sara is under 18, so messages route to..." contact-form notice (in `src/routes/artists/[slug]/+page.svelte`). And the toggle copy on `/submit` (in `src/routes/submit/+page.svelte`).
 
-### Confidence-flagged emails (verify these inferred addresses)
-- [ ] `boxoffice@lakewoodplayhouse.org` (their site uses an obfuscation widget)
-- [ ] `info@dukesbay.org` (sourced from a third-party directory)
-- [ ] `theatrebattery@gmail.com` (sourced from external listings)
-- [ ] `oltadmin@olympialittletheatre.org` for Olympia Little Theatre — note the spelling mismatch with their site domain `olympialittletheater.org`
-
-### Theatres missing logos / emails (see /theatres)
+### Theatres missing logos (see /theatres)
 - **Logos missing — typographic monogram fallback:** Tacoma Little Theatre, Mustard Seed, Toy Boat, Olympia Family Theater, Bremerton Community Theatre, Auburn Community Players.
-- **Emails missing (Email link hidden gracefully):** Tacoma Little Theatre, Mustard Seed, Harlequin, Toy Boat, Auburn Community Players, Northwest Center Theatre, Screaming Butterflies.
 - Most existing logos are third-party CDN paths (Wix, Squarespace, Weebly, WordPress upload dirs). They render today but could rotate. For resilience, mirror to Cloudinary and update `logo_url`.
 
 ### Three new bulk-imported drafts (2026-05-06)
