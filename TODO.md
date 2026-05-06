@@ -102,7 +102,6 @@ These shipped via individual commits and need a sweep before invitations go out:
 - [ ] **Sort tiebreaker** on `/directory?sort=newest`: most recently approved profile appears first within today's date batch.
 - [ ] **Resume privacy banner** on `/edit/[token]` when artist already has resumes uploaded: rust panel above the resume list, same redact-phone-and-email advice as the upload modal.
 - [ ] **Mobile body weight**: open the site at 375px width, body copy should read substantial (not "delicate"). Inter Tight 500.
-- [ ] **5xx outage page** — temporarily break `SUPABASE_DB_URL` in `.env`, confirm friendly outage page renders. Skipped on every prior run.
 
 ---
 
