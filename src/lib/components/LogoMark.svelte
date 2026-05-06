@@ -69,12 +69,13 @@
     width: auto;
     display: block;
   }
-  /* Single-tone fill driven by the accent token. The V3 logo bakes
-     the brand red into every path; using var(--accent) means the logo
-     is #780606 in light mode and the lighter coral in dark mode -
-     stays readable on either background and self-syncs with any
-     future accent-color change. */
+  /* Single-tone fill driven by --ink-soft. The V3 logo's source SVG
+     baked in #780606, but read at scale that was too much red against
+     the rest of the chrome - the logo is for identity, not for
+     emphasis. --ink-soft (warm dark grey in light, cream in dark)
+     keeps the lockup quiet so the brand red stays scarce and meaningful
+     in the rest of the UI. */
   .logo path {
-    fill: var(--accent);
+    fill: var(--ink-soft);
   }
 </style>
