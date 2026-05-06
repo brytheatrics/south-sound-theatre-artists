@@ -362,18 +362,21 @@
     {/if}
 
     <fieldset>
-      <legend>Bio</legend>
+      <legend>Bio <span class="req">*</span></legend>
       <p class="hint">
-        Optional. What collaborators should know - training, recent work,
-        what you're looking for. A few sentences is plenty.
+        What collaborators should know - training, recent work, what you're
+        looking for. A few sentences is plenty.
       </p>
       <label class="field">
         <textarea
           name="bio"
           rows="5"
+          required
           bind:value={bio}
+          aria-invalid={!!errors.bio}
           placeholder="Tell directors and collaborators about your work, training, and what you're looking for."
         ></textarea>
+        {#if errors.bio}<span class="error">{errors.bio}</span>{/if}
       </label>
     </fieldset>
 

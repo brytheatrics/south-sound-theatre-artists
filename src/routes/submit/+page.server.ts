@@ -211,6 +211,7 @@ export const actions: Actions = {
       }
     }
 
+    if (!values.bio) errors.bio = "Add a short bio so people can learn who you are.";
     if (values.disciplines.length === 0) errors.disciplines = "Choose at least one discipline.";
     if (!values.area) errors.area = "Choose an area.";
 
