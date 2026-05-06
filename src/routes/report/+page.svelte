@@ -96,9 +96,9 @@
   .hint { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
   .error { color: var(--error); font-size: 13px; margin-top: 4px; }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 10px 14px;
     border-radius: var(--radius);
     font-size: 14px;

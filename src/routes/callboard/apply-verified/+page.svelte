@@ -170,13 +170,13 @@
     outline-offset: -1px;
     border-color: var(--accent);
   }
-  .input.error { border-color: var(--error); }
+  .input.error { border-color: var(--warn); }
   .textarea { resize: vertical; line-height: 1.5; }
-  .field-error { font-size: 12px; color: var(--error); margin: 0; }
+  .field-error { font-size: 12px; color: var(--warn); margin: 0; }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 12px 16px;
     border-radius: var(--radius);
     font-size: 14px;

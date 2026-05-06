@@ -246,9 +246,9 @@
 <style>
   .form { display: flex; flex-direction: column; gap: 1rem; max-width: 720px; }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 0.65rem 0.9rem;
     border-radius: var(--radius);
     margin: 0;
@@ -277,7 +277,7 @@
     color: var(--muted);
     line-height: 1.45;
   }
-  .field-error { font-size: 12px; color: var(--error); margin: 0; }
+  .field-error { font-size: 12px; color: var(--warn); margin: 0; }
 
   input[type="text"], input[type="url"], input[type="datetime-local"], select, textarea {
     padding: 9px 12px;

@@ -17,14 +17,9 @@
   --muted: #5e5b56;
   --rule: #e2dfd6;
   --rule-soft: #ecead6;
-  --accent: #780606; /* deep crimson - Lexi's brand red, V3 logo */
-  --accent-soft: #a83a3a;
-  /* --warn is the secondary decorative accent now (mentorship "open to
-     mentoring" dot, etc) - was terracotta when paired with moss; now
-     a dark warm grey to pair with the deep crimson --accent. All
-     cautionary uses (form errors, reject buttons, danger affordances)
-     migrated to --error in the same change. */
-  --warn: #4a4640;
+  --accent: #3b6f4a; /* moss green */
+  --accent-soft: #6b9279;
+  --warn: #c25b2c; /* terracotta */
   --error: #b13a1c;
 
   --font-display: "Inter Tight", -apple-system, system-ui, sans-serif;
@@ -60,24 +55,16 @@
  */
 html.mode-dark .theme-paper,
 .theme-paper.mode-dark {
-  /* Near-black neutral palette, replaces the previous dark-blue tones.
-     Surface lightness ordering preserved from the light theme (paper-2
-     darkest -> paper -> bg -> bg-raised lightest) so existing surface
-     usage keeps its meaning. */
-  --bg: #0b0b0b;
-  --bg-raised: #1a1a1a;
-  --paper: #050505;
-  --paper-2: #020202;
+  --bg: #2a2d3a;
+  --bg-raised: #2f3340;
+  --paper: #232633;
+  --paper-2: #1f2230;
   --ink: #f3ecdb;
   --ink-soft: #d4cbb6;
   --muted: #a89e8b;
   --rule: rgba(243, 236, 219, 0.14);
   --rule-soft: rgba(243, 236, 219, 0.07);
-  /* Mid grey instead of light coral - on near-black bg the brand
-     crimson can't read at all, and a soft pink read confused/festive
-     against the rest of the chrome. Grey reads as a neutral accent
-     and lets the wordmark stay the focal point. */
-  --accent: #827e7e;
+  --accent: #e8a86a;
 }
 
 /* ===================================================================
@@ -131,9 +118,8 @@ a:hover {
 
 /* ===================================================================
  * Filter chip — used on /calendar, /directory, /callboard, and any
- * future filter strip. Off state is paper-tone, on state is the
- * accent (currently #780606). Per-page styles can override (e.g.
- * role chips on callboard
+ * future filter strip. Off state is paper-tone, on state is moss
+ * accent. Per-page styles can override (e.g. role chips on callboard
  * keep .chip-sm for size variation), but the off / hover / on states
  * are shared so all filter strips read the same visual language.
  * =================================================================*/
@@ -241,7 +227,7 @@ a:hover {
   margin: 0.5rem 0 1.5rem;
 }
 /* Editorial italic accent - *word* in a heading renders as DM Serif
-   Display italic in the accent color. */
+   Display italic in moss. */
 .prose h1 em,
 .prose h2 em,
 .prose h3 em {
@@ -309,7 +295,7 @@ a:hover {
   color: var(--muted);
   margin-bottom: 1rem;
 }
-/* Body italic - quieter accent. */
+/* Body italic - quieter moss accent. */
 .prose p em {
   font-family: var(--font-accent);
   font-style: italic;

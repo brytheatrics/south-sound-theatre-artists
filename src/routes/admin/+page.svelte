@@ -315,9 +315,9 @@
     margin-top: 0.5rem;
   }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
   }
   .form-ok {
     background: color-mix(in oklch, var(--accent), var(--bg) 85%);
@@ -523,7 +523,7 @@
     border-color: var(--ink);
   }
   .bt-warn {
-    background: var(--error);
+    background: var(--warn);
     color: #fff;
   }
   .bt-warn:hover:not(:disabled) {

@@ -508,11 +508,11 @@
     cursor: not-allowed;
   }
   .ctl.warn {
-    color: var(--error);
+    color: var(--warn);
     font-size: 16px;
   }
   .ctl.warn:hover {
-    border-color: var(--error);
+    border-color: var(--warn);
   }
   .row-fields {
     display: grid;

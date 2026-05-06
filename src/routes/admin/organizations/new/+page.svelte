@@ -57,7 +57,7 @@
     { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
     { value: "bg-raised", label: "White", hex: "#ffffff" },
     { value: "ink", label: "Ink", hex: "#0e0d0c" },
-    { value: "accent", label: "Crimson", hex: "#780606" },
+    { value: "accent", label: "Moss", hex: "#3b6f4a" },
   ];
 
   async function uploadLogo(file: File) {
@@ -287,7 +287,7 @@
     <legend class="label">Logo background</legend>
     <p class="hint">
       Pick a tile colour that makes the logo readable. White logos need
-      a dark tile (Ink or Crimson); black or coloured logos usually look
+      a dark tile (Ink or Moss); black or coloured logos usually look
       best on Paper, Cream, or White.
     </p>
     <div class="swatches">
@@ -356,9 +356,9 @@
   .meta a { color: var(--accent); }
 
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 0.65rem 0.9rem;
     border-radius: var(--radius);
     margin: 0 0 1rem;
@@ -385,7 +385,7 @@
     color: var(--muted);
     line-height: 1.45;
   }
-  .field-error { font-size: 12px; color: var(--error); margin: 0; }
+  .field-error { font-size: 12px; color: var(--warn); margin: 0; }
   input, textarea {
     padding: 9px 12px;
     border: 1px solid var(--rule);
@@ -497,7 +497,7 @@
     overflow: hidden;
   }
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.15s; }
-  .upload-error { color: var(--error); }
+  .upload-error { color: var(--warn); }
 
   /* Logo background swatches */
   .bg-field { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }

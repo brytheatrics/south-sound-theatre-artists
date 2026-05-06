@@ -117,7 +117,7 @@
   .bt-pri:hover:not(:disabled) { background: var(--accent); }
   .bt:disabled { opacity: 0.5; cursor: progress; }
   .ok { color: var(--accent); font-size: 13px; }
-  .err { color: var(--error); font-size: 13px; }
+  .err { color: var(--warn); font-size: 13px; }
 
   @media (max-width: 900px) {
     .split { grid-template-columns: 1fr; }

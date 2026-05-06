@@ -12,7 +12,7 @@
     "paper-2": "#ebe5d3",
     "bg-raised": "#ffffff",
     "ink": "#0e0d0c",
-    "accent": "#780606",
+    "accent": "#3b6f4a",
   };
   const LOGO_BG_DARK = new Set(["ink", "accent"]);
 </script>

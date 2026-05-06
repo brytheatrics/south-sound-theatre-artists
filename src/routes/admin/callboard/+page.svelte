@@ -301,7 +301,7 @@
   .bt-ghost:hover { border-color: var(--ink); text-decoration: none; }
 
   .form-ok { background: color-mix(in oklch, var(--accent), var(--bg) 85%); border: 1px solid var(--accent); color: var(--accent); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; }
-  .form-error { background: color-mix(in oklch, var(--error), var(--bg) 80%); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; }
+  .form-error { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border: 1px solid var(--warn); color: var(--warn); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; }
   .empty { color: var(--muted); font-family: var(--font-accent); font-style: italic; padding: 3rem 0; text-align: center; }
 
   .rows { width: 100%; border-collapse: collapse; font-family: var(--font-body); font-size: 13px; }
@@ -324,9 +324,9 @@
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    background: color-mix(in oklch, var(--error), var(--bg) 88%);
-    color: var(--error);
-    border: 1px solid var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
+    color: var(--warn);
+    border: 1px solid var(--warn);
   }
   .post-email { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
@@ -335,7 +335,7 @@
   .type-badge { display: inline-block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; background: var(--paper); border: 1px solid var(--rule); color: var(--ink); padding: 3px 7px; border-radius: 2px; }
 
   .status-pill { display: inline-block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border-radius: 100px; border: 1px solid var(--rule); }
-  .status-pending_review { background: color-mix(in oklch, var(--error), var(--bg) 80%); border-color: var(--error); color: var(--error); }
+  .status-pending_review { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border-color: var(--warn); color: var(--warn); }
   .status-approved { background: color-mix(in oklch, var(--accent), var(--bg) 85%); border-color: var(--accent); color: var(--accent); }
   .status-rejected { background: var(--paper); color: var(--muted); }
   .status-pending_email { background: var(--paper); color: var(--muted); }
@@ -344,13 +344,13 @@
 
   .actions-col { text-align: right; width: 1%; white-space: nowrap; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); text-decoration: none; display: inline-block; }
-  .bt-link.warn { color: var(--error); }
+  .bt-link.warn { color: var(--warn); }
   .bt-link:hover { text-decoration: underline; color: var(--ink); }
   .bt-link:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .reject-inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .reject-input { font-family: var(--font-body); font-size: 12px; padding: 5px 8px; border: 1px solid var(--error); border-radius: var(--radius); background: var(--bg-raised); color: var(--ink); width: 240px; }
-  .reject-input:focus { outline: 2px solid var(--error); outline-offset: -1px; }
+  .reject-input { font-family: var(--font-body); font-size: 12px; padding: 5px 8px; border: 1px solid var(--warn); border-radius: var(--radius); background: var(--bg-raised); color: var(--ink); width: 240px; }
+  .reject-input:focus { outline: 2px solid var(--warn); outline-offset: -1px; }
 
   .pagination { display: flex; justify-content: center; gap: 6px; padding: 2rem 0; flex-wrap: wrap; align-items: center; }
   .pagination-ellipsis { font-family: var(--font-mono); color: var(--muted); padding: 0 4px; }

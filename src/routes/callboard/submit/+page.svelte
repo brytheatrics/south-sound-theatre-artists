@@ -548,14 +548,14 @@
     outline-offset: -1px;
     border-color: var(--accent);
   }
-  .input.error, .textarea.error { border-color: var(--error); }
+  .input.error, .textarea.error { border-color: var(--warn); }
   .textarea { resize: vertical; line-height: 1.5; }
   .select { cursor: pointer; }
 
   /* Area picker: chip-style radio group. Mirrors the directory + calendar
      submit forms so the picker reads the same across surfaces. */
   .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .chip-row.error { outline: 1px solid var(--error); border-radius: 6px; padding: 4px; }
+  .chip-row.error { outline: 1px solid var(--warn); border-radius: 6px; padding: 4px; }
   .chip {
     display: inline-flex;
     align-items: center;
@@ -587,13 +587,13 @@
   }
   .field-error {
     font-size: 12px;
-    color: var(--error);
+    color: var(--warn);
     margin: 0;
   }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 12px 16px;
     border-radius: var(--radius);
     font-size: 14px;
@@ -617,7 +617,7 @@
     padding: 4px 8px;
     line-height: 1;
   }
-  .kd-remove:hover { color: var(--error); }
+  .kd-remove:hover { color: var(--warn); }
   .bt-add {
     align-self: flex-start;
     background: transparent;

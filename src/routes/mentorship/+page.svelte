@@ -419,8 +419,8 @@
     font-weight: 500;
   }
   .disc-pill-seeking {
-    background: color-mix(in oklch, var(--error), var(--bg) 90%);
-    border-color: color-mix(in oklch, var(--error), var(--bg) 70%);
+    background: color-mix(in oklch, var(--warn), var(--bg) 90%);
+    border-color: color-mix(in oklch, var(--warn), var(--bg) 70%);
   }
   .tile-actions {
     display: flex;

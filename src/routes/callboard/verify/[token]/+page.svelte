@@ -84,7 +84,7 @@
     line-height: 1.5;
     margin: 0;
   }
-  .warn-text { color: var(--error); }
+  .warn-text { color: var(--warn); }
   .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
   .bt {
     font-family: var(--font-body);

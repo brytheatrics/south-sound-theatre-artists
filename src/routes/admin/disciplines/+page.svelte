@@ -234,7 +234,7 @@
   .bt-pri { background: var(--ink); color: var(--bg); }
   .bt-pri:hover:not(:disabled) { background: var(--accent); }
   .bt:disabled { opacity: 0.5; cursor: progress; }
-  .form-error { background: color-mix(in oklch, var(--error), var(--bg) 80%); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
+  .form-error { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border: 1px solid var(--warn); color: var(--warn); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
   .form-ok { background: color-mix(in oklch, var(--accent), var(--bg) 85%); border: 1px solid var(--accent); color: var(--accent); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
   .cat { margin-bottom: 1.5rem; }
   .cat h2 { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 0.5rem; font-weight: 500; }
@@ -267,7 +267,7 @@
   .inline-form { display: inline-flex; align-items: center; gap: 4px; }
   .num-input { width: 4.5rem; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-mono); font-size: 12px; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); }
-  .bt-link.warn { color: var(--error); }
+  .bt-link.warn { color: var(--warn); }
   .bt-link:hover:not(:disabled) { text-decoration: underline; }
   .bt-link:disabled { opacity: 0.4; cursor: not-allowed; }
 

@@ -437,7 +437,7 @@
     font-weight: 600;
   }
   .admin-bar-status.hidden-status {
-    background: var(--error);
+    background: var(--warn);
   }
   .admin-bar-spacer { flex: 1; }
   .admin-bar-link {
@@ -854,9 +854,9 @@
     margin-top: 4px;
   }
   .form-error {
-    background: color-mix(in oklch, var(--error), var(--bg) 80%);
-    border: 1px solid var(--error);
-    color: var(--error);
+    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
+    border: 1px solid var(--warn);
+    color: var(--warn);
     padding: 10px 14px;
     border-radius: var(--radius);
     margin-bottom: 1rem;

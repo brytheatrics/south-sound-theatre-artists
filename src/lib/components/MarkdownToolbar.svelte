@@ -155,7 +155,7 @@
   <button type="button" class="b" title="Bold — make selected text stand out" onclick={() => wrap("**", "**", "bold")}>
     <strong>B</strong>
   </button>
-  <button type="button" class="b" title="Italic — adds emphasis (renders in serif accent)" onclick={() => wrap("*", "*", "italic")}>
+  <button type="button" class="b" title="Italic — adds emphasis (renders in moss serif)" onclick={() => wrap("*", "*", "italic")}>
     <em>I</em>
   </button>
 
@@ -224,7 +224,7 @@
         <tr>
           <td><code>*italic*</code></td>
           <td><em class="ex-italic">italic</em></td>
-          <td>Editorial emphasis. Inside body text it renders in the serif accent.</td>
+          <td>Editorial emphasis. Inside body text it renders in moss serif.</td>
         </tr>
         <tr>
           <td><code># Page title</code></td>
@@ -344,7 +344,7 @@
     margin: 0 4px;
   }
   .err {
-    color: var(--error);
+    color: var(--warn);
     font-size: 12px;
     margin-left: 8px;
   }

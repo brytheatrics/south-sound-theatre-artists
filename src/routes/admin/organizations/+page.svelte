@@ -22,7 +22,7 @@
     { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
     { value: "bg-raised", label: "White", hex: "#ffffff" },
     { value: "ink", label: "Ink", hex: "#0e0d0c" },
-    { value: "accent", label: "Crimson", hex: "#780606" },
+    { value: "accent", label: "Moss", hex: "#3b6f4a" },
   ];
 
   let logoBgs = $state<Record<string, string>>({});
@@ -212,7 +212,7 @@
         <legend class="pe-label">Logo background</legend>
         <p class="pe-bg-hint">
           Pick a tile colour that makes the logo readable. White logos
-          need a dark tile (Ink or Crimson); black or coloured logos usually
+          need a dark tile (Ink or Moss); black or coloured logos usually
           look best on Paper, Cream, or White.
         </p>
         <div class="pe-swatches">
@@ -651,7 +651,7 @@
   .mono-cell { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
   .actions-col { text-align: right; width: 1%; white-space: nowrap; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); text-decoration: none; display: inline-block; }
-  .bt-link.warn { color: var(--error); }
+  .bt-link.warn { color: var(--warn); }
   .bt-link:hover { text-decoration: underline; color: var(--ink); }
   .bt-link:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -684,7 +684,7 @@
   /* Verified / Unverified pill - lives next to the area chip in the
      row header so admins can audit verification status at a glance.
      Default (unverified) reads as a neutral chip; .verified swaps to
-     the accent-on-cream treatment used elsewhere on the page. */
+     the moss-on-cream treatment used elsewhere on the page. */
   .verify-pill {
     display: inline-block;
     margin-left: 0.5rem;

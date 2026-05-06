@@ -332,7 +332,7 @@
   }
 
   .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-  .error { color: var(--error); margin: 0; font-size: 13px; }
+  .error { color: var(--warn); margin: 0; font-size: 13px; }
   .ok {
     color: var(--accent);
     margin: 0;

@@ -410,7 +410,7 @@
   }
   .meta-cta:hover { text-decoration: underline; }
   .meta-stat { color: var(--ink-soft); }
-  .warn { color: var(--error) !important; }
+  .warn { color: var(--warn) !important; }
 
   /* === FILTER STRIP === */
   .filter-strip {
@@ -497,7 +497,7 @@
     background: var(--paper);
     flex-wrap: wrap;
   }
-  .warn-text { color: var(--error) !important; }
+  .warn-text { color: var(--warn) !important; }
   .closing-list {
     font-family: var(--font-body);
     font-size: 13px;
@@ -667,7 +667,7 @@
     justify-content: space-between;
     gap: 0.75rem;
   }
-  .warn-deadline .deadline-val { color: var(--error); }
+  .warn-deadline .deadline-val { color: var(--warn); }
   .deadline-label { font-size: 10px; }
   .deadline-val {
     font-family: var(--font-display);

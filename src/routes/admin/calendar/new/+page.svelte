@@ -180,8 +180,8 @@
   .lede { color: var(--ink-soft); max-width: 60ch; margin: 0 0 1rem; }
   .form-error { padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
   /* Org-context banner: shown on top of the form when admin arrived
-     via "+ Add show" on a specific org row. Soft accent-on-cream so
-     it reads as informational, not as a warning. */
+     via "+ Add show" on a specific org row. Soft moss-on-cream so it
+     reads as informational, not as a warning. */
   .org-context {
     margin: 0 0 1rem;
     padding: 0.65rem 0.9rem;
