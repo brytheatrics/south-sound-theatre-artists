@@ -14,7 +14,7 @@ const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const load: PageServerLoad = async () => {
-  const [submissionsRes, awaitingRes, callboardCountRes, orgsCountRes] =
+  const [submissionsRes, awaitingRes, dismissedRes, callboardCountRes, orgsCountRes] =
     await Promise.all([
       supabaseAdmin
         .from("pending_submissions")
@@ -31,16 +31,26 @@ export const load: PageServerLoad = async () => {
         .eq("email_verified", true)
         .order("created_at", { ascending: true }),
       // Floating submissions: submitted but never clicked the email
-      // verification link. Without this surface they just sit invisible.
-      // We surface them so Lexi can resend the verification email if the
-      // first one got eaten by spam.
+      // verification link. Surface them so Lexi can resend the
+      // verification email if the original got eaten by spam.
+      // Dismissed rows hide from this list and live in dismissedRes
+      // below until they're either restored or hard-deleted.
       supabaseAdmin
         .from("pending_submissions")
         .select(
           "id, email, full_name, disciplines, geographic_area, created_at, email_verification_expires_at",
         )
         .eq("status", "pending_email")
+        .is("dismissed_at", null)
         .order("created_at", { ascending: true }),
+      supabaseAdmin
+        .from("pending_submissions")
+        .select(
+          "id, email, full_name, disciplines, geographic_area, created_at, dismissed_at",
+        )
+        .eq("status", "pending_email")
+        .not("dismissed_at", "is", null)
+        .order("dismissed_at", { ascending: false }),
       supabaseAdmin
         .from("callboard_posts")
         .select("*", { count: "exact", head: true })
@@ -59,9 +69,11 @@ export const load: PageServerLoad = async () => {
     ]);
   if (submissionsRes.error) throw submissionsRes.error;
   if (awaitingRes.error) throw awaitingRes.error;
+  if (dismissedRes.error) throw dismissedRes.error;
   return {
     submissions: submissionsRes.data ?? [],
     awaitingVerification: awaitingRes.data ?? [],
+    dismissedAwaiting: dismissedRes.data ?? [],
     callboardPendingCount: callboardCountRes.count ?? 0,
     orgsPendingCount: orgsCountRes.count ?? 0,
   };
@@ -158,6 +170,53 @@ export const actions: Actions = {
       });
     }
     return { resentTo: sub.email };
+  },
+
+  // Hide one or more pending_email rows from the main awaiting list.
+  // Stamps dismissed_at; the row still exists and can be restored from
+  // the Dismissed sub-panel, or hard-deleted from there if it's spam.
+  dismissAwaiting: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("pending_submissions")
+      .update({ dismissed_at: new Date().toISOString() })
+      .in("id", ids)
+      .eq("status", "pending_email");
+    if (error) return fail(500, { error: "Could not dismiss." });
+    return { dismissed: ids.length };
+  },
+
+  // Move a dismissed row back onto the main awaiting list.
+  restoreAwaiting: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("pending_submissions")
+      .update({ dismissed_at: null })
+      .in("id", ids)
+      .eq("status", "pending_email");
+    if (error) return fail(500, { error: "Could not restore." });
+    return { restored: ids.length };
+  },
+
+  // Hard-delete pending_email rows. For obvious spam - the row is gone,
+  // not soft-deleted, since the goal is to keep the table clean. The
+  // submitter never verified their email, so there's no risk of orphaned
+  // tokens or downstream references.
+  deleteAwaiting: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("pending_submissions")
+      .delete()
+      .in("id", ids)
+      .eq("status", "pending_email");
+    if (error) return fail(500, { error: "Could not delete." });
+    return { deleted: ids.length };
   },
 };
 

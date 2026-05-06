@@ -1,11 +1,16 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
 
   let { data, form } = $props();
 
   let openId = $state<string | null>(null);
   let rejectingId = $state<string | null>(null);
   let busyId = $state<string | null>(null);
+  let showDismissed = $state(false);
+  // Pending hard-delete (id + display name for the modal copy).
+  let pendingDelete = $state<{ id: string; name: string } | null>(null);
+  let deleteFormEl: HTMLFormElement | undefined = $state();
 
   function toggle(id: string) {
     openId = openId === id ? null : id;
@@ -266,27 +271,122 @@
               </span>
             </span>
           </div>
-          <form
-            method="POST"
-            action="?/resendVerification"
-            use:enhance={() => {
-              busyId = a.id;
-              return async ({ update }) => {
-                await update();
-                busyId = null;
-              };
-            }}
-          >
-            <input type="hidden" name="id" value={a.id} />
-            <button type="submit" class="bt bt-ghost" disabled={busyId === a.id}>
-              {busyId === a.id ? "Sending..." : "Resend verification"}
+          <div class="await-actions">
+            <form
+              method="POST"
+              action="?/resendVerification"
+              use:enhance={() => {
+                busyId = a.id;
+                return async ({ update }) => {
+                  await update();
+                  busyId = null;
+                };
+              }}
+            >
+              <input type="hidden" name="id" value={a.id} />
+              <button type="submit" class="bt bt-ghost" disabled={busyId === a.id}>
+                {busyId === a.id ? "Sending..." : "Resend verification"}
+              </button>
+            </form>
+            <form method="POST" action="?/dismissAwaiting" use:enhance>
+              <input type="hidden" name="id" value={a.id} />
+              <button type="submit" class="bt bt-ghost">Dismiss</button>
+            </form>
+            <button
+              type="button"
+              class="bt bt-ghost danger"
+              onclick={() => (pendingDelete = { id: a.id, name: a.full_name })}
+            >
+              Delete
             </button>
-          </form>
+          </div>
         </li>
       {/each}
     </ul>
   </section>
 {/if}
+
+{#if data.dismissedAwaiting.length > 0}
+  <section class="await-section dismissed-section">
+    <header class="await-hd">
+      <button
+        type="button"
+        class="dismissed-toggle"
+        onclick={() => (showDismissed = !showDismissed)}
+        aria-expanded={showDismissed}
+      >
+        <span class="dismissed-arrow" class:open={showDismissed}>›</span>
+        Dismissed ({data.dismissedAwaiting.length})
+      </button>
+    </header>
+    {#if showDismissed}
+      <ul class="await-list">
+        {#each data.dismissedAwaiting as a (a.id)}
+          <li class="await-row">
+            <div class="await-info">
+              <span class="await-name">{a.full_name}</span>
+              <span class="await-meta">
+                {a.email}
+                <span class="dot" aria-hidden="true">·</span>
+                {a.disciplines?.slice(0, 2).join(" · ") || "—"}
+                <span class="dot" aria-hidden="true">·</span>
+                {a.geographic_area ?? "—"}
+              </span>
+              <span class="await-stamps">
+                <span class="ago">submitted {timeAgo(a.created_at)}</span>
+                <span class="dot" aria-hidden="true">·</span>
+                <span class="ago">dismissed {timeAgo(a.dismissed_at)}</span>
+              </span>
+            </div>
+            <div class="await-actions">
+              <form method="POST" action="?/restoreAwaiting" use:enhance>
+                <input type="hidden" name="id" value={a.id} />
+                <button type="submit" class="bt bt-ghost">Restore</button>
+              </form>
+              <button
+                type="button"
+                class="bt bt-ghost danger"
+                onclick={() => (pendingDelete = { id: a.id, name: a.full_name })}
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+{/if}
+
+<!-- Delete confirmation. Hard-deletes the pending_submissions row -
+     used for obvious spam where there's no value in keeping it
+     around. Per the conventions doc, a themed ConfirmModal handles
+     every destructive action; never window.confirm(). -->
+<form
+  method="POST"
+  action="?/deleteAwaiting"
+  bind:this={deleteFormEl}
+  use:enhance={() => {
+    return async ({ update }) => {
+      await update();
+      pendingDelete = null;
+    };
+  }}
+  style="display: none;"
+>
+  <input type="hidden" name="id" value={pendingDelete?.id ?? ""} />
+</form>
+<ConfirmModal
+  open={pendingDelete !== null}
+  title="Delete this submission?"
+  body={pendingDelete
+    ? `Permanently remove ${pendingDelete.name}'s submission from the database. Use this for obvious spam. This cannot be undone.`
+    : ""}
+  confirmLabel="Delete"
+  variant="warn"
+  onConfirm={() => deleteFormEl?.requestSubmit()}
+  onClose={() => (pendingDelete = null)}
+/>
 
 <style>
   .hd {
@@ -677,5 +777,50 @@
     color: var(--muted);
     background: var(--paper);
     border-color: var(--rule);
+  }
+  .await-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bt-ghost.danger {
+    color: var(--error);
+  }
+  .bt-ghost.danger:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--error), var(--bg) 88%);
+    border-color: var(--error);
+  }
+  /* Dismissed sub-panel: collapsed by default to keep the main page
+     uncluttered. Header is a click target that flips an arrow. */
+  .dismissed-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 0;
+  }
+  .dismissed-toggle {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .dismissed-toggle:hover {
+    color: var(--ink);
+  }
+  .dismissed-arrow {
+    display: inline-block;
+    transition: transform 120ms ease-out;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .dismissed-arrow.open {
+    transform: rotate(90deg);
   }
 </style>
