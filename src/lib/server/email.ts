@@ -199,10 +199,11 @@ export function wrapHtmlEmail(bodyHtml: string): string {
   // images get their visual breathing room from the surrounding <p>'s
   // own margin rather than from inline-margin on the img.
   // Retina sharpening: when the img src is a Cloudinary URL with a
-  // `w_NNN` transform, double the delivered width (`w_NNN*2`) and
-  // pin display via a `width="NNN"` HTML attribute. Browsers + email
-  // clients render the higher-res source at the smaller logical size,
-  // so the image stays sharp on 2x displays (most phones, retina Macs).
+  // `w_NNN` transform, deliver at 3x (`w_NNN*3`) and pin display via
+  // a `width="NNN"` HTML attribute. Browsers + email clients render
+  // the higher-res source at the smaller logical size, so the image
+  // stays sharp on 2x and 3x displays (high-end iPhones / Pixels).
+  // PNGs grow modestly but stay well under 1MB total per email.
   // Doesn't touch non-Cloudinary URLs or imgs without a width transform.
   const safeBody = bodyHtml.replace(
     /<img\s+([^>]*?)\/?>/g,
@@ -218,7 +219,7 @@ export function wrapHtmlEmail(bodyHtml: string): string {
           displayWidth = original;
           const doubledSrc = src.replace(
             /(\/upload\/[^/]*\b)w_\d+/,
-            `$1w_${original * 2}`,
+            `$1w_${original * 3}`,
           );
           modifiedAttrs = modifiedAttrs.replace(
             /src="[^"]*"/,
