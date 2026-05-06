@@ -91,10 +91,6 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 - [ ] **Submit dropdown copy** in `Nav.svelte` (`submitOptions`): "Get listed in the artist directory" / "Auditions, designer + crew calls, talent opportunities" / "Add an upcoming show to the calendar." Tweak if any feel off.
 - [ ] **Minor profile copy.** "◐ Parent / guardian managed profile" pill on public profile, "Sara is under 18, so messages route to..." contact-form notice (in `src/routes/artists/[slug]/+page.svelte`). And the toggle copy on `/submit` (in `src/routes/submit/+page.svelte`).
 
-### Theatres missing logos (see /theatres)
-- **Logos missing — typographic monogram fallback:** Tacoma Little Theatre, Mustard Seed, Toy Boat, Olympia Family Theater, Bremerton Community Theatre, Auburn Community Players.
-- Most existing logos are third-party CDN paths (Wix, Squarespace, Weebly, WordPress upload dirs). They render today but could rotate. For resilience, mirror to Cloudinary and update `logo_url`.
-
 ### Three new bulk-imported drafts (2026-05-06)
 - [ ] **Hester Elwell, JoJo Flores, Thomas Morisada** — imported as hidden drafts with no area set. Open `/admin/profiles?published=false`, set `geographic_area`, flip `published` (or leave for the artist to fill in via their magic-link).
 
