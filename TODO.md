@@ -84,7 +84,6 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 - [ ] **Bremerton Community Theatre URL changed.** Old `bremertoncommunitytheatre.org` redirects to `bctshows.com`. Updated `homepage_url`, kept `source_url` (still valid for arts-people scrape). Confirm cron picks them up next sync.
 - [ ] **Mustard Seed lives at `oslc.com/mustardseed/`**, not `mustardseedtheater.com`. Updated `homepage_url`, kept `source_url` pointing at csstix where their actual ticketing happens.
 - [ ] **ManeStage**: described as Sumner originally, actual address is Puyallup. Description corrected; `area_id` already correct (South Pierce).
-- [ ] **Northwest Center Theatre — likely defunct or renamed.** Wix URL is empty/dormant. There's a separate active org named "Northwest Theatre Lab" (nwtheatrelab.com) that may be the rebrand. Worth asking around before including in /theatres.
 
 ### Three new bulk-imported drafts (2026-05-06)
 - [ ] **Hester Elwell, JoJo Flores, Thomas Morisada** — imported as hidden drafts with no area set. Open `/admin/profiles?published=false`, set `geographic_area`, flip `published` (or leave for the artist to fill in via their magic-link).
