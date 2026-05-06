@@ -713,11 +713,11 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 0.25rem 0.4rem;
+    padding: 0.3rem 0.45rem;
     background: var(--paper);
     border-left: 2px solid var(--accent);
     border-radius: 2px;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     line-height: 1.25;
     overflow: hidden;
     color: var(--ink);
@@ -787,7 +787,7 @@
   .perf-time {
     font-family: var(--font-mono);
     color: var(--muted);
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
   .perf-title {
     font-weight: 600;
@@ -795,6 +795,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Light tracking helps the all-caps titles breathe. Inter Tight
+       at small caps without spacing reads as a wall. */
+    letter-spacing: 0.02em;
   }
   .perf-org {
     color: var(--ink-soft);
@@ -802,7 +805,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.68rem;
+    font-size: 0.8rem;
   }
 
   /* LIST */
