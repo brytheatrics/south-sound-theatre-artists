@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import { tick } from "svelte";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
@@ -271,8 +272,14 @@
       return async ({ update, result }) => {
         await update({ reset: false });
         submitting = false;
-        if (result?.type === "failure" && errorBannerEl) {
-          errorBannerEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (result?.type === "failure") {
+          await tick();
+          if (errorBannerEl) {
+            const top =
+              errorBannerEl.getBoundingClientRect().top + window.scrollY - 20;
+            window.scrollTo({ top, behavior: "auto" });
+            errorBannerEl.focus({ preventScroll: true });
+          }
         }
       };
     }}

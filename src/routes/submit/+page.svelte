@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import { tick } from "svelte";
   import DisciplinePicker from "$lib/components/DisciplinePicker.svelte";
   import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
@@ -178,12 +179,22 @@
         await update({ reset: false });
         submitting = false;
         // Scroll the summary banner into view after a validation
-        // failure. Doing it here (not in an $effect) so ordering is
-        // deterministic - the banner element is mounted by the time
-        // update() resolves, and SvelteKit's own scroll-restore has
-        // already finished, so a smooth scroll lands cleanly.
-        if (result?.type === "failure" && errorBannerEl) {
-          errorBannerEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        // failure. await tick() so the DOM has actually committed the
+        // banner that update() just made truthy; window.scrollTo with
+        // a computed offset is more reliable across browsers than
+        // scrollIntoView (which is finicky when smooth-scroll behavior
+        // hits scroll-restore races).
+        if (result?.type === "failure") {
+          await tick();
+          if (errorBannerEl) {
+            const top =
+              errorBannerEl.getBoundingClientRect().top + window.scrollY - 20;
+            // Instant (no smooth) so the user lands deterministically -
+            // smooth animations get fought by SvelteKit's scroll-restore
+            // and by browser quirks during enhance updates.
+            window.scrollTo({ top, behavior: "auto" });
+            errorBannerEl.focus({ preventScroll: true });
+          }
         }
       };
     }}
@@ -701,10 +712,11 @@
     color: var(--error);
     font-style: normal;
     font-family: var(--font-body);
-    font-size: 1.25em;
+    font-size: 1.6em;
     font-weight: 700;
-    margin-left: 2px;
+    margin-left: 3px;
     line-height: 1;
+    vertical-align: middle;
   }
 
   form {
