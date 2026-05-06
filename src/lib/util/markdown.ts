@@ -17,7 +17,7 @@
 // back to the literal character at the very end. `\\` is processed
 // first so a double-backslash doesn't chain into another escape rule.
 // Built at runtime via fromCharCode so the source file doesn't depend
-// on raw control bytes (0x0001-0x0006) surviving editor round-trips.
+// on raw control bytes (0x0001-0x0008) surviving editor round-trips.
 // None of these codepoints collide with anything Lexi would type.
 const ESC_BS = String.fromCharCode(0x0001);
 const ESC_DASH = String.fromCharCode(0x0002);
@@ -25,6 +25,12 @@ const ESC_STAR = String.fromCharCode(0x0003);
 const ESC_LBRACK = String.fromCharCode(0x0004);
 const ESC_RBRACK = String.fromCharCode(0x0005);
 const ESC_BANG = String.fromCharCode(0x0006);
+// HTML passthrough: <br> and &nbsp; survive the html-escape pass so
+// markdown authors can stack lines tightly (line<br>line<br>line) and
+// drop non-breaking spaces between adjacent images. Anything else
+// stays escaped per the original "no raw HTML" policy.
+const ESC_BR = String.fromCharCode(0x0007);
+const ESC_NBSP = String.fromCharCode(0x0008);
 
 function maskEscapes(s: string): string {
   return s
@@ -33,7 +39,9 @@ function maskEscapes(s: string): string {
     .replace(/\\\*/g, ESC_STAR)
     .replace(/\\\[/g, ESC_LBRACK)
     .replace(/\\\]/g, ESC_RBRACK)
-    .replace(/\\!/g, ESC_BANG);
+    .replace(/\\!/g, ESC_BANG)
+    .replace(/<br\s*\/?>/gi, ESC_BR)
+    .replace(/&nbsp;/g, ESC_NBSP);
 }
 function unmaskEscapes(s: string): string {
   return s
@@ -42,7 +50,9 @@ function unmaskEscapes(s: string): string {
     .replace(new RegExp(ESC_LBRACK, "g"), "[")
     .replace(new RegExp(ESC_RBRACK, "g"), "]")
     .replace(new RegExp(ESC_BANG, "g"), "!")
-    .replace(new RegExp(ESC_BS, "g"), "\\");
+    .replace(new RegExp(ESC_BS, "g"), "\\")
+    .replace(new RegExp(ESC_BR, "g"), "<br>")
+    .replace(new RegExp(ESC_NBSP, "g"), "&nbsp;");
 }
 
 export function renderMarkdown(md: string): string {
