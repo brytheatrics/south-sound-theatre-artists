@@ -17,8 +17,8 @@
   --muted: #5e5b56;
   --rule: #e2dfd6;
   --rule-soft: #ecead6;
-  --accent: #3b6f4a; /* moss green */
-  --accent-soft: #6b9279;
+  --accent: #780606; /* deep crimson - Lexi's brand red, V3 logo */
+  --accent-soft: #a83a3a;
   --warn: #c25b2c; /* terracotta */
   --error: #b13a1c;
 
@@ -64,7 +64,10 @@ html.mode-dark .theme-paper,
   --muted: #a89e8b;
   --rule: rgba(243, 236, 219, 0.14);
   --rule-soft: rgba(243, 236, 219, 0.07);
-  --accent: #e8a86a;
+  /* Light coral instead of #780606 in dark mode - the deep crimson is
+     too low-contrast on the dark blue/purple background. This pink-red
+     stays recognizably "the accent color" but reads cleanly. */
+  --accent: #e88a8a;
 }
 
 /* ===================================================================
