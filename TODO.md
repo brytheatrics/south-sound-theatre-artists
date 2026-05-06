@@ -5,9 +5,8 @@ Master list of outstanding work. Sections, in roughly priority order:
 1. **Launch-blocking** — must happen before the .org domain flips
 2. **Unpushed commits** — local-only work waiting on a push
 3. **Needs your eyes** — judgment calls / copy review from earlier sessions
-4. **Verification sweeps** — manual run-throughs not yet done
-5. **Maintenance** — non-urgent but real deadlines
-6. **Parking lot** — discussed and parked; revisit when usage demands
+4. **Maintenance** — non-urgent but real deadlines
+5. **Parking lot** — discussed and parked; revisit when usage demands
 
 ---
 
@@ -87,32 +86,14 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 
 ---
 
-## 4. Verification sweeps (polish layer, manually un-checked)
-
-These shipped via individual commits and need a sweep before invitations go out:
-
-- [ ] **Submit form fields admin page** (`/admin/submit-form`): add a test area, rename it, confirm it cascades to a profile that uses it (spot-check `geographic_area` text), then remove. Repeat for unions and ethnicities. Verify "Other" rows are locked.
-- [ ] **Auto-save sort number** on `/admin/submit-form` and `/admin/disciplines`: edit number, tab away, refresh, confirm new position stuck. Empty/unchanged values should not fire a request.
-- [ ] **Save banner placement** on `/admin/profiles/[id]/edit`: scroll to bottom, click Save, confirm "Saved." appears next to the button (not 2000px up in the header).
-- [ ] **Mentorship dots** on `/directory` cards: profile with `mentorship_offering` populated shows a rust dot top-right; hover reveals styled tooltip listing disciplines. Same for moss + `mentorship_seeking`. Side-by-side when both populated.
-- [ ] **Discipline display order**: on `/edit/[token]` (or admin edit), reorder via up/down arrows, save, confirm card teaser on `/directory` matches new order. "Shows on cards" badge appears only on the top two rows.
-- [ ] **Complete-to-publish gate**: run `scripts/gate-incomplete-profiles.mjs` (default mode), open an unpublished bulk-import profile's edit link, see the rust banner listing missing fields, fill them in, save, confirm profile auto-publishes. Banner mirrored on `/admin/profiles/[id]/edit`.
-- [ ] **Headshot/photo required**: try saving `/submit` or `/edit/[token]` without a photo, confirm error.
-- [ ] **Awaiting email verification panel** at `/admin`: insert a fake `pending_email` row (or wait for a natural one), click "Resend verification", confirm email arrives + `email_log` has a new row.
-- [ ] **Sort tiebreaker** on `/directory?sort=newest`: most recently approved profile appears first within today's date batch.
-- [ ] **Resume privacy banner** on `/edit/[token]` when artist already has resumes uploaded: rust panel above the resume list, same redact-phone-and-email advice as the upload modal.
-- [ ] **Mobile body weight**: open the site at 375px width, body copy should read substantial (not "delicate"). Inter Tight 500.
-
----
-
-## 5. Maintenance (non-urgent, real deadlines)
+## 4. Maintenance (non-urgent, real deadlines)
 
 - [ ] **GitHub Actions Node 20 → 24 migration.** All 6 workflows currently pin `actions/checkout@v4`, `actions/setup-node@v4`, and `pnpm/action-setup@v4`, which run on Node 20. GitHub forces Node 24 default on **2026-06-02** and removes Node 20 entirely on **2026-09-16**. Bump action versions to `@v5` (or later, when stable) for all three before September. One-line change per action per workflow; no code changes.
 - [ ] **Cloudinary headshot orphan cleanup.** Each profile-photo upload creates a new asset (auto-generated public_id). When a user replaces their headshot, the old asset stays around indefinitely. Currently negligible (Free tier is 25 GB, headshots ~200KB; would need 100k+ orphans to matter), but worth a periodic-audit script eventually. Build `scripts/cleanup-orphan-headshots.mjs` that walks Cloudinary's `headshots/` folder, compares to currently-referenced URLs across `profiles`, `pending_submissions`, and parsed-out URLs in `site_content.body_markdown`, and deletes anything not referenced. Run manually so the operator can review before destructive action.
 
 ---
 
-## 6. Parking lot ("Maybe later")
+## 5. Parking lot ("Maybe later")
 
 Discussed and parked; revisit if real usage surfaces them.
 
