@@ -146,7 +146,7 @@ export const actions: Actions = {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Valid email required.";
     }
-    if (disciplines.length === 0) errors.disciplines = "Choose at least one.";
+    if (disciplines.length === 0) errors.disciplines = "Choose at least one discipline.";
     if (!area) errors.area = "Choose an area.";
 
     let ageMin: number | null = null;

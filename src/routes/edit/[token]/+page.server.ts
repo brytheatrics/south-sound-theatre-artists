@@ -190,7 +190,7 @@ export const actions: Actions = {
     } else if (!headshotConsent) {
       errors.headshot_consent = "Confirm rights to use the image.";
     }
-    if (disciplines.length === 0) errors.disciplines = "Choose at least one.";
+    if (disciplines.length === 0) errors.disciplines = "Choose at least one discipline.";
     if (!area) errors.area = "Choose an area.";
 
     let ageMin: number | null = null;
