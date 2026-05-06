@@ -87,10 +87,6 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 - [ ] **ManeStage**: described as Sumner originally, actual address is Puyallup. Description corrected; `area_id` already correct (South Pierce).
 - [ ] **Northwest Center Theatre — likely defunct or renamed.** Wix URL is empty/dormant. There's a separate active org named "Northwest Theatre Lab" (nwtheatrelab.com) that may be the rebrand. Worth asking around before including in /theatres.
 
-### Submit-flow copy
-- [ ] **Submit dropdown copy** in `Nav.svelte` (`submitOptions`): "Get listed in the artist directory" / "Auditions, designer + crew calls, talent opportunities" / "Add an upcoming show to the calendar." Tweak if any feel off.
-- [ ] **Minor profile copy.** "◐ Parent / guardian managed profile" pill on public profile, "Sara is under 18, so messages route to..." contact-form notice (in `src/routes/artists/[slug]/+page.svelte`). And the toggle copy on `/submit` (in `src/routes/submit/+page.svelte`).
-
 ### Three new bulk-imported drafts (2026-05-06)
 - [ ] **Hester Elwell, JoJo Flores, Thomas Morisada** — imported as hidden drafts with no area set. Open `/admin/profiles?published=false`, set `geographic_area`, flip `published` (or leave for the artist to fill in via their magic-link).
 
