@@ -709,7 +709,7 @@
     margin: 0;
   }
   .req {
-    color: var(--error);
+    color: var(--accent);
     font-style: normal;
     font-family: var(--font-body);
     font-size: 1.6em;
