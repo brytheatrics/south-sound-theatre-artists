@@ -13,6 +13,7 @@
 
 import { createHash } from "node:crypto";
 import { RESEND_API_KEY, RESEND_FROM_EMAIL } from "$env/static/private";
+import { env as privateEnv } from "$env/dynamic/private";
 import { supabaseAdmin } from "./supabase";
 import { renderMarkdown } from "../util/markdown";
 
@@ -67,13 +68,34 @@ export async function sendEmail({
   // Pull and render the template
   const { data: tmpl, error: tmplErr } = await supabaseAdmin
     .from("email_templates")
-    .select("subject, body_markdown")
+    .select("subject, body_markdown, audience")
     .eq("slug", templateSlug)
     .maybeSingle();
 
   if (tmplErr || !tmpl) {
     console.error(`email template not found: ${templateSlug}`, tmplErr);
     return { ok: false, reason: "template_not_found" };
+  }
+
+  // Pre-launch / quiet-period kill switch: when EMAIL_PAUSE_COMMUNITY=true
+  // is set in env, all audience='community' templates short-circuit
+  // BEFORE Resend is hit. Admin-bound templates (2FA codes, daily
+  // digest, volume alert) still send so Lexi can keep logging in.
+  // Pauses are logged to email_log with status='paused' so admin can
+  // audit what would have gone out. Flip the env var off when the
+  // site is ready for real subscriber traffic.
+  if (
+    privateEnv.EMAIL_PAUSE_COMMUNITY === "true" &&
+    tmpl.audience === "community"
+  ) {
+    const recipientHash = createHash("sha256").update(recipient).digest("hex");
+    await supabaseAdmin.from("email_log").insert({
+      recipient_hash: recipientHash,
+      email_type: templateSlug,
+      subject: substitute(tmpl.subject, vars),
+      status: "paused",
+    });
+    return { ok: true };
   }
 
   // Auto-inject {{signature}} so every template can reference it

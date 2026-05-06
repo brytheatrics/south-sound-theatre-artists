@@ -59,7 +59,12 @@
   const selectedDisciplines = $derived(new Set(disciplineOrder));
   let disciplineOther = $state(v.disciplineOther ?? "");
   let publish = $state(v.publish ?? true);
-  let sendLink = $state(v.sendLink ?? true);
+  // Defaults OFF as a belt-and-suspenders safety against accidental
+  // pre-launch sends. Even with EMAIL_PAUSE_COMMUNITY=true on Netlify,
+  // requiring admin to explicitly tick the box per profile means an
+  // unticked checkbox = no surprise email. Re-tick when actually
+  // ready to mail an artist their edit link.
+  let sendLink = $state(v.sendLink ?? false);
 
   $effect(() => {
     if (!slugTouched && fullName) slug = slugify(fullName);
