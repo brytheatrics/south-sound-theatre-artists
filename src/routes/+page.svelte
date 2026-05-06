@@ -229,10 +229,14 @@
   .lede-body {
     margin: 1.75rem 0 0;
     font-family: var(--font-body);
-    font-size: clamp(18px, 1.65vw, 20px);
-    line-height: 1.55;
+    font-size: clamp(20px, 1.85vw, 24px);
+    line-height: 1.45;
     color: var(--ink-soft);
-    max-width: 60ch;
+    /* Wide enough that the current admin-managed homeBody copy lands
+       on two lines at desktop widths. If admin lengthens the body
+       past ~210 chars it'll wrap to three; that's an acceptable
+       degrade rather than a typography-redline fix. */
+    max-width: 100ch;
   }
   /* Lede-body emphasis is markdown italics, lifted into serif-italic-moss. */
   .lede-body :global(em) {
