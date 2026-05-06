@@ -9,9 +9,11 @@
 //     need an invitation to their own seeded profiles).
 //   - Profiles whose email is the @unknown.ssta.local placeholder used
 //     by the bulk importer when no real address was supplied.
-//   - Profiles that already have an unused, unexpired magic-link token
-//     created in the past 30 days (so re-runs are safe and don't email
-//     someone twice).
+//   - Profiles where an admin_invitation email has already gone out in
+//     the past 30 days (re-run-safe; doesn't email someone twice).
+//     Note we check email_log for actual sends, not magic_link_tokens
+//     for unused tokens - the bulk importer mints tokens up-front for
+//     mail-merge, so those exist for everyone but no email's gone yet.
 //
 // Flags:
 //   --dry-run       walk the list + print would-send, no token or email
@@ -103,19 +105,23 @@ async function main() {
         continue;
       }
 
-      // Recent-invitation guard: re-runs are safe by default. Looks for
-      // any edit_profile token created in the past N days that's still
-      // unused and unexpired.
+      // Recent-invitation guard: skip if an admin_invitation email has
+      // actually gone out to this artist in the past N days. Checked
+      // via email_log.recipient_hash (sha256 of the lowercased email)
+      // rather than via magic_link_tokens - the bulk importer pre-mints
+      // tokens for mail-merge, so token-existence is not proof of send.
       if (!flags.force) {
+        const recipientHash = createHash("sha256")
+          .update(p.email.toLowerCase())
+          .digest("hex");
         const recentRes = await db.query(
-          `select id from magic_link_tokens
-            where target_id = $1
-              and purpose = 'edit_profile'
-              and used_at is null
-              and expires_at > now()
-              and created_at > now() - interval '${RECENT_INVITE_DAYS} days'
+          `select id from email_log
+            where recipient_hash = $1
+              and email_type = 'admin_invitation'
+              and status = 'sent'
+              and sent_at > now() - interval '${RECENT_INVITE_DAYS} days'
             limit 1`,
-          [p.id],
+          [recipientHash],
         );
         if (recentRes.rowCount && recentRes.rowCount > 0) {
           alreadyInvited++;
