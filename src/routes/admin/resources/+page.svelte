@@ -3,27 +3,17 @@
   let { data, form } = $props();
   let busy = $state<string | null>(null);
 
-  // Group resources by category for the listing - mirrors what the
-  // public page does, makes it easy to spot which category an entry
-  // belongs to. A resource tagged with multiple categories appears in
-  // each one. The admin list dedupe-via-id-on-render isn't a problem
-  // because grouped sections are rendered separately.
+  // Flat list, sorted by sort_order. Each resource appears once even if
+  // it's tagged with multiple categories - the category checkboxes
+  // inside its card show membership. The PUBLIC /resources page groups
+  // by category and shows multi-tagged resources under each section
+  // they belong to; that's the right place for the per-category view.
   /* svelte-ignore state_referenced_locally */
-  const grouped = $derived(() => {
-    const out = data.categories.map((c) => ({
-      ...c,
-      resources: data.resources.filter(
-        (r) => Array.isArray(r.category_ids) && r.category_ids.includes(c.id),
-      ),
-    }));
-    const orphans = data.resources.filter(
-      (r) => !Array.isArray(r.category_ids) || r.category_ids.length === 0,
-    );
-    if (orphans.length > 0) {
-      out.push({ id: "_orphans", name: "Uncategorized", description: null, sort_order: 999, resources: orphans });
-    }
-    return out;
-  });
+  const sortedResources = $derived(
+    [...data.resources].sort(
+      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+    ),
+  );
 </script>
 
 <svelte:head><title>Resources - SSTA admin</title><meta name="robots" content="noindex" /></svelte:head>
@@ -79,51 +69,46 @@
 </section>
 
 <section class="block">
-  <h2 class="block-title">Existing</h2>
-  {#each grouped() as g (g.id)}
-    <div class="group">
-      <div class="group-head">
-        <h3 class="group-title">{g.name}</h3>
-        <span class="muted">{g.resources.length} item{g.resources.length === 1 ? "" : "s"}</span>
+  <div class="block-head">
+    <h2 class="block-title">Existing</h2>
+    <span class="muted">{sortedResources.length} item{sortedResources.length === 1 ? "" : "s"}</span>
+  </div>
+  {#each sortedResources as r (r.id)}
+    <form method="POST" action="?/upsertResource" class="card row-card" use:enhance={() => { busy = r.id; return async ({ update }) => { await update({ reset: false }); busy = null; }; }}>
+      <input type="hidden" name="id" value={r.id} />
+      <div class="row two-col">
+        <label class="field"><span>Title</span><input name="title" type="text" value={r.title} required /></label>
+        <label class="field"><span>URL</span><input name="url" type="url" value={r.url} required /></label>
       </div>
-      {#each g.resources as r (r.id)}
-        <form method="POST" action="?/upsertResource" class="card row-card" use:enhance={() => { busy = r.id; return async ({ update }) => { await update({ reset: false }); busy = null; }; }}>
-          <input type="hidden" name="id" value={r.id} />
-          <div class="row two-col">
-            <label class="field"><span>Title</span><input name="title" type="text" value={r.title} required /></label>
-            <label class="field"><span>URL</span><input name="url" type="url" value={r.url} required /></label>
-          </div>
-          <fieldset class="cat-fieldset">
-            <legend>Categories</legend>
-            <div class="cat-chips">
-              {#each data.categories as c (c.id)}
-                <label class="cat-chip">
-                  <input
-                    type="checkbox"
-                    name="category_id"
-                    value={c.id}
-                    checked={Array.isArray(r.category_ids) && r.category_ids.includes(c.id)}
-                  />
-                  <span>{c.name}</span>
-                </label>
-              {/each}
-            </div>
-          </fieldset>
-          <label class="field">
-            <span>Description</span>
-            <textarea name="description" rows="2">{r.description ?? ""}</textarea>
-          </label>
-          <div class="row">
-            <label class="field"><span>Sort</span><input name="sort_order" type="number" value={r.sort_order} /></label>
-            <label class="check"><input type="checkbox" name="published" checked={r.published} /><span>Published</span></label>
-          </div>
-          <div class="actions">
-            <button type="submit" class="bt bt-pri" disabled={busy === r.id}>{busy === r.id ? "Saving..." : "Save"}</button>
-            <button type="submit" formaction="?/removeResource" class="bt-link warn">Delete</button>
-          </div>
-        </form>
-      {/each}
-    </div>
+      <fieldset class="cat-fieldset">
+        <legend>Categories</legend>
+        <div class="cat-chips">
+          {#each data.categories as c (c.id)}
+            <label class="cat-chip">
+              <input
+                type="checkbox"
+                name="category_id"
+                value={c.id}
+                checked={Array.isArray(r.category_ids) && r.category_ids.includes(c.id)}
+              />
+              <span>{c.name}</span>
+            </label>
+          {/each}
+        </div>
+      </fieldset>
+      <label class="field">
+        <span>Description</span>
+        <textarea name="description" rows="2">{r.description ?? ""}</textarea>
+      </label>
+      <div class="row">
+        <label class="field"><span>Sort</span><input name="sort_order" type="number" value={r.sort_order} /></label>
+        <label class="check"><input type="checkbox" name="published" checked={r.published} /><span>Published</span></label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="bt bt-pri" disabled={busy === r.id}>{busy === r.id ? "Saving..." : "Save"}</button>
+        <button type="submit" formaction="?/removeResource" class="bt-link warn">Delete</button>
+      </div>
+    </form>
   {/each}
 </section>
 
@@ -172,14 +157,8 @@
     font-weight: 500;
     margin: 0 0 0.875rem;
   }
-  .group { margin-bottom: 1.25rem; }
-  .group-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 0.5rem; }
-  .group-title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
+  .block-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 0.875rem; }
+  .block-head .block-title { margin: 0; }
   .muted { color: var(--muted); font-size: 13px; }
   .card { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius-lg); margin-bottom: 0.75rem; }
   .row-card { background: var(--bg-raised); }
