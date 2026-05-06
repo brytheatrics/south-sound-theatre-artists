@@ -45,7 +45,7 @@
       </a>
       <a
         class="ft-social"
-        href="https://facebook.com/southsoundtheatreartists"
+        href="https://www.facebook.com/profile.php?id=61568260910909"
         target="_blank"
         rel="noopener"
         aria-label="South Sound Theatre Artists on Facebook"
