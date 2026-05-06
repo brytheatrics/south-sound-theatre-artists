@@ -326,7 +326,11 @@ a:hover {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius);
-  margin: 1rem 0;
+  /* No vertical margin: an image alone in a <p> already inherits the
+     paragraph's margin: 1rem 0, and inline images in a mixed paragraph
+     (e.g. social icons separated by <br>) shouldn't force gaps the
+     author didn't ask for. */
+  vertical-align: middle;
 }
 
 /* Compact prose - smaller scale for the admin live preview pane.

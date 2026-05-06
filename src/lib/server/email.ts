@@ -193,10 +193,15 @@ export function wrapHtmlEmail(bodyHtml: string): string {
   // sensible inline size. Keeps a logo / inline screenshot from blowing
   // out the 600px column on Gmail, where unconstrained imgs render at
   // intrinsic resolution.
+  // Inline images by default so multiple images on one line (e.g. a
+  // row of social icons separated by <br>) don't get forced into
+  // block-level rendering with 1rem of top+bottom margin each. Hero
+  // images get their visual breathing room from the surrounding <p>'s
+  // own margin rather than from inline-margin on the img.
   const safeBody = bodyHtml.replace(
     /<img\s+([^>]*?)\/?>/g,
     (_, attrs) =>
-      `<img ${attrs} style="display:block;max-width:100%;height:auto;border:0;margin:1rem 0" />`,
+      `<img ${attrs} style="display:inline-block;max-width:100%;height:auto;border:0;vertical-align:middle" />`,
   );
 
   return `<!doctype html>
