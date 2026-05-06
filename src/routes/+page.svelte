@@ -185,16 +185,15 @@
      while letting section borders and the marquee stay full bleed.
      Trick: override --page-pad-x so its calc grows past the original
      clamp once the viewport exceeds the cap. */
+  /* All sections share the same 1280px content column on wide screens
+     so they line up flush vertically. The block stays centered on
+     wide viewports (the calc() padding eats the extra width on each
+     side); content inside flows left. */
   .lede,
   .doors,
+  .spotlight,
   .recent {
     --page-pad-x: max(clamp(20px, 4vw, 48px), calc((100vw - 1280px) / 2));
-  }
-  /* Spotlight is a photo + body grid; its useful content (photo 240px +
-     gap + ~56ch bio) caps around 1000px. Tighten the column so the
-     composition reads centered instead of hugging the left edge. */
-  .spotlight {
-    --page-pad-x: max(clamp(20px, 4vw, 48px), calc((100vw - 1000px) / 2));
   }
   .doors {
     padding-left: var(--page-pad-x);
