@@ -126,8 +126,9 @@ a:hover {
 
 /* ===================================================================
  * Filter chip — used on /calendar, /directory, /callboard, and any
- * future filter strip. Off state is paper-tone, on state is moss
- * accent. Per-page styles can override (e.g. role chips on callboard
+ * future filter strip. Off state is paper-tone, on state is the
+ * accent (currently #780606). Per-page styles can override (e.g.
+ * role chips on callboard
  * keep .chip-sm for size variation), but the off / hover / on states
  * are shared so all filter strips read the same visual language.
  * =================================================================*/
@@ -235,7 +236,7 @@ a:hover {
   margin: 0.5rem 0 1.5rem;
 }
 /* Editorial italic accent - *word* in a heading renders as DM Serif
-   Display italic in moss. */
+   Display italic in the accent color. */
 .prose h1 em,
 .prose h2 em,
 .prose h3 em {
@@ -303,7 +304,7 @@ a:hover {
   color: var(--muted);
   margin-bottom: 1rem;
 }
-/* Body italic - quieter moss accent. */
+/* Body italic - quieter accent. */
 .prose p em {
   font-family: var(--font-accent);
   font-style: italic;

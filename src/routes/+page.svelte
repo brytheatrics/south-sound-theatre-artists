@@ -62,7 +62,7 @@
   </p>
 </section>
 
-<!-- DOORS: three primary destinations. Italic moss numerals like act
+<!-- DOORS: three primary destinations. Italic accent numerals like act
      numbers in a script; live counts read as reportage, not metrics. -->
 <nav class="doors" aria-label="Main sections">
   <a class="door" href="/directory">
@@ -171,7 +171,7 @@
 {/if}
 
 <style>
-  /* Shared "serif-italic-moss" treatment used across sections.
+  /* Shared serif-italic-accent treatment used across sections.
      Mirrors the .serif-it pattern from /directory etc. */
   .serif-it {
     font-family: var(--font-accent);
@@ -238,7 +238,7 @@
        acceptable degrade. */
     max-width: 80ch;
   }
-  /* Lede-body emphasis is markdown italics, lifted into serif-italic-moss. */
+  /* Lede-body emphasis is markdown italics, lifted into serif-italic-accent. */
   .lede-body :global(em) {
     font-family: var(--font-accent);
     font-style: italic;

@@ -57,7 +57,7 @@
     { value: "paper-2", label: "Cream", hex: "#ebe5d3" },
     { value: "bg-raised", label: "White", hex: "#ffffff" },
     { value: "ink", label: "Ink", hex: "#0e0d0c" },
-    { value: "accent", label: "Moss", hex: "#3b6f4a" },
+    { value: "accent", label: "Crimson", hex: "#780606" },
   ];
 
   async function uploadLogo(file: File) {
@@ -287,7 +287,7 @@
     <legend class="label">Logo background</legend>
     <p class="hint">
       Pick a tile colour that makes the logo readable. White logos need
-      a dark tile (Ink or Moss); black or coloured logos usually look
+      a dark tile (Ink or Crimson); black or coloured logos usually look
       best on Paper, Cream, or White.
     </p>
     <div class="swatches">
