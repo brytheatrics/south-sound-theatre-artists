@@ -202,16 +202,19 @@
   }
 
   /* LEDE -------------------------------------------------------- */
+  /* Section is centered on wide screens via the --page-pad-x trick at
+     the top of this block; content INSIDE is left-aligned, not text-
+     centered. The 20ch / 60ch caps still apply but they hug the left
+     padding edge instead of being centered within the block. */
   .lede {
     padding: clamp(2.5rem, 5vw, 4rem) var(--page-pad-x) clamp(2rem, 3.5vw, 3rem);
     border-bottom: 1px solid var(--rule);
-    text-align: center;
   }
   .lede .eyebrow {
     margin: 0 0 1.5rem;
   }
   .lede-h1 {
-    margin: 0 auto;
+    margin: 0;
     font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.03em;
@@ -225,7 +228,7 @@
     white-space: nowrap;
   }
   .lede-body {
-    margin: 1.75rem auto 0;
+    margin: 1.75rem 0 0;
     font-family: var(--font-body);
     font-size: clamp(18px, 1.65vw, 20px);
     line-height: 1.55;
@@ -253,7 +256,6 @@
     gap: 1.25rem;
     align-items: baseline;
     flex-wrap: wrap;
-    justify-content: center;
   }
   .lede-link {
     font-family: var(--font-mono);
