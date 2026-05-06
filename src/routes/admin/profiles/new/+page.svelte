@@ -26,7 +26,6 @@
     headshotUrl?: string;
     headshotConsent?: boolean;
     area?: string;
-    areaOther?: string;
     city?: string;
     resumes?: Array<{ label: string; url: string }>;
     resumeData?: ResumeData;
@@ -45,7 +44,6 @@
   let headshotUrl = $state(v.headshotUrl ?? "");
   // headshotConsent removed - auto-set server-side when headshotUrl is present.
   let area = $state(v.area ?? "");
-  let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
   let resumes = $state<Array<{ label: string; url: string }>>(v.resumes ?? []);
   let resumeData = $state<ResumeData>(
@@ -225,12 +223,6 @@
         {#each data.areas as a}<option value={a.name}>{a.name}{a.description ? ` - ${a.description}` : ""}</option>{/each}
       </select>
     </label>
-    {#if area === "Other"}
-      <label class="field">
-        <span>Where based? (optional)</span>
-        <input name="area_other" type="text" bind:value={areaOther} placeholder="Seattle, Bellingham, etc - leave blank for plain Other" />
-      </label>
-    {/if}
     <label class="field">
       <span>City (optional)</span>
       <input name="city" type="text" bind:value={city} placeholder="Lakewood" />

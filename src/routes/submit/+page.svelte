@@ -28,7 +28,6 @@
     guardianEmail?: string;
     guardianName?: string;
     area?: string;
-    areaOther?: string;
     city?: string;
     playableAgeMin?: string;
     playableAgeMax?: string;
@@ -66,7 +65,6 @@
   let guardianEmail = $state(v.guardianEmail ?? "");
   let guardianName = $state(v.guardianName ?? "");
   let area = $state(v.area ?? "");
-  let areaOther = $state(v.areaOther ?? "");
   let city = $state(v.city ?? "");
   let playableAgeMin = $state(v.playableAgeMin ?? "");
   let playableAgeMax = $state(v.playableAgeMax ?? "");
@@ -429,17 +427,6 @@
         {#if errors.area}<span class="error">{errors.area}</span>{/if}
       </label>
 
-      {#if area === "Other"}
-        <label class="field">
-          <span>Where are you based? (optional)</span>
-          <input
-            name="area_other"
-            type="text"
-            bind:value={areaOther}
-            placeholder="Seattle, Bellingham, etc - leave blank for plain Other"
-          />
-        </label>
-      {/if}
 
       <label class="field">
         <span>City</span>

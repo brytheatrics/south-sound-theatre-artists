@@ -82,7 +82,6 @@ export const actions: Actions = {
     // need for an extra checkbox. Mirrors the admin profile-edit save.
     const headshotConsent = !!headshotUrl;
     const area = ((data.get("area") as string) ?? "").trim();
-    const areaOther = ((data.get("area_other") as string) ?? "").trim();
     const city = ((data.get("city") as string) ?? "").trim();
     const resumesRaw = (data.get("resumes") as string) ?? "";
     const resumes = parseResumesJson(resumesRaw);
@@ -113,7 +112,7 @@ export const actions: Actions = {
         errors,
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
+          area, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }
@@ -137,7 +136,7 @@ export const actions: Actions = {
         slugCollision: { requested: slug, suggestions },
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
+          area, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }
@@ -147,7 +146,7 @@ export const actions: Actions = {
     if (disciplineOther && finalDisciplines.includes("Other")) {
       finalDisciplines[finalDisciplines.indexOf("Other")] = disciplineOther;
     }
-    const finalArea = area === "Other" && areaOther ? areaOther : area || null;
+    const finalArea = area || null;
 
     const { data: profile, error: insertErr } = await supabaseAdmin
       .from("profiles")
@@ -177,7 +176,7 @@ export const actions: Actions = {
         errors: { _form: "Could not create profile." },
         values: {
           fullName, email, slug, pronouns, bio, headshotUrl, headshotConsent,
-          area, areaOther, city, disciplines, disciplineOther, publish, sendLink,
+          area, city, disciplines, disciplineOther, publish, sendLink,
         },
       });
     }

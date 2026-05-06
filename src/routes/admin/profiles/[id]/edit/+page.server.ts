@@ -110,7 +110,6 @@ export const actions: Actions = {
     const bio = ((data.get("bio") as string) ?? "").trim();
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
     const area = ((data.get("area") as string) ?? "").trim();
-    const areaOther = ((data.get("area_other") as string) ?? "").trim();
     const city = ((data.get("city") as string) ?? "").trim();
     const playableAgeMin = ((data.get("playable_age_min") as string) ?? "").trim();
     const playableAgeMax = ((data.get("playable_age_max") as string) ?? "").trim();
@@ -194,7 +193,7 @@ export const actions: Actions = {
     }
     const finalEthnicities = [...ethnicities];
     if (ethnicityOther) finalEthnicities.push(ethnicityOther);
-    const finalArea = area === "Other" && areaOther ? areaOther : area;
+    const finalArea = area;
     const languages = Array.from(
       new Set(
         languagesStr

@@ -24,15 +24,13 @@
   let headshotUrl = $state(p.headshot_url ?? "");
   // svelte-ignore state_referenced_locally
   const areaNames = data.areas.map((a) => a.name);
-  // Empty area -> empty select (forces a real pick). Canonical area ->
-  // pre-select that option. Non-canonical string -> Other + custom text.
+  // Empty or non-canonical area -> empty select (forces a real pick on
+  // save). Canonical area -> pre-select that option. The non-canonical
+  // case only happens for legacy rows from before we removed the
+  // free-text "Specify area" input.
   // svelte-ignore state_referenced_locally
   let area = $state(
-    !p.geographic_area ? "" : areaNames.includes(p.geographic_area) ? p.geographic_area : "Other",
-  );
-  // svelte-ignore state_referenced_locally
-  let areaOther = $state(
-    !p.geographic_area || areaNames.includes(p.geographic_area) ? "" : p.geographic_area,
+    p.geographic_area && areaNames.includes(p.geographic_area) ? p.geographic_area : "",
   );
   let city = $state(p.city ?? "");
   let resumes = $state<Array<{ label: string; url: string }>>(
@@ -350,12 +348,6 @@
       {/each}
     </div>
     {#if errors.area}<span class="error">{errors.area}</span>{/if}
-    {#if area === "Other"}
-      <label class="field">
-        <span>Where based? (optional)</span>
-        <input name="area_other" type="text" bind:value={areaOther} placeholder="Seattle, Bellingham, etc - leave blank for plain Other" />
-      </label>
-    {/if}
 
     <label class="field">
       <span>City</span>

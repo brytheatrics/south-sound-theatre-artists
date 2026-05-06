@@ -197,7 +197,12 @@ async function renameRow(
     .eq("id", id)
     .maybeSingle();
   if (!row) return { error: "Not found." };
-  if (row.name === SENTINEL_OTHER) {
+  // Areas: "Other" is renameable - it's just a regular row now (the
+  // free-text override input was removed; people who pick Other type
+  // their location into the City field instead).
+  // Unions / ethnicities: "Other" is still the picker's free-text key,
+  // so renaming it would silently break those flows.
+  if (table !== "areas" && row.name === SENTINEL_OTHER) {
     return {
       error: `"${SENTINEL_OTHER}" is reserved for the free-text fallback. Don't rename it.`,
     };

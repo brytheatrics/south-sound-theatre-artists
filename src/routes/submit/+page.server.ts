@@ -75,7 +75,6 @@ type Values = {
   guardianEmail: string;
   guardianName: string;
   area: string;
-  areaOther: string;
   city: string;
   playableAgeMin: string;
   playableAgeMax: string;
@@ -145,7 +144,6 @@ export const actions: Actions = {
       guardianEmail: ((data.get("guardian_email") as string) ?? "").trim().toLowerCase(),
       guardianName: ((data.get("guardian_name") as string) ?? "").trim(),
       area: ((data.get("area") as string) ?? "").trim(),
-      areaOther: ((data.get("area_other") as string) ?? "").trim(),
       city: ((data.get("city") as string) ?? "").trim(),
       playableAgeMin: ((data.get("playable_age_min") as string) ?? "").trim(),
       playableAgeMax: ((data.get("playable_age_max") as string) ?? "").trim(),
@@ -283,10 +281,7 @@ export const actions: Actions = {
     const ethnicities = [...values.ethnicities];
     if (values.ethnicityOther) ethnicities.push(values.ethnicityOther);
 
-    const area =
-      values.area === "Other" && values.areaOther
-        ? values.areaOther
-        : values.area;
+    const area = values.area;
 
     // Languages: comma-separated → trimmed, deduped array.
     const languages = Array.from(
