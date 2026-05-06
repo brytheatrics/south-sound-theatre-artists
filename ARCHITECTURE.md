@@ -1,0 +1,183 @@
+# Architecture
+
+Schema, auth model, conventions. Stable reference - if a section keeps drifting, it belongs in [TODO.md](TODO.md) instead.
+
+---
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Frontend | SvelteKit (Svelte 5 runes) + `adapter-netlify` |
+| Hosting | Netlify Free |
+| Database | Supabase Free + GitHub Actions keepalive cron + UptimeRobot |
+| Image / PDF storage | Cloudinary Free |
+| Transactional email | Resend Free (SPF / DKIM / DMARC verified) |
+| Admin email forwarding | Cloudflare Email Routing |
+| Donations | Ko-fi embed |
+| Backups | Weekly GitHub Actions JSON dump → private repo |
+| Monitoring | UptimeRobot Free + Resend volume alerts |
+
+Hard constraint: **zero ongoing cost.** Supabase Free pause risk is mitigated by the keepalive cron, not by upgrading.
+
+Free-tier ceilings: Resend 3000/mo, Supabase 500MB DB + 7-day pause, Cloudinary 25GB storage / 25GB bandwidth, Netlify 125k function invocations/mo + 300 build minutes/mo.
+
+---
+
+## Auth model
+
+No traditional accounts. Three access tiers:
+
+- **Browse** (directory, profiles, callboard, all public pages): zero auth.
+- **Submit** (new profile, callboard post, report, contact form): zero auth + one-time email verification before the submission appears in Lexi's queue. Filters bots automatically.
+- **Edit own profile / change notification preferences**: magic link to artist's email. Tokens are **single-use, 24-hour expiry, invalidated on use**.
+- **Admin (Lexi)**: password (Netlify env var) + magic-link 2FA (6-digit code to admin email) + 30-day session cookie + server-side session token (revocable). 5 attempts per IP per 15 minutes on the password endpoint, then lockout. "Trust this device for 30 days" cookie skips the 2FA round-trip on subsequent logins (mig 066).
+
+---
+
+## Schema (key tables)
+
+| Table | Purpose |
+|---|---|
+| `profiles` | Live artist profiles. v1.1 added `last_name` (generated, indexed), `trusted` (bool), `city` (text), `resumes` (jsonb of `{label, url}`), `resume_data` (jsonb of credits/training/skills), `mentorship_offering` + `mentorship_seeking` (text arrays). v1.2 minor flow added `is_minor`, `guardian_email`, `guardian_name` (mig 054). |
+| `pending_submissions` | New profiles awaiting email verify + admin approval. Mirrors v1.1 columns. |
+| `flagged_edits` | Untrusted artists' major edits queue here as one row per submission with `proposed_changes jsonb`. Admin reviews at `/admin/flagged-edits`. |
+| `magic_link_tokens` | Single-use edit tokens (24h) and admin 2FA codes (10 min). Stale-cleanup cron also issues 30-day edit tokens when pinging long-quiet profiles. |
+| `email_log` | Every Resend send: hashed recipient + type + sent_at. Drives the volume alert. |
+| `email_blocklist` | Admin-curated abusive sender emails. |
+| `reports` | User-submitted reports on profiles / posts. |
+| `featured_profiles` | Spotlight rotation selection. |
+| `site_content` | Editable copy keyed by slug (homepage, about, etc.). |
+| `email_templates` | Editable email body templates with variable placeholders. |
+| `email_signature` | Single source-of-truth signature row injected into every audience='community' template (mig 067). |
+| `announcement_banner` | Optional site-wide banner with date range. |
+| `disciplines` + `discipline_categories` | Editable list (~140 entries, 13 categories). Many-to-one. |
+| `areas` | Region chips (`Tacoma / Pierce County`, `South Pierce`, `Olympia / Thurston County`, `South King County`, `Gig Harbor / Kitsap`, `Other`) with `description` for hover tooltips. Realigned to v2.x audit taxonomy in mig 045. |
+| `unions` + `ethnicities` | Reference lists with descriptions. Renamed-cascade to profile arrays. |
+| `admin_sessions` + `admin_login_attempts` + `admin_trusted_devices` | Login + rate-limit + remember-this-device. |
+| `productions` | Shows extracted from approved callboard posts (v1.2). Side-effect of approving audition / production posts in either admin or verified-org auto-publish path. |
+| `callboard_posts` | Audition notices, designer / crew calls, production announcements, general opportunities (v1.2). Email-verify token + status workflow same as `pending_submissions`. |
+| `organizations` | **Single source of truth for theatre orgs (mig 065).** Folds the old `event_sources` + `verified_orgs` into one. `verified=true` orgs skip per-post review on callboard + calendar submits. `productions.organization_id` and `callboard_posts.organization_id` both FK here. |
+| `callboard_subscriptions` | Opt-in weekly digest. `subscriber_email` unique, `disciplines` text[], `post_types` text[], `last_digest_at`, `unsubscribed_at`, per-row `unsubscribe_token` (v1.2). Double-opt-in via `confirmed_at` + `confirmation_token` (mig 069). |
+| `marquee_settings` | Single-row config for homepage scrolling ticker. Cycles callboard posts + calendar productions. Admin-edited at `/admin/marquee` (v1.2 + mig 053). |
+| `resources` + `resource_categories` | Curated link library at `/resources`. Soft-deleted with `deleted_at`. Multi-category tagging via `category_ids` (mig 062 + 063). |
+
+All tables include `created_at`, `updated_at`. Soft-deleted rows have `deleted_at` set; the daily cron hard-deletes rows older than 30 days.
+
+---
+
+## Domain + email infrastructure (live as of 2026-04-29)
+
+- **Domain registrar**: Squarespace (annual renewal). DNS delegated to Cloudflare via custom nameservers.
+- **Cloudflare DNS**: authoritative for `southsoundtheatreartists.org`. Free plan, Email Routing enabled.
+- **Resend domain**: verified against the Cloudflare-managed DNS. Records added via Resend's Cloudflare integration.
+- **Email Routing**: `lexi@` and `hello@` → `southsoundtheatreartists@gmail.com`.
+- **Gmail Send-As**: both addresses configured to send via Resend SMTP (`smtp.resend.com:587`, username `resend`, password is the Resend API key). Outbound passes SPF/DKIM cleanly.
+- **`RESEND_FROM_EMAIL`**: must use `Display Name <email>` format or mail clients show the local-part (e.g. "Hello") as sender. Current value: `South Sound Theatre Artists <hello@southsoundtheatreartists.org>`.
+
+---
+
+## Cron jobs
+
+All under `.github/workflows/`. Shared infrastructure in `scripts/_lib/cron.mjs` (pg client + `sendCronEmail` wrapper that mirrors `lib/server/email.ts`). Each script is a standalone `node scripts/<name>.mjs` for local smoke-tests.
+
+| Workflow | Schedule | Sends? |
+|---|---|---|
+| `keepalive.yml` | every 3 days at 12:00 UTC | no |
+| `admin-daily-digest.yml` | 15:00 UTC daily | only when queue is non-empty |
+| `email-volume-alert.yml` | 16:00 UTC daily | once at 70%, again at 90% |
+| `stale-profile-cleanup.yml` | 17:00 UTC Mondays | one ping per stale profile |
+| `callboard-weekly-digest.yml` | 01:00 UTC Mondays (Sun PT) | per-subscriber, skips empty weeks |
+| `calendar-sync.yml` | 16:00 UTC monthly (1st) | no (writes pending productions) |
+| `backup.yml` | 18:00 UTC Sundays | no email; pushes JSON to a private repo |
+
+---
+
+## Conventions
+
+**Svelte 5 runes only.** `$state()`, `$derived()`, `$effect()`, `$props()`. No stores.
+
+**No em dashes.** Use `-` instead in code, copy, and chat.
+
+**No `window.confirm()`, `alert()`, or `prompt()`.** Use the themed `ConfirmModal` in `$lib/components/ConfirmModal.svelte`.
+
+**Mobile-first.** Theatre people are on their phones constantly. Default to mobile layouts and progressively enhance.
+
+**No copy hardcoded in components.** Any user-visible string (other than UI labels like "Submit") pulls from `site_content` or its own table so Lexi can edit without touching code.
+
+**APIs accept arrays from day one.** Even single-item operations like approve/reject use `{ ids: [...] }` so batch actions can be added later without an API change.
+
+**All emails go through one wrapper** that logs to `email_log` (with hashed recipient + type + sent_at) before calling Resend. Enables the 70% volume alert.
+
+**Soft-delete by default for admin actions.** Rejections and removals go to a 30-day trash before being permanently deleted.
+
+**Markdown + toolbar for admin content editing.** Site copy and email templates are markdown stored in DB tables. Admin sees a toolbar (Bold / Italic / Link / List / Image) above a textarea with live preview alongside. Image button uploads to Cloudinary and inserts markdown syntax.
+
+**ConfirmModal pattern**: button is `type="button"` + `onclick` that captures the surrounding form (or relevant data) into `pendingForm`/`pendingX` state; the modal's `onConfirm` then `requestSubmit()`s the form. Cancel must genuinely cancel — the old `onsubmit={(e) => !confirm(...) && e.preventDefault()}` pattern had a real bug where Svelte's `use:enhance` listener swallowed the `preventDefault`.
+
+**Trust system (Phase A + B).** `profiles.trusted` boolean. Magic-link edits split:
+- **Trusted**: all edits apply directly.
+- **Untrusted**: minor fields (pronouns, area, age, languages, unions, ethnicities, social links, mentorship arrays, city) apply directly; major fields (`full_name`, `bio`, `headshot_url`, `disciplines`, `resumes`, `resume_data`) bundle into a `flagged_edits` row with `proposed_changes jsonb` for admin review at `/admin/flagged-edits`.
+- New approvals default to `trusted=false`. Existing profiles seeded `true` via mig backfill.
+
+**Svelte 5 form-submit timing gotcha.** When a chip/checkbox toggles a `$state` set and immediately calls `formEl.requestSubmit()`, Svelte hasn't re-rendered the hidden inputs yet. The form serialises with the OLD state. Fix: `setTimeout(submitNow, 0)` to defer submit by one tick. Hit on the discipline filter, the sort toggle, and would on any future state→hidden-input→submit dance.
+
+**Mobile admin: table → card layout.** `/admin/profiles` collapses its 7-column table to stacked cards under 720px using `data-label` attrs + CSS. Mirror this for any new admin list. Goal: zero horizontal scroll at 375px.
+
+**URL-state filters with `data-sveltekit-noscroll` + `data-sveltekit-replacestate`.** Toggles preserve scroll and don't pollute browser history. See `/directory` form.
+
+---
+
+## Architecture commitments
+
+These make later phases cheap to add. Bake into v1 even when the immediate need is small:
+
+1. **APIs accept arrays from day one.** `POST /api/admin/approve { ids: [...] }` even when called with one ID.
+2. **Queue items keyed by stable IDs**, with action handlers taking ID parameters (not closures over rendered rows).
+3. **All copy is in the database, not hardcoded.** `site_content`, `email_templates`, `disciplines`, `announcement_banner`, etc. Lexi never needs a code change to update text.
+4. **Markdown rendering is centralized** through one shared component so output is consistent everywhere.
+5. **All emails go through one wrapper** (`sendEmail`) that logs to `email_log` and checks blocklist before calling Resend.
+6. **Soft-delete is the default** for admin actions; hard delete is a separate cron job after 30 days.
+7. **Magic-link tokens are single-use and invalidated on use**, not just on expiry.
+8. **Profile slugs are user-controlled on collision** via a popup at submission, not auto-suffixed.
+
+---
+
+## Admin panel structure
+
+Sidebar order mirrors how Lexi works through the day (review queues → directory → homepage → copy → config). Hairline rules between groups using `--rule`.
+
+1. **Review queue** (Pending / Edit review / Reports / Callboard / Organizations) — badged with attention counts, capped at "99+".
+2. **Directory** (All profiles).
+3. **Homepage curation** (Announcement / Featured / Marquee).
+4. **Site copy** (Site content / Resources / Email templates).
+5. **Config** (Disciplines / Submit-form options / Blocklist).
+
+Editor UX: markdown + toolbar (Bold / Italic / Link / List / Heading / Image-upload), live preview pane alongside. Image button uploads to Cloudinary and inserts the markdown syntax automatically. Email templates show a variable-placeholder sidebar.
+
+---
+
+## Data locations
+
+- **Profiles, callboard, productions, content, blocklist, email log, reports**: Supabase
+- **Headshots, PDF resumes, theatre logos**: Cloudinary
+- **Backups**: weekly GitHub Actions JSON dump to a separate private GitHub repo
+
+---
+
+## Staging vs production
+
+- **Staging**: `https://southsoundtheatreartists.netlify.app` — what Lexi reviews. Auto-deploys on push to `main`.
+- **Production (post-launch)**: same Netlify site, but `southsoundtheatreartists.org` DNS points at it. `PUBLIC_SITE_URL` env flips when DNS does.
+- **Repo is public** on GitHub (sidesteps Netlify's free-tier private-repo contributor limit).
+
+---
+
+## URL normalisation
+
+`lib/util/url.ts` exports `normalizeUrl(s)` that prefixes `https://` on bare-domain URLs. Used at:
+- **Save time**: submit / edit / admin-profile-edit save actions sanitize `website_url`, `facebook_url`, `linkedin_url`, `youtube_url` before writing.
+- **Render time**: artist profile page applies the same shim so old rows with bare domains still link out correctly.
+- **Bulk import**: same logic inlined in the .mjs script.
+
+Without this, a value like `harryturpin.com` gets used as a relative URL and clicking it goes to `/artists/harryturpin.com`.

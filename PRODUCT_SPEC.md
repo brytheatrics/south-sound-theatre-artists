@@ -1,45 +1,6 @@
 # South Sound Theatre Artists Directory — Product Spec
 
-This document describes the full scope of a community website for South Sound theatre artists. It captures the original product vision; for current implementation state see the **Implementation status** block immediately below, plus `BUILD_PLAN.md` and `TEST_CHECKLIST.md`.
-
----
-
-## Implementation status (as of 2026-04-29)
-
-**v1, v1.1, v1.2: all shipped.** Full feature set is live. See BUILD_PLAN.md for the per-phase breakdown.
-
-**Domain + email pipeline: LIVE.** Domain `southsoundtheatreartists.org` is registered at Squarespace with DNS delegated to Cloudflare. Resend domain-verified. Cloudflare Email Routing forwards `lexi@` and `hello@` to `southsoundtheatreartists@gmail.com`. Gmail Send-As routes outbound via Resend SMTP (clean SPF/DKIM, no "via gmail.com" suffix). Contact form, magic-link emails, admin notifications all deliver to real recipients now (was 403-blocked in Resend sandbox before today).
-
-**Staging deploy: LIVE on Netlify.** `https://southsoundtheatreartists.netlify.app` — Lexi will review here before the .org DNS gets pointed at Netlify for public launch.
-
-**Bulk import: complete.** 27 artist profiles seeded via `scripts/bulk-import-profiles.mjs` from a folder of emailed-in submissions. Each has a 30-day single-use magic-link edit URL parked in the importer's `_results.csv` for mail-merge-out at launch.
-
-**Polish layer (2026-04-29 evening):** another iteration on the artist's first-claim experience, plus admin-side reference-data tooling. Highlights — see BUILD_PLAN.md for the full list:
-- **Complete-to-publish gate.** Bulk-imported profiles missing required info ship unpublished; `/edit/[token]` shows a banner with exactly what to fill in; saving publishes them automatically.
-- **Headshot/photo required** (relabeled from "Headshot" so people don't think it has to be professional).
-- **`/admin/submit-form`** — single hub for the picker reference data (areas, unions, ethnicities) that drives the artist submit form, with cascade-rename across existing profiles.
-- **Mentorship dots** on directory headshots — moss for "looking to learn", rust for "open to mentoring", custom-styled tooltip lists the disciplines.
-- **Discipline display order** — artists control which disciplines appear first on their card via up/down arrows.
-- **Awaiting email verification panel** on `/admin` so submissions stuck at `pending_email` aren't silently lost; resend button mints a fresh token + re-fires the verification email.
-
-**Cron jobs: 5 of 5 shipped.** Supabase keepalive, daily admin digest (only emails when something is queued), email volume alert at 70% / 90% of the Resend cap, weekly callboard digest, weekly Supabase JSON backup pushed to a separate private repo, stale profile cleanup (18 month "still active?" ping plus 30-day soft-delete trash sweep). All as GitHub Actions; see `.github/workflows/`. Currently no-op on production until GitHub Actions secrets are set.
-
-**Outstanding before launching the public domain:**
-- Lexi's review of the staging site (gather edits, fix typos, polish copy)
-- Final DNS flip in Cloudflare: A records from Squarespace IPs to Netlify's load-balancer IPs, then `PUBLIC_SITE_URL` env update + clear-cache redeploy
-- GitHub Actions secrets for the cron workflows
-- `ADMIN_PASSWORD` rotation for production
-- Mail-merge magic-link URLs to invite the 27 imported artists to claim their profiles
-- Lexi's Ko-fi page onboarding (Stripe / PayPal connection so the embed widget has a working donation form to render)
-- `ADMIN_GUIDE.md` (deferred until close to launch so Lexi can drive notes)
-- Backup repo + PAT (the cron lives in the workflow file but no-ops cleanly until secrets are set)
-
-**Known minor item:** Ko-fi donation widget on `/support-us` shows on localhost but the entire panel is currently missing on the deployed staging - traceable to an adapter-netlify env-var quirk that will resolve on the next clean rebuild. Tracking in BUILD_PLAN's Outstanding list.
-
-**See also:**
-- `BUILD_PLAN.md` for phased roadmap, current schema additions, and the "Maybe later" parking lot.
-- `TEST_CHECKLIST.md` for what's been verified and how.
-- `CLAUDE.md` for the canonical codebase conventions.
+Original product vision. Reference only. For current state see [HISTORY.md](HISTORY.md) (what shipped) and [TODO.md](TODO.md) (what's left).
 
 ---
 
