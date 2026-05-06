@@ -79,7 +79,6 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 
 ### Theatre directory copy
 - [ ] **/theatres descriptions** for all 26 orgs. Generated facts-only blurbs from each org's site. Voice is Claude's, not Lexi's. Edit in `scripts/seed-theatre-metadata.mjs` then re-run `node scripts/seed-theatre-metadata.mjs --overwrite`.
-- [ ] **`organizations` notes for 26 orgs.** All in operator voice, but worth a scan in case any wording feels off. Render on each org row in `/admin/organizations`. Source script is still named `scripts/seed-event-sources.mjs` (pre-mig-065 name); writes to `organizations.notes` after the consolidation.
 
 ### Theatre data flags (verify, then check off)
 - [ ] **Bremerton Community Theatre URL changed.** Old `bremertoncommunitytheatre.org` redirects to `bctshows.com`. Updated `homepage_url`, kept `source_url` (still valid for arts-people scrape). Confirm cron picks them up next sync.
