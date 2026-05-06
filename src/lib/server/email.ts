@@ -198,10 +198,37 @@ export function wrapHtmlEmail(bodyHtml: string): string {
   // block-level rendering with 1rem of top+bottom margin each. Hero
   // images get their visual breathing room from the surrounding <p>'s
   // own margin rather than from inline-margin on the img.
+  // Retina sharpening: when the img src is a Cloudinary URL with a
+  // `w_NNN` transform, double the delivered width (`w_NNN*2`) and
+  // pin display via a `width="NNN"` HTML attribute. Browsers + email
+  // clients render the higher-res source at the smaller logical size,
+  // so the image stays sharp on 2x displays (most phones, retina Macs).
+  // Doesn't touch non-Cloudinary URLs or imgs without a width transform.
   const safeBody = bodyHtml.replace(
     /<img\s+([^>]*?)\/?>/g,
-    (_, attrs) =>
-      `<img ${attrs} style="display:inline-block;max-width:100%;height:auto;border:0;vertical-align:middle" />`,
+    (_, attrs) => {
+      let displayWidth: number | null = null;
+      let modifiedAttrs = attrs as string;
+      const srcMatch = modifiedAttrs.match(/src="([^"]*)"/);
+      if (srcMatch) {
+        const src = srcMatch[1];
+        const widthMatch = src.match(/\/upload\/([^/]*\b)w_(\d+)/);
+        if (widthMatch) {
+          const original = parseInt(widthMatch[2], 10);
+          displayWidth = original;
+          const doubledSrc = src.replace(
+            /(\/upload\/[^/]*\b)w_\d+/,
+            `$1w_${original * 2}`,
+          );
+          modifiedAttrs = modifiedAttrs.replace(
+            /src="[^"]*"/,
+            `src="${doubledSrc}"`,
+          );
+        }
+      }
+      const widthAttr = displayWidth !== null ? ` width="${displayWidth}"` : "";
+      return `<img ${modifiedAttrs}${widthAttr} style="display:inline-block;max-width:100%;height:auto;border:0;vertical-align:middle" />`;
+    },
   );
 
   return `<!doctype html>
