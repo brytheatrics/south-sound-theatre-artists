@@ -141,6 +141,21 @@
   }
 
   const errors = $derived((form?.errors ?? {}) as Record<string, string>);
+  const errorMessages = $derived(
+    Object.entries(errors).filter(([k]) => k !== "_form").map(([, v]) => v),
+  );
+
+  // Scroll the summary banner into view on validation failure - the form
+  // is long, the inline field errors are easy to miss.
+  let errorBannerEl: HTMLDivElement | undefined = $state();
+  $effect(() => {
+    if ((errors._form || errorMessages.length > 0) && errorBannerEl) {
+      const el = errorBannerEl;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  });
 </script>
 
 <svelte:head>
@@ -243,8 +258,18 @@
     </div>
   {/if}
 
-  {#if errors._form}
-    <div class="form-error" role="alert">{errors._form}</div>
+  {#if errors._form || errorMessages.length > 0}
+    <div class="form-error" role="alert" bind:this={errorBannerEl} tabindex="-1">
+      <strong>Couldn't save. Please fix the following:</strong>
+      {#if errors._form}<p class="form-error-lead">{errors._form}</p>{/if}
+      {#if errorMessages.length > 0}
+        <ul class="form-error-list">
+          {#each errorMessages as msg, i (i)}
+            <li>{msg}</li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
   {/if}
 
   <form
@@ -652,7 +677,19 @@
     padding: 12px 16px;
     border-radius: var(--radius);
     margin-bottom: 1.5rem;
+    font-size: 14px;
+    font-family: var(--font-body);
   }
+  .form-error strong { display: block; margin-bottom: 0.5rem; }
+  .form-error-lead { margin: 0 0 0.5rem; }
+  .form-error-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .form-error:focus { outline: none; }
   .form-ok {
     background: color-mix(in oklch, var(--accent), var(--bg) 88%);
     border: 1px solid color-mix(in oklch, var(--accent), var(--bg) 60%);
