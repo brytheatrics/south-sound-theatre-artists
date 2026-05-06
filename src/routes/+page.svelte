@@ -232,11 +232,11 @@
     font-size: clamp(20px, 1.85vw, 24px);
     line-height: 1.45;
     color: var(--ink-soft);
-    /* Wide enough that the current admin-managed homeBody copy lands
-       on two lines at desktop widths. If admin lengthens the body
-       past ~210 chars it'll wrap to three; that's an acceptable
-       degrade rather than a typography-redline fix. */
-    max-width: 100ch;
+    /* Sized to land on two lines at desktop with the wrap before
+       "South Sound" rather than between the two words. If admin
+       lengthens the body past ~210 chars it'll wrap to three lines;
+       acceptable degrade. */
+    max-width: 80ch;
   }
   /* Lede-body emphasis is markdown italics, lifted into serif-italic-moss. */
   .lede-body :global(em) {
