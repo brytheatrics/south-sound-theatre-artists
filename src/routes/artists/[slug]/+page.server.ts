@@ -9,6 +9,7 @@ import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const isAdmin = !!locals.admin;
@@ -35,11 +36,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-  contact: async ({ params, request }) => {
+  contact: async ({ params, request, getClientAddress }) => {
     const data = await request.formData();
     if ((data.get("website_url_extra") as string)?.trim()) {
       // Honeypot: pretend success.
       return { sent: true };
+    }
+
+    // Per-IP cooldown. Limits a single bad actor flooding contact-form
+    // messages to artists; honest senders are far below the threshold.
+    const rl = await checkSubmitRateLimit(
+      getClientAddress(),
+      "contact_artist",
+    );
+    if (!rl.ok) {
+      return fail(429, { error: RATE_LIMIT_MESSAGE });
     }
 
     const senderName = ((data.get("sender_name") as string) ?? "").trim();

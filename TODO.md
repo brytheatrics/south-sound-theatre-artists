@@ -21,14 +21,7 @@ Before flipping `southsoundtheatreartists.org` DNS at Cloudflare to Netlify:
   - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `ADMIN_EMAIL`
   - `PUBLIC_SITE_URL`
   - Optional: `BACKUP_REPO`, `BACKUP_REPO_TOKEN` (the backup cron no-ops cleanly without these)
-- [ ] **`scripts/send-launch-invitations.mjs`** — bulk-send the `admin_invitation` email template to every imported artist. Behavior:
-  - Recipients: every published profile **except** Lexi and Blake.
-  - Skip placeholder emails (`@unknown.ssta.local`) with a warning.
-  - Generate a fresh edit token per artist (30-day TTL); insert to `magic_link_tokens`.
-  - Use `sendEmail` so every send hits `email_log`.
-  - `--dry-run` and `--slug=foo` flags.
-  - Run **after** `scripts/gate-incomplete-profiles.mjs` (default mode) so incomplete profiles arrive at the "your profile isn't visible yet" banner state.
-  - Test plan: `--slug=lexi-barnett` and `--slug=blake-r-york` first.
+- [x] ~~**`scripts/send-launch-invitations.mjs`** — built, dry-run verified.~~ When ready: run **after** `scripts/gate-incomplete-profiles.mjs` (default mode) so incomplete profiles arrive at the "your profile isn't visible yet" banner state. Test on `--slug=lexi-barnett` first. Re-run-safe (skips anyone with an unused token from the past 30 days).
 - [ ] **`ADMIN_PASSWORD` rotation** in Netlify env to a stronger value. Tell Lexi via private channel.
 - [ ] **Re-hide incomplete bulk-imported profiles** before invitations go out — re-run `scripts/gate-incomplete-profiles.mjs` (or the equivalent SQL). Currently 21 profiles are temporarily published so the directory looks populated during staging review.
 - [ ] **Mail-merge the magic-link URLs** from `Submissions/_results.csv`. Swap `localhost:5173` for `https://southsoundtheatreartists.org` per row before sending.
@@ -41,7 +34,7 @@ Before flipping `southsoundtheatreartists.org` DNS at Cloudflare to Netlify:
 - [ ] **Email-flow smoke test.** Walk every transactional email type end-to-end on staging: magic-link edit, contact form, admin 2FA, admin daily digest, weekly community digest, subscription confirm + manage + unsubscribe, profile-approved welcome, rejection. Confirm each lands in Gmail / Outlook / Apple Mail without spam-flagging. The HTML pipeline (mig 067 + 068) shipped but hasn't had a clean "all flows in one pass" test.
 - [ ] **HTML email rendering test.** Send the same template to Gmail web, Gmail mobile (iOS), Outlook web, Apple Mail (iOS). Confirm the logo + signature render cleanly, no broken layout, no "via gmail.com" suffix, no spam classification. ~30 min once SMTP smoke passes.
 - [ ] **Backup-restore dry-run.** The weekly backup cron writes JSON to a private repo, but we don't *know* restore works until we try. Wipe a staging-only DB, rebuild from the most recent dump, confirm everything reads correctly. ~30 min. **Do this before the .org cutover** - last chance to find a backup-format bug while there's still a known-good source of truth.
-- [ ] **Rate limiting on public submit endpoints.** `/submit`, `/calendar/submit`, `/callboard/submit`, `/contact` (per-profile). Honeypot + email-verification gives some friction, but a determined script could flood `pending_submissions` and force mass-rejection. Even simple per-IP cooldowns (5 submits / hour / IP) would close the worst abuse vector. ~45 min.
+- [x] ~~**Rate limiting on public submit endpoints.** Shipped (mig 077). Per-IP cooldown of 5 submits per hour per endpoint, applied to /submit, /calendar/submit, /callboard/submit, and the per-profile contact form. Logged in `submit_rate_limits`. Hit-limit returns 429 + "Too many submissions from your network in the past hour."~~
 
 ### Lexi-side onboarding (not code)
 
@@ -86,16 +79,11 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 ### Theatre directory copy
 - [ ] **/theatres descriptions** for all 26 orgs. Generated facts-only blurbs from each org's site. Voice is Claude's, not Lexi's. Edit in `scripts/seed-theatre-metadata.mjs` then re-run `node scripts/seed-theatre-metadata.mjs --overwrite`.
 
-### Theatre data flags (verify, then check off)
-
-### Three new bulk-imported drafts (2026-05-06)
-- [ ] **Hester Elwell, JoJo Flores, Thomas Morisada** — imported as hidden drafts with no area set. Open `/admin/profiles?published=false`, set `geographic_area`, flip `published` (or leave for the artist to fill in via their magic-link).
-
 ---
 
 ## 4. Maintenance (non-urgent, real deadlines)
 
-- [ ] **GitHub Actions Node 20 → 24 migration.** All 6 workflows currently pin `actions/checkout@v4`, `actions/setup-node@v4`, and `pnpm/action-setup@v4`, which run on Node 20. GitHub forces Node 24 default on **2026-06-02** and removes Node 20 entirely on **2026-09-16**. Bump action versions to `@v5` (or later, when stable) for all three before September. One-line change per action per workflow; no code changes.
+- [x] ~~**GitHub Actions Node 20 → 24 migration.** Done. All 6 workflows bumped to `actions/checkout@v5`, `actions/setup-node@v5`, `pnpm/action-setup@v5`, `node-version: "24"`. Watch the next cron run for any incompatibility with @v5 (revert to @v4 if it surfaces).~~
 - [ ] **Cloudinary headshot orphan cleanup.** Each profile-photo upload creates a new asset (auto-generated public_id). When a user replaces their headshot, the old asset stays around indefinitely. Currently negligible (Free tier is 25 GB, headshots ~200KB; would need 100k+ orphans to matter), but worth a periodic-audit script eventually. Build `scripts/cleanup-orphan-headshots.mjs` that walks Cloudinary's `headshots/` folder, compares to currently-referenced URLs across `profiles`, `pending_submissions`, and parsed-out URLs in `site_content.body_markdown`, and deletes anything not referenced. Run manually so the operator can review before destructive action.
 
 ---

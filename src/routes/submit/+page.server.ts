@@ -15,6 +15,7 @@ import { generateToken, hashToken } from "$lib/server/tokens";
 import { parseResumeData, type ResumeData } from "$lib/server/resume";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 import { normalizeUrl } from "$lib/util/url";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -124,12 +125,21 @@ function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
 }
 
 export const actions: Actions = {
-  default: async ({ request }) => {
+  default: async ({ request, getClientAddress }) => {
     const data = await request.formData();
 
     // Honeypot: bots fill this hidden field, humans don't see it.
     if ((data.get("website_url_extra") as string)?.trim()) {
       throw redirect(303, "/submit/thanks");
+    }
+
+    const rl = await checkSubmitRateLimit(getClientAddress(), "submit");
+    if (!rl.ok) {
+      return fail(429, {
+        errors: { _form: RATE_LIMIT_MESSAGE } as Record<string, string>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        values: {} as any,
+      });
     }
 
     const values: Values = {
