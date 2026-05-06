@@ -704,9 +704,13 @@
     margin: 0;
   }
   .req {
-    color: var(--accent);
+    color: var(--error);
     font-style: normal;
     font-family: var(--font-body);
+    font-size: 1.25em;
+    font-weight: 700;
+    margin-left: 2px;
+    line-height: 1;
   }
 
   form {
