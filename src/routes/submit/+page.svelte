@@ -134,24 +134,10 @@
       .map(([, v]) => v),
   );
 
-  // Scroll the summary banner into view when validation fails so the
-  // user lands on the explanation instead of staring at a silently
-  // unchanged form (the field-level inline errors are easy to miss
-  // when they're 1500px down the page).
+  // Banner ref - the actual scroll-into-view is fired from the
+  // use:enhance callback after update() resolves, where ordering vs.
+  // SvelteKit's own scroll-restore is deterministic.
   let errorBannerEl: HTMLDivElement | undefined = $state();
-  $effect(() => {
-    if ((errors._form || errorMessages.length > 0) && errorBannerEl) {
-      // requestAnimationFrame so the browser has laid out the freshly
-      // mounted banner before we tell it to scroll - calling
-      // scrollIntoView on an element the engine hasn't positioned yet
-      // can no-op silently. Two rAFs to land after enhance's own
-      // post-update scroll-restore.
-      const el = errorBannerEl;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
-  });
 </script>
 
 <svelte:head>
@@ -188,9 +174,17 @@
     method="POST"
     use:enhance={() => {
       submitting = true;
-      return async ({ update }) => {
+      return async ({ update, result }) => {
         await update({ reset: false });
         submitting = false;
+        // Scroll the summary banner into view after a validation
+        // failure. Doing it here (not in an $effect) so ordering is
+        // deterministic - the banner element is mounted by the time
+        // update() resolves, and SvelteKit's own scroll-restore has
+        // already finished, so a smooth scroll lands cleanly.
+        if (result?.type === "failure" && errorBannerEl) {
+          errorBannerEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       };
     }}
   >

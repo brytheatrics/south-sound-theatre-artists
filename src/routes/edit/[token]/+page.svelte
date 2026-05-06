@@ -145,17 +145,9 @@
     Object.entries(errors).filter(([k]) => k !== "_form").map(([, v]) => v),
   );
 
-  // Scroll the summary banner into view on validation failure - the form
-  // is long, the inline field errors are easy to miss.
+  // Banner ref - scroll fires from the use:enhance callback below
+  // for deterministic ordering vs SvelteKit's scroll-restore.
   let errorBannerEl: HTMLDivElement | undefined = $state();
-  $effect(() => {
-    if ((errors._form || errorMessages.length > 0) && errorBannerEl) {
-      const el = errorBannerEl;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
-  });
 </script>
 
 <svelte:head>
@@ -276,9 +268,12 @@
     method="POST"
     use:enhance={() => {
       submitting = true;
-      return async ({ update }) => {
+      return async ({ update, result }) => {
         await update({ reset: false });
         submitting = false;
+        if (result?.type === "failure" && errorBannerEl) {
+          errorBannerEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       };
     }}
   >
