@@ -12,6 +12,7 @@ export type NavLabels = {
   calendar: string;
   callboard: string;
   resources: string;
+  digest: string;
 };
 
 const NAV_LABEL_DEFAULTS: NavLabels = {
@@ -19,6 +20,7 @@ const NAV_LABEL_DEFAULTS: NavLabels = {
   calendar: "What's Playing",
   callboard: "Opportunities",
   resources: "Resources",
+  digest: "Digest",
 };
 
 export const load: LayoutServerLoad = async ({ url, locals }) => {
@@ -68,7 +70,7 @@ async function loadNavLabels(): Promise<NavLabels> {
   const { data } = await supabaseAdmin
     .from("site_content")
     .select("slug, title")
-    .in("slug", ["directory", "calendar", "callboard", "resources"]);
+    .in("slug", ["directory", "calendar", "callboard", "resources", "digest"]);
   const out: NavLabels = { ...NAV_LABEL_DEFAULTS };
   for (const r of data ?? []) {
     const key = r.slug as keyof NavLabels;

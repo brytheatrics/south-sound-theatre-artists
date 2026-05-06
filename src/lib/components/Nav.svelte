@@ -10,12 +10,14 @@
     calendar: string;
     callboard: string;
     resources: string;
+    digest: string;
   };
   const NAV_LABEL_DEFAULTS: NavLabels = {
     directory: "Directory",
     calendar: "What's Playing",
     callboard: "Opportunities",
     resources: "Resources",
+    digest: "Digest",
   };
 
   type Props = { isAdmin?: boolean; navLabels?: NavLabels };
@@ -38,6 +40,7 @@
     { href: "/calendar", label: labels.calendar },
     { href: "/callboard", label: labels.callboard },
     { href: "/resources", label: labels.resources },
+    { href: "/digest", label: labels.digest },
   ]);
 
   // Hamburger menu items: secondary destinations, organized roughly by
