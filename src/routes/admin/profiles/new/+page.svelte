@@ -227,8 +227,8 @@
     </label>
     {#if area === "Other"}
       <label class="field">
-        <span>Specify area</span>
-        <input name="area_other" type="text" bind:value={areaOther} />
+        <span>Where based? (optional)</span>
+        <input name="area_other" type="text" bind:value={areaOther} placeholder="Seattle, Bellingham, etc - leave blank for plain Other" />
       </label>
     {/if}
     <label class="field">

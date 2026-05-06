@@ -205,9 +205,6 @@ export const actions: Actions = {
 
     if (values.disciplines.length === 0) errors.disciplines = "Choose at least one.";
     if (!values.area) errors.area = "Choose an area.";
-    if (values.area === "Other" && !values.areaOther) {
-      errors.area_other = "Tell us where.";
-    }
 
     // Playable age range: optional, but if either is set both must be,
     // and 0 ≤ min ≤ max ≤ 120.

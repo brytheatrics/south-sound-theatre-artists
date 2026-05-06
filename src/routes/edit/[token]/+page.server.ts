@@ -193,7 +193,6 @@ export const actions: Actions = {
     }
     if (disciplines.length === 0) errors.disciplines = "Choose at least one.";
     if (!area) errors.area = "Choose an area.";
-    if (area === "Other" && !areaOther) errors.area_other = "Tell us where.";
 
     let ageMin: number | null = null;
     let ageMax: number | null = null;
