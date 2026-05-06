@@ -84,9 +84,21 @@ export async function sendEmail({
   // Pauses are logged to email_log with status='paused' so admin can
   // audit what would have gone out. Flip the env var off when the
   // site is ready for real subscriber traffic.
+  //
+  // Allowlist escape hatch: EMAIL_PAUSE_ALLOWLIST is a comma-separated
+  // list of email addresses that bypass the pause. Lets Lexi test
+  // community-audience flows by sending to her own address while
+  // staging stays safe for everyone else.
+  const allowlist = (privateEnv.EMAIL_PAUSE_ALLOWLIST ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const recipientAllowed = allowlist.includes(recipient);
+
   if (
     privateEnv.EMAIL_PAUSE_COMMUNITY === "true" &&
-    tmpl.audience === "community"
+    tmpl.audience === "community" &&
+    !recipientAllowed
   ) {
     const recipientHash = createHash("sha256").update(recipient).digest("hex");
     await supabaseAdmin.from("email_log").insert({
