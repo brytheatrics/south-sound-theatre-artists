@@ -42,7 +42,7 @@ const SOURCES = [
   // South Pierce (Puyallup / Sumner)
   { slug: "manestage", name: "ManeStage Theatre Company", area: "South Pierce",
     url: "https://www.manestagetheatre.com/buy-tickets",
-    notes: "Sumner. Pulls automatically from their 'Buy Tickets' page (not their general season page — that one doesn't list specific performance dates)." },
+    notes: "Puyallup. Pulls automatically from their 'Buy Tickets' page (not their general season page - that one doesn't list specific performance dates)." },
 
   // Olympia / Thurston County
   { slug: "harlequin", name: "Harlequin Productions", area: "Olympia / Thurston County",
