@@ -189,7 +189,7 @@
     background: var(--accent);
   }
   .confirm.warn {
-    background: var(--warn);
+    background: var(--error);
     color: var(--bg);
   }
   .confirm.warn:hover {

@@ -297,9 +297,9 @@
     font-size: 14px;
   }
   .form-error {
-    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
-    border: 1px solid var(--warn);
-    color: var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 80%);
+    border: 1px solid var(--error);
+    color: var(--error);
     padding: 10px 14px;
     border-radius: var(--radius);
     font-size: 14px;
@@ -435,7 +435,7 @@
     display: inline-block;
   }
   .bt-link.warn {
-    color: var(--warn);
+    color: var(--error);
   }
   .bt-link:hover {
     text-decoration: underline;

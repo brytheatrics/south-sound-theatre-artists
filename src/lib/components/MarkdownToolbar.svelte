@@ -344,7 +344,7 @@
     margin: 0 4px;
   }
   .err {
-    color: var(--warn);
+    color: var(--error);
     font-size: 12px;
     margin-left: 8px;
   }

@@ -186,9 +186,9 @@
     font-size: 14px;
   }
   .form-error {
-    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
-    border: 1px solid var(--warn);
-    color: var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 80%);
+    border: 1px solid var(--error);
+    color: var(--error);
     padding: 10px 14px;
     border-radius: var(--radius);
     font-size: 14px;
@@ -295,9 +295,9 @@
   }
   .link-row a { color: var(--accent); }
   .pill.warn {
-    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
-    color: var(--warn);
-    border: 1px solid var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 80%);
+    color: var(--error);
+    border: 1px solid var(--error);
     border-radius: 100px;
     padding: 2px 9px;
     font-family: var(--font-mono);
@@ -370,7 +370,7 @@
     border-color: var(--rule);
   }
   .bt-ghost:hover { border-color: var(--ink); }
-  .bt-warn { background: var(--warn); color: var(--bg); }
+  .bt-warn { background: var(--error); color: var(--bg); }
   .bt-warn:hover:not(:disabled) { background: var(--error); }
   .bt:disabled { opacity: 0.5; cursor: progress; }
 

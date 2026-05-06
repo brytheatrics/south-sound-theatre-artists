@@ -305,9 +305,9 @@
      palette as the complete-to-publish gate on /edit/[token] so warning
      banners look like a coherent family. */
   .redact-banner {
-    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
-    border: 1px solid color-mix(in oklch, var(--warn), var(--bg) 60%);
-    border-left: 4px solid var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--error), var(--bg) 60%);
+    border-left: 4px solid var(--error);
     padding: 12px 16px;
     border-radius: var(--radius);
     color: var(--ink);
@@ -392,10 +392,10 @@
     border-color: var(--ink);
   }
   .bt.warn {
-    color: var(--warn);
+    color: var(--error);
   }
   .bt.warn:hover {
-    border-color: var(--warn);
+    border-color: var(--error);
   }
   .bt.disabled {
     opacity: 0.5;

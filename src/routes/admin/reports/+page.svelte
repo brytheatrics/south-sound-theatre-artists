@@ -175,7 +175,7 @@
     font-size: 13px;
     color: var(--ink-soft);
   }
-  .bt-link.warn { color: var(--warn); }
+  .bt-link.warn { color: var(--error); }
   .bt-link:hover { text-decoration: underline; }
   .reason {
     margin: 8px 0 0;

@@ -19,7 +19,12 @@
   --rule-soft: #ecead6;
   --accent: #780606; /* deep crimson - Lexi's brand red, V3 logo */
   --accent-soft: #a83a3a;
-  --warn: #c25b2c; /* terracotta */
+  /* --warn is the secondary decorative accent now (mentorship "open to
+     mentoring" dot, etc) - was terracotta when paired with moss; now
+     a dark warm grey to pair with the deep crimson --accent. All
+     cautionary uses (form errors, reject buttons, danger affordances)
+     migrated to --error in the same change. */
+  --warn: #4a4640;
   --error: #b13a1c;
 
   --font-display: "Inter Tight", -apple-system, system-ui, sans-serif;

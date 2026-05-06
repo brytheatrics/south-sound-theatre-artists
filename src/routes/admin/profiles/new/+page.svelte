@@ -263,7 +263,7 @@
   .lede { font-family: var(--font-accent); font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 1rem; max-width: 600px; }
   .bt-ghost { font-family: var(--font-body); font-size: 13px; padding: 8px 14px; border-radius: var(--radius); border: 1px solid var(--rule); color: var(--ink); text-decoration: none; display: inline-flex; }
   .bt-ghost:hover { border-color: var(--ink); text-decoration: none; }
-  .form-error { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border: 1px solid var(--warn); color: var(--warn); padding: 12px 16px; border-radius: var(--radius); margin-bottom: 1.5rem; }
+  .form-error { background: color-mix(in oklch, var(--error), var(--bg) 80%); border: 1px solid var(--error); color: var(--error); padding: 12px 16px; border-radius: var(--radius); margin-bottom: 1.5rem; }
   .form { max-width: 720px; counter-reset: section; }
   fieldset { border: 0; border-top: 1px solid var(--rule); padding: 1.5rem 0; margin: 0; counter-increment: section; }
   fieldset:last-of-type { border-bottom: 1px solid var(--rule); }

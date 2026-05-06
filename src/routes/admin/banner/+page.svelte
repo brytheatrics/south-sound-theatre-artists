@@ -76,10 +76,10 @@
   .bt-pri { background: var(--ink); color: var(--bg); }
   .bt-pri:hover:not(:disabled) { background: var(--accent); }
   .bt:disabled { opacity: 0.5; cursor: progress; }
-  .form-error { background: color-mix(in oklch, var(--warn), var(--bg) 80%); border: 1px solid var(--warn); color: var(--warn); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
+  .form-error { background: color-mix(in oklch, var(--error), var(--bg) 80%); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
   .form-ok { background: color-mix(in oklch, var(--accent), var(--bg) 85%); border: 1px solid var(--accent); color: var(--accent); padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 1rem; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); }
-  .bt-link.warn { color: var(--warn); }
+  .bt-link.warn { color: var(--error); }
   .bt-link:hover { text-decoration: underline; }
 
   @media (max-width: 720px) {

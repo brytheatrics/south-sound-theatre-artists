@@ -651,7 +651,7 @@
   .mono-cell { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
   .actions-col { text-align: right; width: 1%; white-space: nowrap; }
   .bt-link { background: none; border: 0; padding: 6px 10px; cursor: pointer; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); text-decoration: none; display: inline-block; }
-  .bt-link.warn { color: var(--warn); }
+  .bt-link.warn { color: var(--error); }
   .bt-link:hover { text-decoration: underline; color: var(--ink); }
   .bt-link:disabled { opacity: 0.4; cursor: not-allowed; }
 

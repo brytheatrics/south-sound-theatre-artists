@@ -528,9 +528,9 @@
     font-size: 14px;
   }
   .form-error {
-    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
-    border: 1px solid var(--warn);
-    color: var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 80%);
+    border: 1px solid var(--error);
+    color: var(--error);
     padding: 10px 14px;
     border-radius: var(--radius);
     font-size: 14px;
@@ -538,9 +538,9 @@
 
   /* Mirrors /edit/[token]'s complete-to-publish gate banner. */
   .incomplete-banner {
-    background: color-mix(in oklch, var(--warn), var(--bg) 88%);
-    border: 1px solid color-mix(in oklch, var(--warn), var(--bg) 60%);
-    border-left: 4px solid var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 88%);
+    border: 1px solid color-mix(in oklch, var(--error), var(--bg) 60%);
+    border-left: 4px solid var(--error);
     padding: 14px 18px;
     border-radius: var(--radius);
     margin: 1rem 0 0;

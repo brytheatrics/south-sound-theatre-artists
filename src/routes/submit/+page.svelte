@@ -783,9 +783,9 @@
     font-family: var(--font-body);
   }
   .form-error {
-    background: color-mix(in oklch, var(--warn), var(--bg) 80%);
-    border: 1px solid var(--warn);
-    color: var(--warn);
+    background: color-mix(in oklch, var(--error), var(--bg) 80%);
+    border: 1px solid var(--error);
+    color: var(--error);
     padding: 12px 16px;
     border-radius: var(--radius);
     margin-bottom: 1.5rem;

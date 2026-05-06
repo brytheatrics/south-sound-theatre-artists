@@ -298,15 +298,15 @@
     justify-content: space-between;
     gap: 0.75rem;
   }
-  .warn-deadline { border-color: var(--warn); }
-  .warn-deadline .deadline-val { color: var(--warn); }
+  .warn-deadline { border-color: var(--error); }
+  .warn-deadline .deadline-val { color: var(--error); }
   .deadline-val {
     font-family: var(--font-display);
     font-size: 14px;
     font-weight: 600;
     color: var(--ink);
   }
-  .warn-text { color: var(--warn) !important; }
+  .warn-text { color: var(--error) !important; }
   .sidebar-contact {
     font-size: 13.5px;
     line-height: 1.55;
