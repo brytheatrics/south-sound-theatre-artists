@@ -55,13 +55,19 @@ export const load: PageServerLoad = async () => {
       )
       .eq("active", true)
       .order("sort_order"),
+    // Spotlight fallback pool: published profiles WITH a headshot only.
+    // Headshot will be a hard-required field eventually, but until then
+    // a half-blank silhouette card on the homepage spotlight is a worse
+    // first impression than skipping that profile.
     supabaseAdmin
       .from("profiles")
       .select(
         "slug, full_name, pronouns, disciplines, geographic_area, city, member_since, headshot_url, bio",
       )
       .eq("published", true)
-      .is("deleted_at", null),
+      .is("deleted_at", null)
+      .not("headshot_url", "is", null)
+      .neq("headshot_url", ""),
     supabaseAdmin
       .from("profiles")
       .select(
@@ -192,7 +198,9 @@ export const load: PageServerLoad = async () => {
   }
 
   // Curated rotation has priority. Fall back to a date-seeded shuffle of
-  // all published profiles.
+  // all published profiles. Both pools are filtered to require a
+  // headshot - the spotlight cards look hollow without one, and admin
+  // curation might not catch missing-headshot profiles.
   const curated = (curatedRes.data ?? [])
     .map((r: { profiles: ProfileRow | ProfileRow[] | null }) => {
       // Supabase returns an array for many-relation joins; we want a
@@ -200,7 +208,7 @@ export const load: PageServerLoad = async () => {
       if (Array.isArray(r.profiles)) return r.profiles[0] ?? null;
       return r.profiles;
     })
-    .filter((p): p is ProfileRow => !!p);
+    .filter((p): p is ProfileRow => !!p && !!p.headshot_url);
 
   // Source pool for daily seeding: curated when there are enough,
   // otherwise the full published set.
