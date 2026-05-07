@@ -318,6 +318,17 @@
     Deleted {form.deleted}.
   </div>
 {/if}
+{#if form?.orgEditLink}
+  <div class="form-ok" role="status">
+    <strong>Edit link for {form.orgEditLink.org_name}:</strong>
+    <code class="link">{form.orgEditLink.url}</code>
+    <p class="link-meta">
+      Send this to <strong>{form.orgEditLink.contact_email ?? "the org rep"}</strong>.
+      Valid for 60 days. Anyone with the link can edit cast/credits on
+      productions for that org.
+    </p>
+  </div>
+{/if}
 
 <!-- PENDING VERIFICATION: applications via /callboard/apply-verified
      that haven't been verified yet. Shown at the top so they're hard
@@ -398,6 +409,11 @@
           </td>
           <td data-label="Verified email" class="mono-cell">{org.contact_email ?? "—"}</td>
           <td data-label="Actions" class="actions-col">
+            <form method="POST" action="?/issueOrgEditLink" use:enhance={() => { busy = org.id; return async ({ update }) => { await update(); busy = null; }; }} style="display:inline">
+              <input type="hidden" name="id" value={org.id} />
+              <button type="submit" class="bt-link" disabled={busy === org.id}>Generate edit link</button>
+            </form>
+            ·
             <form method="POST" action="?/revokeVerification" use:enhance={() => { busy = org.id; return async ({ update }) => { await update(); busy = null; }; }} style="display:inline">
               <input type="hidden" name="id" value={org.id} />
               <button type="submit" class="bt-link warn" disabled={busy === org.id}>Revoke</button>
@@ -606,6 +622,25 @@
   }
   .form-error { background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
   .form-ok { background: #dceadd; color: var(--accent); border: 1px solid var(--accent); }
+  .form-ok .link {
+    display: inline-block;
+    margin: 6px 0 0;
+    padding: 6px 8px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    user-select: all;
+    word-break: break-all;
+  }
+  .form-ok .link-meta {
+    margin: 6px 0 0;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink);
+  }
 
   .section-h {
     font-family: var(--font-display);

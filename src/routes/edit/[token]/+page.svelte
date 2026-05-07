@@ -6,6 +6,7 @@
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
+  import ClaimCreditForm from "$lib/components/ClaimCreditForm.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import { page as pageStore } from "$app/state";
 
@@ -336,6 +337,11 @@
         initial={data.resumeSnapshot}
         apiBase={`/api/edit/${pageStore.params.token}`}
       />
+    </fieldset>
+
+    <fieldset>
+      <legend>Claim a production credit</legend>
+      <ClaimCreditForm token={pageStore.params.token ?? ""} />
     </fieldset>
 
     <fieldset>

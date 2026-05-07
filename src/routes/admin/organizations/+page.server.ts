@@ -16,6 +16,7 @@ import pg from "pg";
 import { syncEventSource } from "../../../../scripts/_lib/calendar-sync.mjs";
 import { sendEmail } from "$lib/server/email";
 import { PUBLIC_SITE_URL } from "$env/static/public";
+import { generateToken, hashToken } from "$lib/server/tokens";
 import { env as privateEnv } from "$env/dynamic/private";
 
 const { Client } = pg;
@@ -169,6 +170,44 @@ export const actions: Actions = {
     }
 
     return { verified: ids.length };
+  },
+
+  // Issues an org-edit magic-link token and returns the URL for the
+  // admin to copy + send to the org rep out of band. v1.1: kept admin-
+  // mediated rather than self-serve to avoid a public form + email
+  // sender. Token is single-use semantics-aside (purpose='org_edit'),
+  // valid for 60 days.
+  issueOrgEditLink: async ({ request }) => {
+    const fd = await request.formData();
+    const id = String(fd.get("id") ?? "");
+    if (!id) return fail(400, { error: "missing organization id" });
+    const { data: org } = await supabaseAdmin
+      .from("organizations")
+      .select("id, name, contact_email")
+      .eq("id", id)
+      .maybeSingle();
+    if (!org) return fail(404, { error: "Organization not found." });
+    const token = generateToken();
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: insertErr } = await supabaseAdmin
+      .from("magic_link_tokens")
+      .insert({
+        token_hash: tokenHash,
+        email: org.contact_email,
+        purpose: "org_edit",
+        target_id: org.id,
+        expires_at: expiresAt,
+      });
+    if (insertErr) return fail(500, { error: "Could not create token." });
+    return {
+      orgEditLink: {
+        url: `${PUBLIC_SITE_URL}/org-edit/${token}`,
+        org_name: org.name,
+        contact_email: org.contact_email,
+        expires_at: expiresAt,
+      },
+    };
   },
 
   revokeVerification: async ({ request }) => {
