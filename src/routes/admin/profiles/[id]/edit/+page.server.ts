@@ -8,7 +8,10 @@ import { error, fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
-import { parseResumeData } from "$lib/server/resume";
+import {
+  ensureDefaultResume,
+  loadProfileResumes,
+} from "$lib/server/resumes";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { normalizeUrl } from "$lib/util/url";
@@ -67,6 +70,9 @@ export const load: PageServerLoad = async ({ params }) => {
 
   if (!profileRes.data) error(404, "Profile not found.");
 
+  await ensureDefaultResume(profileRes.data.id);
+  const resumeSnapshot = await loadProfileResumes(profileRes.data.id);
+
   // What's missing for this profile to be publishable? Mirrors the
   // /edit/[token] complete-to-publish gate so the admin can audit
   // each profile and see exactly what the artist will be asked to
@@ -86,6 +92,7 @@ export const load: PageServerLoad = async ({ params }) => {
   return {
     profile: profileRes.data,
     missingFields,
+    resumeSnapshot,
     areas: (areasRes.data ?? []) as Array<{ name: string; description: string | null }>,
     disciplines: disciplinesRes.data ?? [],
     disciplineCategories: (categoriesRes.data ?? []).map(
@@ -128,7 +135,9 @@ export const actions: Actions = {
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
-    const resumeData = parseResumeData(data.get("resume_data"));
+    // Resume builder entries are now relational (mig 078) and saved live
+    // via the /api/admin/profiles/[id]/* endpoints during the edit
+    // session. The form submit no longer carries resume_data.
     const mentorshipOffering = data
       .getAll("mentorship_offering")
       .map(String)
@@ -221,7 +230,6 @@ export const actions: Actions = {
         geographic_area: finalArea,
         city: city || null,
         resumes,
-        resume_data: resumeData,
         playable_age_min: ageMin,
         playable_age_max: ageMax,
         languages,

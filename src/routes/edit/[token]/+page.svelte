@@ -5,14 +5,9 @@
   import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
-  import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
+  import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
-
-  type ResumeData = {
-    credits: Array<{ show: string; role: string; company: string; director?: string; year?: string; notes?: string }>;
-    training: Array<{ title: string; institution: string; year?: string; notes?: string }>;
-    skills: Array<{ category: string; items: string }>;
-  };
+  import { page as pageStore } from "$app/state";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -42,15 +37,6 @@
   );
   let mentorshipSeeking = $state<Set<string>>(
     new Set(p.mentorship_seeking ?? []),
-  );
-  let resumeData = $state<ResumeData>(
-    p.resume_data && typeof p.resume_data === "object"
-      ? {
-          credits: Array.isArray(p.resume_data.credits) ? p.resume_data.credits : [],
-          training: Array.isArray(p.resume_data.training) ? p.resume_data.training : [],
-          skills: Array.isArray(p.resume_data.skills) ? p.resume_data.skills : [],
-        }
-      : { credits: [], training: [], skills: [] },
   );
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
@@ -341,9 +327,15 @@
     <fieldset>
       <legend>Resume builder</legend>
       <p class="hint">
-        Optional. Fill in any sections that apply.
+        Optional. Add credits, training, and skills. You can keep multiple
+        named resumes (e.g. an actor resume + a designer resume) and assign
+        each entry to whichever ones it belongs on. Changes save as you go -
+        no need to hit Save below for resume edits.
       </p>
-      <ResumeBuilder bind:value={resumeData} />
+      <MultiResumeBuilder
+        initial={data.resumeSnapshot}
+        apiBase={`/api/edit/${pageStore.params.token}`}
+      />
     </fieldset>
 
     <fieldset>

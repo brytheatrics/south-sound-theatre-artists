@@ -67,6 +67,45 @@
     }
   }
 
+  // Resume picker state. URL ?resume= picks a specific named resume;
+  // default falls back to the resume with the most entries (or the
+  // first resume if all are empty / equal).
+  const selectedResume = $derived.by(() => {
+    const list = data.resumeSnapshot.resumes;
+    if (list.length === 0) return null;
+    const requested = page.url.searchParams.get("resume");
+    if (requested) {
+      const hit = list.find((r) => r.id === requested);
+      if (hit) return hit;
+    }
+    if (list.length === 1) return list[0];
+    const counts = new Map<string, number>();
+    for (const e of data.resumeSnapshot.entries) {
+      for (const rid of e.resume_ids) counts.set(rid, (counts.get(rid) ?? 0) + 1);
+    }
+    let best = list[0];
+    let bestCount = counts.get(best.id) ?? 0;
+    for (const r of list.slice(1)) {
+      const c = counts.get(r.id) ?? 0;
+      if (c > bestCount) {
+        best = r;
+        bestCount = c;
+      }
+    }
+    return best;
+  });
+
+  function entriesOnSelectedResume(kind: "credit" | "training" | "skill") {
+    if (!selectedResume) return [];
+    return data.resumeSnapshot.entries
+      .filter((e) => e.kind === kind && e.resume_ids.includes(selectedResume.id))
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  const visibleCredits = $derived(entriesOnSelectedResume("credit"));
+  const visibleTraining = $derived(entriesOnSelectedResume("training"));
+  const visibleSkills = $derived(entriesOnSelectedResume("skill"));
+
   // Build a click-through URL from a handle. Handles can be entered as
   // either @name or name; the platform's own URL format normalises it.
   function handleUrl(platform: "instagram" | "tiktok" | "twitter", handle: string): string {
@@ -183,55 +222,74 @@
         <p class="bio">{p.bio}</p>
       {/if}
 
-      {#if p.resume_data?.credits?.length > 0}
-        <span class="eyebrow"><span class="num">02</span>Credits</span>
-        <ul class="rd-list">
-          {#each p.resume_data.credits as c}
-            <li class="rd-row">
-              <span class="rd-primary">
-                <strong>{c.show || "Untitled"}</strong>
-                {#if c.role}<span class="rd-role"> - {c.role}</span>{/if}
-              </span>
-              <span class="rd-secondary">
-                {#if c.company}{c.company}{/if}{#if c.company && c.director} · {/if}{#if c.director}dir. {c.director}{/if}{#if (c.company || c.director) && c.year} · {/if}{#if c.year}{c.year}{/if}
-              </span>
-              {#if c.notes}<span class="rd-notes">{c.notes}</span>{/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
+      {#if visibleCredits.length > 0 || visibleTraining.length > 0 || visibleSkills.length > 0}
+        {#if data.resumeSnapshot.resumes.length > 1}
+          <span class="eyebrow"><span class="num">02</span>Resume</span>
+          <div class="resume-picker" role="tablist" aria-label="Choose resume">
+            {#each data.resumeSnapshot.resumes as r (r.id)}
+              <a
+                class="rp-tab"
+                class:active={selectedResume?.id === r.id}
+                href={`?resume=${encodeURIComponent(r.id)}${page.url.searchParams.get("contact") === "1" ? "&contact=1" : ""}`}
+                role="tab"
+                aria-selected={selectedResume?.id === r.id}
+              >
+                {r.name}
+              </a>
+            {/each}
+          </div>
+        {/if}
 
-      {#if p.resume_data?.training?.length > 0}
-        <span class="eyebrow"><span class="num">03</span>Training</span>
-        <ul class="rd-list">
-          {#each p.resume_data.training as t}
-            <li class="rd-row">
-              <span class="rd-primary">
-                <strong>{t.title || "Training"}</strong>
-                {#if t.institution}<span class="rd-role"> - {t.institution}</span>{/if}
-              </span>
-              {#if t.year || t.notes}
-                <span class="rd-secondary">
-                  {#if t.year}{t.year}{/if}{#if t.year && t.notes} · {/if}{#if t.notes}{t.notes}{/if}
+        {#if visibleCredits.length > 0}
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "03" : "02"}</span>Credits</span>
+          <ul class="rd-list">
+            {#each visibleCredits as c (c.id)}
+              <li class="rd-row">
+                <span class="rd-primary">
+                  <strong>{c.data?.show || "Untitled"}</strong>
+                  {#if c.data?.role}<span class="rd-role"> - {c.data.role}</span>{/if}
                 </span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
+                <span class="rd-secondary">
+                  {#if c.data?.company}{c.data.company}{/if}{#if c.data?.company && c.data?.director} · {/if}{#if c.data?.director}dir. {c.data.director}{/if}{#if (c.data?.company || c.data?.director) && c.data?.year} · {/if}{#if c.data?.year}{c.data.year}{/if}
+                </span>
+                {#if c.data?.notes}<span class="rd-notes">{c.data.notes}</span>{/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
 
-      {#if p.resume_data?.skills?.length > 0}
-        <span class="eyebrow"><span class="num">04</span>Skills</span>
-        <ul class="rd-list compact">
-          {#each p.resume_data.skills as s}
-            <li class="rd-row">
-              <span class="rd-primary">
-                <strong>{s.category}</strong>
-                {#if s.items}<span class="rd-role"> - {s.items}</span>{/if}
-              </span>
-            </li>
-          {/each}
-        </ul>
+        {#if visibleTraining.length > 0}
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "04" : "03"}</span>Training</span>
+          <ul class="rd-list">
+            {#each visibleTraining as t (t.id)}
+              <li class="rd-row">
+                <span class="rd-primary">
+                  <strong>{t.data?.title || "Training"}</strong>
+                  {#if t.data?.institution}<span class="rd-role"> - {t.data.institution}</span>{/if}
+                </span>
+                {#if t.data?.year || t.data?.notes}
+                  <span class="rd-secondary">
+                    {#if t.data?.year}{t.data.year}{/if}{#if t.data?.year && t.data?.notes} · {/if}{#if t.data?.notes}{t.data.notes}{/if}
+                  </span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
+        {#if visibleSkills.length > 0}
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "05" : "04"}</span>Skills</span>
+          <ul class="rd-list compact">
+            {#each visibleSkills as s (s.id)}
+              <li class="rd-row">
+                <span class="rd-primary">
+                  <strong>{s.data?.category}</strong>
+                  {#if s.data?.items}<span class="rd-role"> - {s.data.items}</span>{/if}
+                </span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       {/if}
 
       {#if Array.isArray(p.resumes) && p.resumes.length > 0}
@@ -652,6 +710,30 @@
   .socials .handle {
     color: var(--muted);
     font-size: 12px;
+  }
+  .resume-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 1rem;
+  }
+  .rp-tab {
+    padding: 6px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 13px;
+    text-decoration: none;
+    line-height: 1.2;
+  }
+  .rp-tab:hover {
+    border-color: var(--ink);
+  }
+  .rp-tab.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
   }
   .rd-list {
     list-style: none;

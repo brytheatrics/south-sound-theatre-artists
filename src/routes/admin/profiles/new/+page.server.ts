@@ -9,6 +9,7 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { parseResumeData } from "$lib/server/resume";
+import { expandLegacyResumeData } from "$lib/server/resumes";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -169,6 +170,13 @@ export const actions: Actions = {
       })
       .select("id, slug, full_name, email")
       .single();
+
+    if (!insertErr && profile) {
+      // Expand the legacy resume_data jsonb into resume_entries rows so
+      // the new multi-resume system has data on day one. Idempotent on
+      // re-runs (creates a default resume if none exists).
+      await expandLegacyResumeData(profile.id, resumeData);
+    }
 
     if (insertErr || !profile) {
       console.error("admin profile create failed", insertErr);

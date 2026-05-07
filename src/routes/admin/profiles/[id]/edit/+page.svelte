@@ -4,13 +4,7 @@
   import DisciplineOrder from "$lib/components/DisciplineOrder.svelte";
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
-  import ResumeBuilder from "$lib/components/ResumeBuilder.svelte";
-
-  type ResumeData = {
-    credits: Array<{ show: string; role: string; company: string; director?: string; year?: string; notes?: string }>;
-    training: Array<{ title: string; institution: string; year?: string; notes?: string }>;
-    skills: Array<{ category: string; items: string }>;
-  };
+  import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -41,15 +35,6 @@
   );
   let mentorshipSeeking = $state<Set<string>>(
     new Set(p.mentorship_seeking ?? []),
-  );
-  let resumeData = $state<ResumeData>(
-    p.resume_data && typeof p.resume_data === "object"
-      ? {
-          credits: Array.isArray(p.resume_data.credits) ? p.resume_data.credits : [],
-          training: Array.isArray(p.resume_data.training) ? p.resume_data.training : [],
-          skills: Array.isArray(p.resume_data.skills) ? p.resume_data.skills : [],
-        }
-      : { credits: [], training: [], skills: [] },
   );
   let playableAgeMin = $state(p.playable_age_min?.toString() ?? "");
   let playableAgeMax = $state(p.playable_age_max?.toString() ?? "");
@@ -273,7 +258,15 @@
 
   <section class="row">
     <h2 class="block-h">Resume builder</h2>
-    <ResumeBuilder bind:value={resumeData} />
+    <p class="hint">
+      Multi-resume editor. Changes save as you type - they aren't part of
+      the form's main Save button. Useful when an artist asks you to add
+      / fix something on their behalf.
+    </p>
+    <MultiResumeBuilder
+      initial={data.resumeSnapshot}
+      apiBase={`/api/admin/profiles/${p.id}`}
+    />
   </section>
 
   <section class="row">

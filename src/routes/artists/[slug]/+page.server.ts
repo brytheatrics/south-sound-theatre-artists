@@ -10,6 +10,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
+import { loadProfileResumes } from "$lib/server/resumes";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const isAdmin = !!locals.admin;
@@ -32,7 +33,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const { data, error: err } = await query.maybeSingle();
   if (err) throw err;
   if (!data) error(404, "Profile not found");
-  return { profile: data };
+
+  const resumeSnapshot = await loadProfileResumes(data.id);
+  return { profile: data, resumeSnapshot };
 };
 
 export const actions: Actions = {
