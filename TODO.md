@@ -155,3 +155,48 @@ These came up in planning and were explicitly cut. Don't add without revisiting:
 - WYSIWYG editor in v1 (markdown + toolbar covers 99%; migration path exists if Lexi struggles)
 - PDF parsing / column mapper (folded into the redaction discussion)
 - Auto-graduate-at-18 flow for minor profiles (no birthdate stored — intentional, keeps minor PII off the system; manual flip via the "I'm 18 now" button on the artist's edit page)
+
+---
+
+## v1.1 build notes (2026-05-07)
+
+Decisions I made while building the v1.1 batch (multi-resume, production credits, multi-admin, blog, OG cards) that you'll want to review or test. Roughly in order from "most likely to surprise you" to "most likely fine."
+
+### Decisions worth your eyes
+
+- **Resume changes no longer flow through the trust gate.** Previously the resume builder edits queued in `flagged_edits` for untrusted profiles. Now they apply directly. Reasoning: low abuse risk (artists writing about themselves), and the production-credit auto-link is the constraint that matters. If drama erupts, admin can still remove via the new editor at /admin/profiles/[id]/edit. Existing flagged_edits with `resume_data` in `proposed_changes` are stale - approve/reject them by hand and ignore the resume_data field.
+- **`profiles.resume_data` jsonb is no longer authoritative** but still gets written to by `syncLegacyResumeData()` after every mutation, so anything still reading it (admin home pending-card preview, flagged_edits viewer, pending_submissions backwards-compat) keeps working. Don't read it directly from new code - use `loadProfileResumes(profileId)` from `src/lib/server/resumes.ts`. The column will get dropped in a later migration once verified.
+- **Auto-added production credits land in the artist's "inbox"** (resume_ids=[]), not on a specific resume. The artist explicitly assigns them via the chip toggles in MultiResumeBuilder. Per your call (option A from chat) - simpler than auto-routing by role category.
+- **Linked resume rows can't be free-edited** until detached. The chip in the editor reads "🔗 Linked credit" and the input fields are disabled. Detaching converts source from `production` to `hand`, breaks the FK, and lets the artist edit normally. Trade-off: keeps the resume row + production credit in lockstep.
+- **Production credit dedup.** When auto-creating a linked row from a credit, fuzzy-matches existing hand-entered rows on `show + company + year` (case-insensitive) and promotes that row to linked instead of duplicating. Could surface unexpected promotions if an artist has a hand-typed entry similar to a real production - low risk, but flag if you see it.
+- **Production credits live immediately, no claim-verification gating.** Anyone with the right token (admin / org rep / artist via /edit/[token]) can add them. The `source` enum tracks who added (`admin`/`org`/`artist`) and `created_by_email` is logged for audit. If abuse surfaces, we add a "claim pending org confirmation" flow (which I noted we'd skip for v1.1).
+- **`profiles.resume_data` jsonb only mirrors the FIRST resume.** When a profile has multiple resumes, the legacy column shows the first one (typically "Resume" or whatever the artist named the default). This keeps backwards-compat reads behaving sensibly. If you're checking the column directly for diagnosis, expect to see only the default resume's entries.
+- **`/calendar/[id]` is now public** and the calendar list links every entry there. The external "Tickets / details" URL still works but is surfaced from the detail page (and from a small "Tickets ↗" link on the calendar list rows). If anyone was bookmarking the external links via the calendar, that path still works.
+- **Multi-admin: `ADMIN_PASSWORD` env still works as the bootstrap path.** First successful login from `ADMIN_EMAIL`+`ADMIN_PASSWORD` creates the owner row with the hashed env password (scrypt, no new dep). After that, env vars are only consulted on a genuinely empty `admin_users` table. Don't change `ADMIN_PASSWORD` casually after Lexi's first login - it's still the recovery fallback.
+- **All existing admin sessions + trusted devices were wiped** by mig 080. You'll need to re-log in once. I haven't verified the bootstrap flow end-to-end (would have required burning a 2FA email), so be ready to fall back to `ADMIN_SKIP_2FA=true` in dev if anything blows up.
+- **Login form has a new (optional) email field.** Blank = uses ADMIN_EMAIL env (bootstrap path). Multi-admin logins always supply email + password.
+- **2FA codes route to the matched admin's email**, not ADMIN_EMAIL env, after multi-admin migration. Owner stays at ADMIN_EMAIL via bootstrap.
+- **Org self-serve is admin-mediated.** No public "request edit access" form. Lexi clicks "Generate edit link" on /admin/organizations next to a verified org row, copies the URL out of the form-ok banner, sends to the org rep manually. 60-day TTL. Decision: avoids needing an email template + public form for v1.1.
+- **OG cards skip minor profiles.** No headshot exposure via the social-share preview. Falls back to the generic site card.
+- **Cast list paste parser** recognises `Name as Role`, `Name - Role`, `Name: Role`, `Role: Name` (only when LHS matches a known role keyword like "Director"), and `Name, Role`. Lines without a separator land as `{name: line, position: ""}` so the admin can fix in-line.
+
+### Things to test (non-obvious bits)
+
+- **Multi-resume editor at /edit/[token]:** add a resume, rename it inline, add credits, toggle chips to assign credits to multiple resumes, view inbox tab, delete a resume (entries should drop into inbox). Each action is a live API call; check console for any 4xx/5xx.
+- **Public /artists/[slug] with multiple resumes:** picker chips appear at top of the resume block. Default = resume with most entries. URL `?resume=<id>` deep-links to a specific one.
+- **Production credits on /admin/calendar/[id]/credits:** quick-add a single credit, paste-cast a multi-line list, click "Find profile" on an unlinked credit, link to a real artist, edit the position field (cascades to linked resume row's role).
+- **`/calendar/[id]` public detail page:** confirm linked artists are hyperlinked to /artists/[slug] and unlinked free-text names render plain.
+- **"Currently appearing in" badge on /artists/[slug]:** create a credit linking an artist to a production whose run dates include today (or open within 60 days). Visit the profile, confirm the badge.
+- **Org self-serve flow:** /admin/organizations -> click Generate edit link on a verified org -> copy URL -> open in incognito -> /org-edit/[token] lists the org's productions -> click Manage credits -> /org-edit/[token]/credits/[id] is the same editor as admin sees.
+- **Artist self-claim:** /edit/[token] has a "Claim a production credit" panel near the bottom. Search a production by title, pick it, fill role + category, submit. Credit appears on the production's /calendar/[id] page; resume row appears in the artist's inbox.
+- **Multi-admin bootstrap:** sign in once at /admin/login with the env email + password. Admin_users gets a row, sessions table gets repopulated. Visit /admin/admins as the owner; invite a fake co-admin; copy the invite link; open in incognito; set a password at /admin/accept-invite/[token]; sign in as that admin (email + password).
+- **Blog:** /admin/blog -> + New post -> draft -> edit, add cover image, publish -> /blog and /blog/[slug] render. Footer + Nav menu both link to /blog publicly.
+- **OG cards:** share /artists/hester-elwell to iMessage / Messenger / Slack and confirm the per-artist card renders. The Cloudinary URL is in the page's `og:image` meta tag - pasting it into a browser should return a real image (HTTP 200, image/jpeg). I tested URL generation but not visual quality - may need stroke/font tweaks if names look bad against busy headshots. Fallback to the generic site card kicks in for non-Cloudinary headshots.
+
+### Operational notes
+
+- **No migrations parked.** Migs 078-081 ran cleanly against the dev DB.
+- **All commits are local, not pushed.** Standing rule. Push when you're ready.
+- **Test data was seeded + cleaned up** (Hester briefly had test resumes + production credits during verification; both wiped before the commits).
+- **`pnpm check` is clean** at every commit point. Lexi-side test data stays in the dev DB only.
+- **No new external dependencies.** Everything uses what was already in the repo (scrypt from `node:crypto` for password hashing).
