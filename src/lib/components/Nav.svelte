@@ -47,6 +47,7 @@
   // "learn" -> "act" -> "legal".
   const menuLinks: Link[] = [
     { href: "/about", label: "About" },
+    { href: "/blog", label: "Blog" },
     { href: "/theatres", label: "Theatres" },
     { href: "/mentorship", label: "Mentorship" },
     { href: "/contact", label: "Contact" },

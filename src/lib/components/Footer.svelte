@@ -58,6 +58,7 @@
         </svg>
       </a>
       <a href="/about">About</a>
+      <a href="/blog">Blog</a>
       <a href="/contact">Contact</a>
       <a href="/support-us">Support us</a>
       <a href="/privacy">Privacy</a>
