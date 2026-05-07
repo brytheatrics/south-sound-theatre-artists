@@ -125,7 +125,15 @@
   <title>{p.full_name} - South Sound Theatre Artists</title>
   <meta name="description" content={p.bio ? p.bio.slice(0, 160) : `${p.full_name} - ${p.disciplines.join(", ")}`} />
   <meta property="og:title" content={p.full_name} />
-  {#if p.headshot_url}<meta property="og:image" content={p.headshot_url} />{/if}
+  <meta property="og:type" content="profile" />
+  {#if data.ogCardUrl}
+    <meta property="og:image" content={data.ogCardUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+  {:else if p.headshot_url && !p.is_minor}
+    <meta property="og:image" content={p.headshot_url} />
+  {/if}
 </svelte:head>
 
 {#if isAdmin}

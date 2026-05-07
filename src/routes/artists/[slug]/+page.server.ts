@@ -12,6 +12,7 @@ import { sendEmail } from "$lib/server/email";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 import { loadProfileResumes } from "$lib/server/resumes";
 import { loadCurrentAppearances } from "$lib/server/productionCredits";
+import { buildOgCardUrl } from "$lib/server/cloudinary";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const isAdmin = !!locals.admin;
@@ -39,7 +40,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     loadProfileResumes(data.id),
     loadCurrentAppearances(data.id),
   ]);
-  return { profile: data, resumeSnapshot, currentAppearances };
+  // Per-profile OG / social-share card. Falls back to null when the
+  // headshot isn't Cloudinary-hosted; the page renders the generic
+  // og:image (or none) in that case.
+  const ogCardUrl = data.is_minor
+    ? null // never expose a minor's headshot, even via OG card
+    : buildOgCardUrl({
+        headshotUrl: data.headshot_url,
+        name: data.full_name,
+        primaryDiscipline: data.disciplines?.[0] ?? null,
+      });
+  return { profile: data, resumeSnapshot, currentAppearances, ogCardUrl };
 };
 
 export const actions: Actions = {

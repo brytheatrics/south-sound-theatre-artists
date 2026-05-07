@@ -81,6 +81,79 @@ export function signResumeUpload(): SignedRawUpload {
   };
 }
 
+// =============================================================
+// OG card URL builder (per-artist social-share preview)
+// =============================================================
+
+/** Extract the Cloudinary public_id (with folder) from one of our
+ *  signed-upload URLs, e.g.
+ *   https://res.cloudinary.com/foo/image/upload/v1234/headshots/xyz.jpg
+ *   -> "headshots/xyz"
+ *  Returns null if the URL isn't Cloudinary-hosted on our cloud (in
+ *  which case we'll fall back to the generic site OG card).
+ */
+function publicIdFromUrl(url: string): string | null {
+  if (!url) return null;
+  // Match the per-cloud Cloudinary URL pattern; extract everything
+  // after the version segment, sans extension.
+  const re = new RegExp(
+    `^https?://res\\.cloudinary\\.com/${PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/(?:v\\d+/)?(.+?)(\\.[a-z0-9]+)?$`,
+    "i",
+  );
+  const m = url.match(re);
+  if (!m) return null;
+  return m[1];
+}
+
+/** URL-encode a text overlay value for Cloudinary. Cloudinary text
+ *  overlays choke on commas, slashes, and a few other separators -
+ *  the safest path is full URL encoding. Returns "" for empty input. */
+function encodeOverlayText(s: string): string {
+  if (!s) return "";
+  return encodeURIComponent(s.trim().slice(0, 80))
+    .replace(/%2F/g, "%252F")
+    .replace(/,/g, "%2C")
+    .replace(/'/g, "%27");
+}
+
+/** Build the Cloudinary delivery URL for a per-artist OG card.
+ *  Renders headshot left, name + discipline + "South Sound Theatre
+ *  Artists" wordmark on a darker overlay. Returns null when the
+ *  headshot isn't Cloudinary-hosted (caller falls back to the
+ *  generic site card). */
+export function buildOgCardUrl(input: {
+  headshotUrl: string | null;
+  name: string;
+  primaryDiscipline?: string | null;
+}): string | null {
+  if (!input.headshotUrl) return null;
+  const publicId = publicIdFromUrl(input.headshotUrl);
+  if (!publicId) return null;
+  const name = encodeOverlayText(input.name);
+  const discipline = encodeOverlayText(input.primaryDiscipline ?? "");
+  const wordmark = encodeOverlayText("South Sound Theatre Artists");
+
+  // Conservative single-pass transformation:
+  //   1. Crop the headshot to a face-detected 1200x630 fill.
+  //   2. Overlay name + discipline + wordmark using white text with a
+  //      black stroke for legibility (works against any headshot
+  //      without needing a background-color layer, which has plan-
+  //      dependent quirks on Cloudinary).
+  const parts: string[] = [
+    "w_1200,h_630,c_fill,g_face,q_auto,f_auto",
+    `l_text:Arial_64_bold_stroke:${name},co_white,bo_3px_solid_black,g_south_west,x_50,y_${discipline ? 120 : 50}`,
+  ];
+  if (discipline) {
+    parts.push(
+      `l_text:Arial_32_stroke:${discipline},co_white,bo_2px_solid_black,g_south_west,x_50,y_50`,
+    );
+  }
+  parts.push(
+    `l_text:Arial_22_stroke:${wordmark},co_white,bo_2px_solid_black,g_south_east,x_30,y_30`,
+  );
+  return `https://res.cloudinary.com/${PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${parts.join("/")}/${publicId}.jpg`;
+}
+
 function signFolder(folder: string, transformation: string): SignedUpload {
   const timestamp = Math.floor(Date.now() / 1000);
   const params = {
