@@ -6,7 +6,8 @@ Master list of outstanding work. Sections, in roughly priority order:
 2. **Unpushed commits** — local-only work waiting on a push
 3. **Needs your eyes** — judgment calls / copy review from earlier sessions
 4. **Maintenance** — non-urgent but real deadlines
-5. **Parking lot** — discussed and parked; revisit when usage demands
+5. **Post-launch v1.1** — Lexi-requested; tackle once launch is stable
+6. **Parking lot** — discussed and parked; revisit when usage demands
 
 ---
 
@@ -88,7 +89,27 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 
 ---
 
-## 5. Parking lot ("Maybe later")
+## 5. Post-launch v1.1 (Lexi-requested)
+
+Lexi reviewed the parking lot and confirmed wanting these. Tackle once launch is stable; rough priority order. Total scope ~25-35 hrs of focused work.
+
+- **Production credits with cross-linking + self-serve tagging.** Each calendar item auto-gets a public `/productions/[id]` page. Verified orgs can edit cast/creative for their own productions (paste-a-cast-list parser with fuzzy name matching against existing artist profiles, plus manual add+tag). Artists can also self-claim credits if their org doesn't tag them. New tables: `production_credits` (production_id, profile_id nullable, display_name, position free-text, category enum: cast/creative/crew, source enum: org/artist/admin, order). Profile gets a "Currently appearing in: [Show]" badge during the run window. For v1.1 every credit lives immediately, no claim-verification gating - Lexi handles disputes ad-hoc from /admin. Subsumes the v1.3 "Currently appearing in" badge. ~10-15 hrs.
+
+- **Linked resume rows + auto-population from production credits.** When an org/artist tags a credit, it auto-creates a corresponding row in the artist's resume builder so they don't double-enter. Each resume row gets a `source` field (`hand` or `production`) and an optional `production_credit_id`. Linked rows show a small chip in the edit UI ("Linked to Hamlet, TLT, June 2026"); artist can reorder, hide, or detach (which converts to `hand` and breaks the link). Dedup on auto-add: fuzzy-match title+org+year against existing hand rows; if match, promote the existing row to linked rather than create a duplicate. Edge cases: org untags artist later → linked row auto-converts to `hand` with a toast; production renamed → linked row auto-updates. ~4-6 hrs.
+
+- **Multi-resume builder.** Artists can have multiple named resumes (e.g., "Director Resume," "Scenic Design Resume," "Actor Resume"). Each resume row carries a `resume_ids[]` so one credit can appear on multiple resumes (actor-director wants acting credits on both). New `resumes` table (id, profile_id, name typed by artist, order). Public profile shows a resume picker - tabs if 2-3 resumes, dropdown if more, default to the first. Each resume gets its own URL (`/artists/sarah-jones?resume=director`) for sharing. Auto-added production credits land in an **inbox** ("Tagged in 2 productions, assign →") rather than auto-routing - artist explicitly assigns to specific resumes. Migration: existing artists keep their current resume as a single default named whatever they typed. ~4-6 hrs.
+
+- **Blog section for native writing.** `/blog` with the same markdown editor + toolbar as About, link in main header + footer. New `blog_posts` table (slug, title, body_markdown, cover_url optional, published, published_at). Public list + `/blog/[slug]` detail. "Lexi Barnett" byline for v1.1 (generalizes when multi-admin lands). Ship markdown-first; if Lexi finds it restrictive, add a small set of custom shortcodes (pull-quote, image-with-caption, callout, YouTube embed) plus blog-specific CSS (generous line-height, styled pull quotes, optional drop cap) before considering WYSIWYG. ~2-3 hrs CRUD + page; +1 hr if shortcodes/styling pass needed. Sound on Stage write-up about SSTA could anchor the launch post if Lexi lines that up.
+
+- **Multi-admin with per-user accounts.** Swap env-var auth for an `admin_users` table (email, password_hash, role) with 2FA-via-email per user, plus `/admin/admins` invite + management page so Lexi can add admins herself without code changes. All admins are fully equal for v1.1 (no scoped roles); add granularity later if a use case surfaces. ~3-4 hrs.
+
+- **Per-artist OG / social-share cards.** Auto-generate per-profile cards via Cloudinary transformation overlay (no new infra) - headshot + name + primary discipline + "South Sound Theatre Artists" wordmark, themed background, 1200x630. Replaces the generic site card when `/artists/[slug]` gets shared to Instagram / iMessage / Facebook. Mockup first, then build. ~1.5 hrs. Lower priority - "awesome but not blocking" per Lexi.
+
+- **Add Sound on Stage to /resources** + optional SSTA write-up invitation. Pure content task for Lexi; no code. Could double as the inaugural blog post. (Lexi may be conflating blog and resources - Blake to clarify with her first.)
+
+---
+
+## 6. Parking lot ("Maybe later")
 
 Discussed and parked; revisit if real usage surfaces them.
 
@@ -100,13 +121,9 @@ Discussed and parked; revisit if real usage surfaces them.
 - **Embedded analytics summary on /admin home.** Right now the View Analytics pill links out to GoatCounter. Could pull top numbers via API and render summary cards on /admin once we know which metrics matter.
 - **Calendar-sync title-drift checker.** The LLM extraction occasionally normalizes proper nouns ("Mamma Mia!" → "Mama Mia"). Prompt fix should prevent recurrences but doesn't catch them when they do happen. Build only if title drift surfaces a second time. Approach: re-fetch source, Levenshtein-distance check against stored titles, flag distance > 2.
 - **Sponsors / paid listings page.** A `/sponsors` (or "Services" / "Partners") page where vetted businesses useful to theatre artists pay for a listing. Distinct from `/resources` (curated free) and `/theatres` (auto-pulled producing). Recommendation: wait for the first vendor to *ask* before building. Schema sketch + open questions live in repo history (commit `bf7affc`).
-- **Multi-admin with per-user accounts.** When Lexi wants to add a second admin, swap env-var auth for an `admin_users` table (email, password_hash, role), keep 2FA-via-email but route to that user's email. Includes an `/admin/admins` invite + management page. ~3-4 hours; design choices clearer once a real second user is in mind.
-- **Production detail pages with cast & creative cross-linking.** Today productions are list rows in the calendar - title, org, dates. A `/productions/[id]` page that lets theatres tag profiles for cast + creative team would close the loop between the directory and the calendar. Needs a new junction table (`production_credits`: production_id, profile_id, role, position) and admin UI for tagging, plus discipline-aware display ("Director: Lexi Barnett (linked)" / "Sound Designer: Hester Elwell (linked)"). Triggers a directory-side "Currently appearing in" badge that v1.3 already imagined. Probably ~3-4 hrs.
 - **Volunteer Opportunities.** A new section / post type for theatres to post non-production needs - "Looking for ushers Saturday 6/7," "House manager for closing weekend," "Help painting the set Tues evening." Distinct from the audition / designer / crew callboard slices because it's lower-commitment + recurring. Could ship as a new `post_type` slug + filter chip on `/callboard` (~30 min) or as its own page (~2 hrs). Lean toward the chip - the callboard already has the verification + auto-expire plumbing.
-- **Blog section for native writing.** `/resources` stays link-only (curated external resources). Add a separate `/blog` for posts written in Lexi's voice + hosted on the site - same markdown editor as About / email templates, optional cover image, lives at `/blog/[slug]`. New table (`blog_posts`: slug, title, body_markdown, cover_url, published, published_at). ~2 hrs for CRUD + public list + detail page. Don't bother with RSS / archive features until cadence is known.
 - **Unified "needs your attention" feed on /admin.** Today /admin shows pending counts for six surfaces (profile submissions, awaiting verification, callboard posts, verified org applications, flagged edits, calendar productions). A merged latest-N feed (oldest first, with a per-row link straight to the relevant admin page) would make the daily check-in faster than scanning each sub-tab. ~1 hr.
 - **"View as visitor" preview for landing-page copy.** When Lexi edits `/admin/content` for the callboard lede, she has to open `/callboard` in another tab to verify it looks right. An admin-only `?preview=draft` query param that pulls draft content on the public page would match WYSIWYG expectations without building one. Not blocking - current workflow works.
-- **Generic OG / social cards for artist profiles.** Right now sharing `/artists/sarah-jones` to iMessage / Instagram / Facebook gets the site's generic card, not Sarah's photo + bio. Per-profile OG cards (auto-generated server-side from the headshot + name, cached) would make community sharing significantly more compelling. Probably high-leverage relative to ~1.5 hr build.
 - **Multi-field directory search.** `/directory` search is name-only today. Real theatre searches are skill-based ("lighting designer who works with drag performers"). Multi-field search across name + bio + disciplines via Postgres FTS or `ilike` across columns would be more useful. Wait for actual usage to confirm before building - launch-day expectation might just be "find me by name" and the search-bar copy can prime that.
 
 ---
@@ -115,7 +132,7 @@ Discussed and parked; revisit if real usage surfaces them.
 
 These are deferred features with shape, not active work. Triggers are concrete signals from real users:
 
-- **v1.3 Discovery layer.** "What's Playing" calendar (production announcements as month/list view), "Currently appearing in" badges on artist profiles, public production archive page (searchable past + present productions). Ships from manually-submitted data; can launch before v2.x.
+- **v1.3 Discovery layer.** "What's Playing" calendar already shipped. "Currently appearing in" badges + production detail pages promoted to v1.1 (above). Remaining piece: a public production archive page (searchable past + present productions across orgs) - low priority until enough archived productions exist for the archive to be useful.
 - **v2.x Auto-populated regional calendar.** Audit complete (2026-05-02). 26 orgs, mostly AI-generic extraction (Claude Haiku 4.5, ~$0.10/run, monthly cron). Architecture settled; Phase 0 dry-run is the next step. See [HISTORY.md](HISTORY.md) for the full audit findings.
 - **v2 driven by real usage.** Batch admin actions (if Lexi clears >10 items per session regularly), image cropping UI (if artists complain about auto-crop), embeddable profile widgets (if anyone asks), favorites / starred artists (localStorage, no accounts), WYSIWYG editor migration (if Lexi struggles with markdown), whatever else surfaces.
 
