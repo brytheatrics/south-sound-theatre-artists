@@ -213,6 +213,23 @@
     </div>
   </div>
 
+  {#if data.currentAppearances && data.currentAppearances.length > 0}
+    <aside class="appearing">
+      <span class="appearing-label">Currently appearing in</span>
+      <ul class="appearing-list">
+        {#each data.currentAppearances as a (a.production_id)}
+          <li>
+            <a href={`/calendar/${a.production_id}`}>
+              <strong>{a.title}</strong>
+              {#if a.position}<span class="appearing-pos"> - {a.position}</span>{/if}
+              {#if a.org_name}<span class="appearing-org"> · {a.org_name}</span>{/if}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </aside>
+  {/if}
+
   <hr class="rule" />
 
   <div class="body-grid">
@@ -710,6 +727,48 @@
   .socials .handle {
     color: var(--muted);
     font-size: 12px;
+  }
+  .appearing {
+    margin: 1rem 0 0;
+    padding: 14px 16px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.02);
+  }
+  .appearing-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .appearing-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .appearing-list a {
+    color: var(--ink);
+    text-decoration: none;
+    font-family: var(--font-body);
+    font-size: 15px;
+  }
+  .appearing-list a:hover strong {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .appearing-list strong {
+    border-bottom: 1px solid var(--rule);
+  }
+  .appearing-pos,
+  .appearing-org {
+    color: var(--ink-soft);
+    font-size: 13px;
   }
   .resume-picker {
     display: flex;

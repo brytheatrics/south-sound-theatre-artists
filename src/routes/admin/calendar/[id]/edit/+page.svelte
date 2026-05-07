@@ -62,6 +62,10 @@
       · added by hand
     {/if}
   </p>
+  <p class="quick-link">
+    <a href={`/admin/calendar/${data.production.id}/credits`}>Manage cast & credits →</a>
+    · <a href={`/calendar/${data.production.id}`} target="_blank" rel="noopener">View public page ↗</a>
+  </p>
   {#if data.sourceInfo}
     {#if data.production.admin_edited_at}
       <p class="info-soft">

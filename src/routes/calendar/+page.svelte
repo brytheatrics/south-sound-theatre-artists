@@ -349,38 +349,20 @@
             <div class="day-perfs">
               {#each byDate.get(cell.key) ?? [] as p (p.id)}
                 {@const baseTitle = p.production.title + ' — ' + p.production.organization_name + (p.note ? ' — ' + p.note : '')}
-                {#if p.production.detail_url}
-                  <a
-                    class="perf-pill perf-pill-link"
-                    class:has-note={!!p.note}
-                    href={p.production.detail_url}
-                    target="_blank"
-                    rel="noopener"
-                    title={baseTitle + ' (opens in a new tab)'}
-                    data-production-id={p.production.id}
-                  >
-                    <span class="perf-time">{fmtTime(p.performs_at)}</span>
-                    <span class="perf-title">{p.production.title}</span>
-                    <span class="perf-org">{p.production.organization_name}</span>
-                    {#if p.note}
-                      <span class="note-badge" aria-label={p.note}>✦</span>
-                    {/if}
-                  </a>
-                {:else}
-                  <div
-                    class="perf-pill"
-                    class:has-note={!!p.note}
-                    title={baseTitle}
-                    data-production-id={p.production.id}
-                  >
-                    <span class="perf-time">{fmtTime(p.performs_at)}</span>
-                    <span class="perf-title">{p.production.title}</span>
-                    <span class="perf-org">{p.production.organization_name}</span>
-                    {#if p.note}
-                      <span class="note-badge" aria-label={p.note}>✦</span>
-                    {/if}
-                  </div>
-                {/if}
+                <a
+                  class="perf-pill perf-pill-link"
+                  class:has-note={!!p.note}
+                  href={`/calendar/${p.production.id}`}
+                  title={baseTitle}
+                  data-production-id={p.production.id}
+                >
+                  <span class="perf-time">{fmtTime(p.performs_at)}</span>
+                  <span class="perf-title">{p.production.title}</span>
+                  <span class="perf-org">{p.production.organization_name}</span>
+                  {#if p.note}
+                    <span class="note-badge" aria-label={p.note}>✦</span>
+                  {/if}
+                </a>
               {/each}
             </div>
           {/if}
@@ -407,7 +389,7 @@
             <li class="perf-row" data-production-id={p.production.id}>
               <span class="perf-time-list">{fmtTime(p.performs_at)}</span>
               <div class="perf-meat">
-                <div class="perf-title-list">{p.production.title}</div>
+                <a class="perf-title-list" href={`/calendar/${p.production.id}`}>{p.production.title}</a>
                 <div class="perf-org-list">
                   {p.production.organization_name}
                   {#if p.note}
@@ -416,7 +398,7 @@
                 </div>
               </div>
               {#if p.production.detail_url}
-                <a class="perf-link" href={p.production.detail_url} target="_blank" rel="noopener">Info →</a>
+                <a class="perf-link" href={p.production.detail_url} target="_blank" rel="noopener">Tickets ↗</a>
               {/if}
             </li>
           {/each}

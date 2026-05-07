@@ -11,6 +11,7 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 import { loadProfileResumes } from "$lib/server/resumes";
+import { loadCurrentAppearances } from "$lib/server/productionCredits";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const isAdmin = !!locals.admin;
@@ -34,8 +35,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   if (err) throw err;
   if (!data) error(404, "Profile not found");
 
-  const resumeSnapshot = await loadProfileResumes(data.id);
-  return { profile: data, resumeSnapshot };
+  const [resumeSnapshot, currentAppearances] = await Promise.all([
+    loadProfileResumes(data.id),
+    loadCurrentAppearances(data.id),
+  ]);
+  return { profile: data, resumeSnapshot, currentAppearances };
 };
 
 export const actions: Actions = {
