@@ -2,7 +2,6 @@
 
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import { ADMIN_EMAIL } from "$env/static/private";
 import { supabaseAdmin } from "$lib/server/supabase";
 import {
   createTrustedDevice,
@@ -11,6 +10,7 @@ import {
   SESSION_COOKIE,
   SESSION_TTL_MS,
   TRUSTED_DEVICE_COOKIE,
+  touchAdminLogin,
 } from "$lib/server/admin-auth";
 
 export const load: PageServerLoad = async ({ cookies, locals }) => {
@@ -36,10 +36,9 @@ export const actions: Actions = {
     const codeHash = hashSecret(code);
     const { data: token, error } = await supabaseAdmin
       .from("magic_link_tokens")
-      .select("id, expires_at, used_at, email")
+      .select("id, expires_at, used_at, email, target_id")
       .eq("token_hash", codeHash)
       .eq("purpose", "admin_2fa")
-      .eq("email", ADMIN_EMAIL.toLowerCase())
       .maybeSingle();
 
     if (error) {
@@ -70,10 +69,14 @@ export const actions: Actions = {
     await supabaseAdmin.from("admin_sessions").insert({
       token_hash: sessionHash,
       email: token.email,
+      admin_user_id: token.target_id ?? null,
       expires_at: expires.toISOString(),
       ip_address: getClientAddress(),
       user_agent: request.headers.get("user-agent") ?? null,
     });
+    if (token.target_id) {
+      await touchAdminLogin(token.target_id);
+    }
 
     cookies.set(SESSION_COOKIE, sessionToken, {
       path: "/",
@@ -90,6 +93,7 @@ export const actions: Actions = {
       const { rawToken, expiresAt } = await createTrustedDevice(token.email, {
         ip: getClientAddress(),
         userAgent: request.headers.get("user-agent"),
+        adminUserId: token.target_id ?? null,
       });
       cookies.set(TRUSTED_DEVICE_COOKIE, rawToken, {
         path: "/",

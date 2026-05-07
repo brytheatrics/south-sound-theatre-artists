@@ -16,7 +16,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const path = event.url.pathname;
   const isAdminRoute = path === "/admin" || path.startsWith("/admin/");
-  const isPublicAdmin = PUBLIC_ADMIN_PATHS.has(path);
+  const isPublicAdmin =
+    PUBLIC_ADMIN_PATHS.has(path) || path.startsWith("/admin/accept-invite/");
 
   if (isAdminRoute && !isPublicAdmin && !event.locals.admin) {
     throw redirect(303, "/admin/login");

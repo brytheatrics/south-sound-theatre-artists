@@ -43,6 +43,7 @@
     { href: "/admin/submit-form", label: "Submit form fields" },
     { href: "/admin/callboard-types", label: "Callboard types" },
     { href: "/admin/blocklist", label: "Blocklist" },
+    { href: "/admin/admins", label: "Admins", group: true },
   ];
 
   function countFor(key: CountKey | undefined): number {

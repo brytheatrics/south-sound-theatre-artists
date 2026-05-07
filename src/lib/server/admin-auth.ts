@@ -13,8 +13,14 @@
 //        hash + store in admin_sessions, set httpOnly cookie.
 //   3. hooks.server.ts validates the cookie on every request to /admin/*.
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { ADMIN_PASSWORD } from "$env/static/private";
+import { env as privateEnv } from "$env/dynamic/private";
 import { supabaseAdmin } from "./supabase";
 
 export const SESSION_COOKIE = "ssta_admin";
@@ -85,6 +91,7 @@ export type AdminSession = {
   id: string;
   email: string;
   expires_at: string;
+  admin_user_id: string | null;
 };
 
 export async function findValidSession(
@@ -94,7 +101,7 @@ export async function findValidSession(
   const tokenHash = hashSecret(rawToken);
   const { data, error } = await supabaseAdmin
     .from("admin_sessions")
-    .select("id, email, expires_at")
+    .select("id, email, expires_at, admin_user_id")
     .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -140,7 +147,7 @@ export async function findValidTrustedDevice(
 /** Mints a new trusted-device row + returns the raw token to set as cookie. */
 export async function createTrustedDevice(
   email: string,
-  meta: { ip?: string; userAgent?: string | null },
+  meta: { ip?: string; userAgent?: string | null; adminUserId?: string | null },
 ): Promise<{ rawToken: string; expiresAt: Date }> {
   const rawToken = randomBytes(32).toString("base64url");
   const tokenHash = hashSecret(rawToken);
@@ -151,6 +158,110 @@ export async function createTrustedDevice(
     expires_at: expiresAt.toISOString(),
     ip_address: meta.ip ?? null,
     user_agent: meta.userAgent ?? null,
+    admin_user_id: meta.adminUserId ?? null,
   });
   return { rawToken, expiresAt };
+}
+
+// =============================================================
+// Multi-admin (mig 080): admin_users table + per-user passwords
+// =============================================================
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  password_hash: string | null;
+  name: string | null;
+  role: "owner" | "admin";
+  password_set_at: string | null;
+  last_login_at: string | null;
+};
+
+/** scrypt-based password hashing using only Node built-ins. Format:
+ *  "scrypt$<saltHex>$<derivedHex>". 64-byte derived key. */
+const SCRYPT_KEYLEN = 64;
+export function hashPassword(plain: string): string {
+  const salt = randomBytes(16);
+  const derived = scryptSync(plain, salt, SCRYPT_KEYLEN);
+  return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;
+}
+
+export function verifyPassword(plain: string, stored: string): boolean {
+  if (!stored.startsWith("scrypt$")) return false;
+  const parts = stored.split("$");
+  if (parts.length !== 3) return false;
+  const salt = Buffer.from(parts[1], "hex");
+  const expected = Buffer.from(parts[2], "hex");
+  let derived: Buffer;
+  try {
+    derived = scryptSync(plain, salt, SCRYPT_KEYLEN);
+  } catch {
+    return false;
+  }
+  if (derived.length !== expected.length) return false;
+  return timingSafeEqual(derived, expected);
+}
+
+/** Look up an admin_users row by email (case-insensitive via citext column). */
+export async function findAdminByEmail(email: string): Promise<AdminUser | null> {
+  if (!email) return null;
+  const { data } = await supabaseAdmin
+    .from("admin_users")
+    .select("id, email, password_hash, name, role, password_set_at, last_login_at")
+    .eq("email", email.trim().toLowerCase())
+    .is("deleted_at", null)
+    .maybeSingle();
+  return (data ?? null) as AdminUser | null;
+}
+
+/** First-login bootstrap: if admin_users is empty AND the submitted
+ *  email + password match ADMIN_EMAIL + ADMIN_PASSWORD env vars,
+ *  create the owner row with the hashed env password and return it.
+ *  Otherwise null. */
+export async function bootstrapOwnerIfNeeded(
+  email: string,
+  password: string,
+): Promise<AdminUser | null> {
+  const envEmail = (privateEnv.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  const envPassword = ADMIN_PASSWORD;
+  if (!envEmail || !envPassword) return null;
+  if (email.trim().toLowerCase() !== envEmail) return null;
+  if (password !== envPassword) return null;
+  const { count } = await supabaseAdmin
+    .from("admin_users")
+    .select("id", { count: "exact", head: true })
+    .is("deleted_at", null);
+  if ((count ?? 0) > 0) return null; // not the bootstrap moment anymore
+  const { data, error } = await supabaseAdmin
+    .from("admin_users")
+    .insert({
+      email: envEmail,
+      password_hash: hashPassword(password),
+      role: "owner",
+      password_set_at: new Date().toISOString(),
+    })
+    .select("id, email, password_hash, name, role, password_set_at, last_login_at")
+    .single();
+  if (error) return null;
+  return data as AdminUser;
+}
+
+/** Mark an admin's last login timestamp. */
+export async function touchAdminLogin(adminUserId: string): Promise<void> {
+  await supabaseAdmin
+    .from("admin_users")
+    .update({ last_login_at: new Date().toISOString() })
+    .eq("id", adminUserId);
+}
+
+/** Update an admin's password. Used for the accept-invite flow + future
+ *  "change my password" feature. */
+export async function setAdminPassword(adminUserId: string, plain: string): Promise<void> {
+  await supabaseAdmin
+    .from("admin_users")
+    .update({
+      password_hash: hashPassword(plain),
+      password_set_at: new Date().toISOString(),
+    })
+    .eq("id", adminUserId);
 }

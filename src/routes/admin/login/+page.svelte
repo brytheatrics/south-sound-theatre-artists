@@ -17,6 +17,15 @@
     onsubmit={() => (submitting = true)}
   >
     <label class="field">
+      <span>Email</span>
+      <input
+        type="email"
+        name="email"
+        autocomplete="email"
+        placeholder="Optional - leave blank to use the owner email"
+      />
+    </label>
+    <label class="field">
       <span>Password</span>
       <!-- svelte-ignore a11y_autofocus -->
       <input

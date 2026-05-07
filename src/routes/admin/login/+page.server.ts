@@ -15,8 +15,9 @@ import { env as privateEnv } from "$env/dynamic/private";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import {
+  bootstrapOwnerIfNeeded,
   checkLoginRateLimit,
-  checkPassword,
+  findAdminByEmail,
   findValidTrustedDevice,
   generateSessionToken,
   generateTwoFaCode,
@@ -26,6 +27,8 @@ import {
   SESSION_TTL_MS,
   TRUSTED_DEVICE_COOKIE,
   TWOFA_TTL_MS,
+  touchAdminLogin,
+  verifyPassword,
 } from "$lib/server/admin-auth";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -46,16 +49,33 @@ export const actions: Actions = {
 
     const data = await request.formData();
     const password = (data.get("password") as string) ?? "";
+    // Email field is optional for backwards compat: when missing, we
+    // default to ADMIN_EMAIL env (the bootstrap owner). Multi-admin
+    // logins always supply email + password.
+    const submittedEmail =
+      ((data.get("email") as string) ?? "").trim().toLowerCase() || ADMIN_EMAIL.toLowerCase();
 
     if (!password) {
       await logLoginAttempt(ip, false, "no_password");
       return fail(400, { error: "Enter the admin password." });
     }
 
-    if (!checkPassword(password)) {
-      await logLoginAttempt(ip, false, "bad_password");
-      return fail(401, { error: "That password isn't right." });
+    // Resolve the admin_users row this login is for. If the table is
+    // empty AND the env credentials match, bootstrap the owner row.
+    let admin = await findAdminByEmail(submittedEmail);
+    if (!admin) {
+      admin = await bootstrapOwnerIfNeeded(submittedEmail, password);
     }
+    if (!admin || !admin.password_hash) {
+      await logLoginAttempt(ip, false, "unknown_email");
+      return fail(401, { error: "That email + password combination isn't right." });
+    }
+    if (!verifyPassword(password, admin.password_hash)) {
+      await logLoginAttempt(ip, false, "bad_password");
+      return fail(401, { error: "That email + password combination isn't right." });
+    }
+    const adminEmail = admin.email;
+    const adminUserId = admin.id;
 
     // Dev convenience: skip 2FA when running `pnpm dev` AND the env
     // flag is opted in. Hard-gated on import.meta.env.DEV, which Vite
@@ -67,7 +87,8 @@ export const actions: Actions = {
       const expires = new Date(Date.now() + SESSION_TTL_MS);
       await supabaseAdmin.from("admin_sessions").insert({
         token_hash: sessionHash,
-        email: ADMIN_EMAIL.toLowerCase(),
+        email: adminEmail,
+        admin_user_id: adminUserId,
         expires_at: expires.toISOString(),
         ip_address: ip,
         user_agent: request.headers.get("user-agent") ?? null,
@@ -79,6 +100,7 @@ export const actions: Actions = {
         secure: false,
         expires,
       });
+      await touchAdminLogin(adminUserId);
       await logLoginAttempt(ip, true, "password_ok_2fa_bypassed_DEV");
       throw redirect(303, "/admin");
     }
@@ -89,17 +111,15 @@ export const actions: Actions = {
     // cookie just substitutes for "we already proved this device once."
     const trustedToken = cookies.get(TRUSTED_DEVICE_COOKIE);
     if (trustedToken) {
-      const trusted = await findValidTrustedDevice(
-        trustedToken,
-        ADMIN_EMAIL,
-      );
+      const trusted = await findValidTrustedDevice(trustedToken, adminEmail);
       if (trusted) {
         const sessionToken = generateSessionToken();
         const sessionHash = hashSecret(sessionToken);
         const expires = new Date(Date.now() + SESSION_TTL_MS);
         await supabaseAdmin.from("admin_sessions").insert({
           token_hash: sessionHash,
-          email: ADMIN_EMAIL.toLowerCase(),
+          email: adminEmail,
+          admin_user_id: adminUserId,
           expires_at: expires.toISOString(),
           ip_address: ip,
           user_agent: request.headers.get("user-agent") ?? null,
@@ -111,6 +131,7 @@ export const actions: Actions = {
           secure: !import.meta.env.DEV,
           expires,
         });
+        await touchAdminLogin(adminUserId);
         await logLoginAttempt(ip, true, "password_ok_trusted_device");
         throw redirect(303, "/admin");
       }
@@ -127,13 +148,14 @@ export const actions: Actions = {
 
     await supabaseAdmin.from("magic_link_tokens").insert({
       token_hash: codeHash,
-      email: ADMIN_EMAIL.toLowerCase(),
+      email: adminEmail,
       purpose: "admin_2fa",
+      target_id: adminUserId,
       expires_at: expires,
     });
 
     const sendResult = await sendEmail({
-      to: ADMIN_EMAIL,
+      to: adminEmail,
       templateSlug: "admin_2fa",
       vars: { code },
     });
