@@ -20,8 +20,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
     .from("callboard_subscriptions")
     .select(
       `id, subscriber_email, post_types, callboard_area_ids,
-       calendar_category_ids, calendar_area_ids, preferences_updated_at,
-       confirmed_at, unsubscribed_at`,
+       calendar_category_ids, calendar_area_ids, include_blog,
+       preferences_updated_at, confirmed_at, unsubscribed_at`,
     )
     .eq("unsubscribe_token", token)
     .maybeSingle();
@@ -81,6 +81,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     initialPickedCallboardAreas,
     initialPickedCategories,
     initialPickedCalendarAreas,
+    initialIncludeBlog: !!sub.include_blog,
     saved: url.searchParams.get("saved") === "1",
   };
 };
@@ -137,6 +138,7 @@ export const actions: Actions = {
     const callboard_area_ids = collapseTickedAll(tickedCallboardAreas, validAreaIds);
     const calendar_category_ids = collapseTickedAll(tickedCategories, validCategoryIds);
     const calendar_area_ids = collapseTickedAll(tickedCalendarAreas, validAreaIds);
+    const include_blog = fd.get("include_blog") === "1";
 
     const { error: updErr } = await supabaseAdmin
       .from("callboard_subscriptions")
@@ -145,6 +147,7 @@ export const actions: Actions = {
         callboard_area_ids,
         calendar_category_ids,
         calendar_area_ids,
+        include_blog,
         preferences_updated_at: new Date().toISOString(),
       })
       .eq("id", sub.id);

@@ -55,6 +55,7 @@ async function main() {
     const subsRes = await db.query(
       `select id, subscriber_email, disciplines, post_types,
               callboard_area_ids, calendar_category_ids, calendar_area_ids,
+              include_blog,
               last_digest_at, confirmed_at, created_at,
               preferences_updated_at, unsubscribe_token
        from callboard_subscriptions
@@ -101,6 +102,7 @@ async function main() {
          from productions
         where status = 'approved'
           and deleted_at is null
+          and hidden_at is null
           and run_start is not null
           and run_start >= $1::date
           and run_start <= $2::date
@@ -109,6 +111,34 @@ async function main() {
       [today, horizon],
     );
     const allUpcomingProds = upcomingProdRes.rows;
+
+    // Blog posts published since each subscriber's last digest. Pulled
+    // globally; per-subscriber filter is just the include_blog opt-in
+    // boolean (no taxonomy on blog posts). The cron uses the same
+    // since-cutoff calc as the callboard slice.
+    const allRecentBlogRes = await db.query(
+      `select slug, title, cover_url, published_at
+         from blog_posts
+        where published = true
+          and published_at is not null
+          and deleted_at is null
+        order by published_at desc
+        limit 30`,
+    );
+    const allRecentBlog = allRecentBlogRes.rows;
+
+    function buildBlogBlock(includeBlog, sinceIso) {
+      if (!includeBlog) return "";
+      const since = new Date(sinceIso);
+      const recent = allRecentBlog.filter(
+        (p) => new Date(p.published_at) > since,
+      );
+      if (recent.length === 0) return "";
+      const lines = recent.slice(0, 8).map((p) => {
+        return `- [${p.title}](${siteUrl}/blog/${p.slug})`;
+      });
+      return `## New on the blog\n\n${lines.join("\n")}\n`;
+    }
 
     function buildProductionsBlock(categoryIds, areaIds) {
       // Both arrays use the empty = "no filter" sentinel.
@@ -247,7 +277,10 @@ async function main() {
       );
       const hasProductions = !productionsBlock.startsWith("_Nothing");
 
-      if (newPosts.rowCount === 0 && !hasProductions) {
+      const blogBlock = buildBlogBlock(sub.include_blog, since);
+      const hasBlog = blogBlock !== "";
+
+      if (newPosts.rowCount === 0 && !hasProductions && !hasBlog) {
         skipped++;
         continue;
       }
@@ -289,6 +322,7 @@ async function main() {
           name: "there",
           posts: postsBlock,
           productions: productionsBlock,
+          blog: blogBlock,
           callboard_url: `${siteUrl}/callboard`,
           calendar_url: `${siteUrl}/calendar`,
           manage_url: manageUrl,

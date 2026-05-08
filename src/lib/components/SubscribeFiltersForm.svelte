@@ -25,6 +25,7 @@
     initialPickedCallboardAreas: Set<string>;
     initialPickedCategories: Set<string>;
     initialPickedCalendarAreas: Set<string>;
+    initialIncludeBlog?: boolean;
     initialEmail?: string;
     formError?: string;
     saved?: boolean;
@@ -41,6 +42,7 @@
     initialPickedCallboardAreas,
     initialPickedCategories,
     initialPickedCalendarAreas,
+    initialIncludeBlog = mode === "new" ? true : false,
     initialEmail = "",
     formError,
     saved,
@@ -54,6 +56,8 @@
   let pickedCategories = $state<Set<string>>(new Set(initialPickedCategories));
   /* svelte-ignore state_referenced_locally */
   let pickedCalendarAreas = $state<Set<string>>(new Set(initialPickedCalendarAreas));
+  /* svelte-ignore state_referenced_locally */
+  let includeBlog = $state<boolean>(initialIncludeBlog);
 
   function toggle(set: Set<string>, key: string): Set<string> {
     const next = new Set(set);
@@ -194,6 +198,21 @@
     </div>
   </fieldset>
 
+  <!-- BLOG -->
+  <fieldset class="dim">
+    <legend class="dim-title">Blog</legend>
+    <label class="check single-toggle">
+      <input
+        type="checkbox"
+        name="include_blog"
+        value="1"
+        checked={includeBlog}
+        onchange={() => (includeBlog = !includeBlog)}
+      />
+      <span>Include new blog posts in the digest</span>
+    </label>
+  </fieldset>
+
   {#if mode === "new"}
     <!-- Honeypot only matters for new signups; manage flow is token-gated. -->
     <label class="hp" aria-hidden="true">
@@ -254,6 +273,7 @@
     flex-direction: column;
     gap: 1rem;
   }
+  .single-toggle { padding: 0; }
   .dim-title {
     font-family: var(--font-display);
     font-size: 14px;

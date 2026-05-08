@@ -104,6 +104,7 @@ export const actions: Actions = {
     const callboardAreaIds = collapseTickedAll(tickedCallboardAreas, validAreaIds);
     const calendarCategoryIds = collapseTickedAll(tickedCategories, validCategoryIds);
     const calendarAreaIds = collapseTickedAll(tickedCalendarAreas, validAreaIds);
+    const includeBlog = fd.get("include_blog") === "1";
 
     // Look up existing subscription. We only re-fire confirmation when
     // the row hasn't been confirmed yet OR was unsubscribed; an active
@@ -131,6 +132,7 @@ export const actions: Actions = {
           callboard_area_ids: callboardAreaIds,
           calendar_category_ids: calendarCategoryIds,
           calendar_area_ids: calendarAreaIds,
+          include_blog: includeBlog,
           confirmation_token: confirmToken,
           confirmed_at: null,
           unsubscribed_at: null,
@@ -146,6 +148,7 @@ export const actions: Actions = {
           callboard_area_ids: callboardAreaIds,
           calendar_category_ids: calendarCategoryIds,
           calendar_area_ids: calendarAreaIds,
+          include_blog: includeBlog,
           confirmation_token: confirmToken,
           preferences_updated_at: nowIso,
         });

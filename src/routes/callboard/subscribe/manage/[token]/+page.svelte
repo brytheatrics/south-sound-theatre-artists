@@ -31,6 +31,7 @@
     initialPickedCallboardAreas={initialPickedCallboardAreas}
     initialPickedCategories={initialPickedCategories}
     initialPickedCalendarAreas={initialPickedCalendarAreas}
+    initialIncludeBlog={data.initialIncludeBlog}
     formError={form?.error}
     saved={form?.saved === true}
   />
