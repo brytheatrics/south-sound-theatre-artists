@@ -189,6 +189,70 @@ Big batch from a single working session. ~25-35 hrs of focused work distilled to
 - 084 + 085 `production_category_value` + `_backfill` — cast/production simplification
 - 086 `org_ticketing_url`
 - 087 `drop_resume_data_jsonb` — removes the legacy column
+- 088 `resources_cleanup` — drops the `resources.category_id` compat shim from migs 062 + 063
+
+---
+
+## v1.4 — Calendar adapter expansion (shipped 2026-05-08)
+
+Refactored `scripts/_lib/calendar-sync.mjs` so per-org extraction
+dispatches by the `adapter` column on `organizations`. Each adapter
+is a self-contained module under `scripts/_lib/adapters/` that takes
+a source row + opts and returns `{ shows, hash, cost }`; the
+orchestrator handles cache short-circuit, performance expansion, and
+the productions/performances upsert identically across adapters.
+
+### New platform adapters
+
+- **squarespace-json**: fetches `/events?format=json`, paginates,
+  per-item Claude detail prompt against the body HTML. Cheaper +
+  more reliable than scraping Squarespace HTML.
+- **ovationtix**: plain-fetch `web.ovationtix.com/trs/cal/{accountId}`
+  for the season list (server-rendered), then headless-Chromium
+  render of `ci.ovationtix.com/{accountId}/production/{id}` for
+  per-show schedule. Falls back to Fri/Sat 7:30pm + Sun 2pm when
+  Playwright times out (community-theatre default).
+- **ludus**: headless-Chromium render of `{org}.ludus.com` to clear
+  the Cloudflare JS challenge, then Claude extraction.
+- **eventbrite**: headless-Chromium render of
+  `eventbrite.com/o/{organizerId}` then Claude extraction. Per-show
+  detail-crawl on the rendered show page.
+
+### Adapter migrations (applied directly to dev DB)
+
+| Org | Was | Now | Result |
+|---|---|---|---|
+| Bainbridge Performing Arts | manual | squarespace-json | 14 shows, 56 perfs |
+| Centerstage Theatre | manual | ovationtix | 6 shows, 71 perfs |
+| Renton Civic Theatre | manual | ai-generic | 1 of 5 shows (rescue heuristic untested due to Anthropic cap) |
+| Dukesbay Productions | manual | eventbrite | 0 shows (no current Eventbrite events) |
+| Tacoma Little Theatre | ai-generic (main site) | ludus | 4 shows, 37 perfs |
+| ManeStage Theatre Company | ai-generic (main site) | ludus | 2 shows, 20 perfs |
+
+### Infra
+
+Playwright is a dev-only dependency that lives in the GitHub Actions
+runner; never ships to Netlify. Workflow installs Chromium with deps
+and caches the browser binary across runs. `fetchHtmlRendered` helper
+loads playwright lazily so adapters that don't need it have zero
+import cost. `closeBrowser()` in the cron entry script ensures
+Chromium exits cleanly.
+
+Added a conservative "rescue" pass to ai-generic: when Claude returns
+< 3 shows but the season page has >= 3 anchors matching `/shows/`,
+`/show/`, `/productions/`, or `/production/` paths, the unclaimed
+anchors are added as stub shows and pushed through detail-crawl.
+Motivating case: Next.js streaming HTML on rentoncivictheatre.org
+where the duplicated content confuses Claude's enumeration. NOT
+verified live (Anthropic monthly spend cap hit before validation;
+resets 2026-06-01).
+
+### Final cron coverage
+
+19 of 26 orgs now auto-pull (15 ai-generic + 1 squarespace-json + 1
+ovationtix + 2 ludus + 1 eventbrite). 8 manual (placeholder sites,
+touring, login-walled, or insufficient public schedule info). Cron
+runs monthly on the 1st via GitHub Actions.
 
 ---
 

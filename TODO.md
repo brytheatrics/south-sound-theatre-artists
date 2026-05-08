@@ -47,16 +47,21 @@ Before flipping `southsoundtheatreartists.org` DNS at Cloudflare to Netlify:
 
 ## 2. Unpushed commits (need a push to deploy)
 
-Since the last push (`c786304` email-pause allowlist), 32 commits have landed locally but not on staging. This is the v1.1 batch plus this week's polish — almost all of it is user-visible. Push when ready.
+Since the last push (`c786304` email-pause allowlist), commits have stacked locally but not on staging. Push when ready.
 
-Highlights:
+**Group A — v1.1 batch + polish + mig 088:** v1.1 features (multi-resume mig 078, production credits mig 079/082/086, multi-admin mig 080, blog mig 081, OG cards, drop `profiles.resume_data` mig 087), polish (cast-list paste parser, type-ahead in credits editor, "Currently appearing in" badge, calendar/[id] public detail page, credit-category collapse, nav blog link, /admin/organizations name+slug+area panel, org-wide ticketing URL fallback), bug fixes (/admin/admins 500, "Lexi" hardcoding, MultiResumeBuilder inbox copy, multi-fix), security fix (markdown XSS via javascript: scheme + attribute breakout), and mig 088 (drop `resources.category_id` compat shim). Migrations 078 through 088 all applied to dev DB.
 
-- **v1.1 features.** Multi-resume builder (mig 078), production credits + public detail page + admin/org editors (mig 079, 082, 086), artist self-claim + org self-serve credit tagging, multi-admin per-user accounts + invite flow (mig 080), native blog (mig 081), per-artist OG / social-share cards via Cloudinary, drop legacy `profiles.resume_data` jsonb (mig 087).
-- **v1.1 polish.** Cast-list paste parser, type-ahead in credits editor, creative team card grid, "Currently appearing in" badge, calendar/[id] public detail page, credit-category collapse to cast/production, nav blog link, /admin/organizations name+slug+area edit panel, org-wide ticketing URL fallback.
-- **Bug fixes.** /admin/admins 500 fix, "Lexi" hardcoding removed from user-visible defaults, MultiResumeBuilder inbox copy clarified, multi-fix commit covering admin profile edit / theatre link / appearing-in copy / blog scheduling / submit hint.
-- **Docs.** TODO + HISTORY updated for v1.3.
+**Group B — Calendar adapter expansion (overnight 2026-05-08):** New platform adapters refactor. The cron's `syncEventSource` now dispatches by `adapter` column to per-platform extractors:
 
-Migrations applied in this batch: `078` through `088`. `088` is the long-parked `resources.category_id` cleanup (drops the compat shim from migs 062 + 063), unparked + applied right after the v1.1 push landed. The `_pending/` folder is now empty.
+- `squarespace-json` → BPA (was manual). 14 shows, 56 perfs.
+- `ovationtix` → Centerstage (was manual). 6 shows, 71 perfs. Uses server-rendered `web.ovationtix.com/trs/cal/{accountId}` for the season list and Playwright for per-show schedule (with Fri/Sat 7:30pm + Sun 2pm fallback when Playwright times out).
+- `ludus` → ManeStage (was ai-generic on main site) + TLT (was ai-generic on their season page). 2/20 + 4/37. Cloudflare-walled so Playwright is required.
+- `eventbrite` → Dukesbay (was manual). 0 shows for now (Dukesbay has no upcoming Eventbrite events at the moment); will pick up automatically when they post one.
+- `ai-generic` → Renton Civic (was manual). Partial — Claude only enumerates 1 of 5 shows due to Next.js streaming HTML. Rescue heuristic added (untested live, see "Needs your eyes" below).
+
+Playwright is a dev-only dependency that lives in the GitHub Actions runner, never ships to Netlify. Workflow installs Chromium with cached browser binaries.
+
+`_pending/` migration folder is empty. No new schema migrations in Group B.
 
 ---
 
@@ -66,6 +71,12 @@ Judgment calls and AI-generated copy from earlier sessions that benefit from a L
 
 ### Theatre directory copy
 - [ ] **/theatres descriptions** for all 26 orgs. Generated facts-only blurbs from each org's site. Voice is Claude's, not Lexi's. Edit in `scripts/seed-theatre-metadata.mjs` then re-run `node scripts/seed-theatre-metadata.mjs --overwrite`.
+
+### Calendar adapter follow-ups
+- [ ] **Renton Civic rescue heuristic — untested live.** Hit the Anthropic monthly spend cap (resets 2026-06-01) before I could validate. The rescue logic in `extractAiGeneric` should pick up the 4 shows Claude misses on the Next.js streaming page; verify after 2026-06-01 with `node scripts/calendar-sync.mjs --org=rentoncivic --force`. If the rescue works it should land all 5 shows.
+- [ ] **Centerstage default-schedule fallback.** The OvationTix per-show drill via Playwright frequently times out, so the adapter falls back to Fri/Sat 7:30pm + Sun 2pm. That's correct ~80% of the time for community theatre but wrong for shows with Wednesday matinees / Thursday previews. Spot-check Centerstage productions in `/admin/calendar` and override individual performances when needed.
+- [ ] **Manual orgs to revisit.** astra, brave-stage are seeded but show `status='pending'` — they were added to the table but never given a source URL. Look up each and either set a real source_url + adapter, or leave manual.
+- [ ] **Dukesbay Eventbrite check.** Currently 0 shows because they have no upcoming events on Eventbrite. When they post a new show, the next monthly cron should pick it up. If a show appears on dukesbay.org but doesn't surface in the calendar, force-run via `node scripts/calendar-sync.mjs --org=dukesbay --force`.
 
 ---
 
