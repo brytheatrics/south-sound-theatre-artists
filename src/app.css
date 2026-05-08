@@ -226,16 +226,25 @@ a:hover {
   font-size: clamp(40px, 8vw, 88px);
   margin: 0.5rem 0 1.5rem;
 }
-/* Editorial italic accent - *word* in a heading renders as DM Serif
+/* Editorial italic accent - *word* in an h1/h2 renders as DM Serif
    Display italic in moss. */
 .prose h1 em,
-.prose h2 em,
-.prose h3 em {
+.prose h2 em {
   font-family: var(--font-accent);
   font-style: italic;
   font-weight: 400;
   color: var(--accent);
   letter-spacing: -0.02em;
+}
+/* h3 italics specifically: used on /about for the "Name, *Title*"
+   pattern in the team section. Render the title in muted weight + grey
+   so the name pops more than the title rather than competing with it. */
+.prose h3 em {
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0;
 }
 .prose h2 {
   font-family: var(--font-display);
@@ -285,6 +294,12 @@ a:hover {
   width: 200px;
   height: auto;
   margin: 0;
+}
+/* Pin the heading right after a floated headshot to the top of the
+   image. Without this, the h3's default 1.5rem top margin pushes the
+   name down into the middle of the headshot, breaking alignment. */
+.prose:not(.prose-compact) p:has(> img:only-child) + h3 {
+  margin-top: 0;
 }
 /* Lede: first paragraph after the H1. Serif italic, larger, muted. */
 .prose h1 + p {

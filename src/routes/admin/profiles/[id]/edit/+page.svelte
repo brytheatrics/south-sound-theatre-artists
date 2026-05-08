@@ -263,6 +263,7 @@
       <span class="summary-meta">
         {data.resumeSnapshot?.entries?.length ?? 0} entr{(data.resumeSnapshot?.entries?.length ?? 0) === 1 ? "y" : "ies"}
       </span>
+      <span class="summary-state"></span>
     </summary>
     <p class="hint">
       Multi-resume editor. Changes save as you type - they aren't part of
@@ -631,6 +632,27 @@
     color: var(--muted);
     font-weight: 400;
   }
+  /* State label: "collapsed" in moss when closed, "open" in muted when
+     expanded. Draws the eye when the section is hiding content. */
+  .collapsible-row .summary-state {
+    margin-left: auto;
+    margin-right: 0.6em;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .collapsible-row:not([open]) > summary .summary-state::before {
+    content: "collapsed";
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .collapsible-row[open] > summary .summary-state::before {
+    content: "open";
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .collapsible-row > summary::after { margin-left: 0; }
   .field {
     display: flex;
     flex-direction: column;

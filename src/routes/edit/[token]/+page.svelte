@@ -332,6 +332,7 @@
         <span class="summary-meta">
           {data.resumeSnapshot?.entries?.length ?? 0} entr{(data.resumeSnapshot?.entries?.length ?? 0) === 1 ? "y" : "ies"}
         </span>
+        <span class="summary-state"></span>
       </summary>
       <p class="hint">
         Optional. Add credits, training, and skills. You can keep multiple
@@ -627,6 +628,29 @@
     color: var(--muted);
     font-weight: 400;
   }
+  /* State label sits right before the chevron; "collapsed" in moss
+     when closed (draws the eye) and "open" in muted grey when expanded. */
+  .summary-state {
+    margin-left: auto;
+    margin-right: 0.6em;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .collapsible-fieldset:not([open]) > summary .summary-state::before {
+    content: "collapsed";
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .collapsible-fieldset[open] > summary .summary-state::before {
+    content: "open";
+    color: var(--muted);
+    font-weight: 400;
+  }
+  /* When the state label takes margin-left:auto, the chevron no longer
+     needs it — it just sits right after. */
+  .collapsible-fieldset > summary::after { margin-left: 0; }
   .field {
     display: flex;
     flex-direction: column;
