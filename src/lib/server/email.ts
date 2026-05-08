@@ -258,18 +258,18 @@ export function wrapHtmlEmail(bodyHtml: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SSTA</title>
 </head>
-<body style="margin:0;padding:0;background:#f6f1e6;font-family:'Inter Tight','Helvetica Neue',Arial,sans-serif;color:#2a2622;line-height:1.55">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f1e6">
+<body style="margin:0;padding:0;background:#3b6f4a;font-family:'Inter Tight','Helvetica Neue',Arial,sans-serif;color:#2a2622;line-height:1.55">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#3b6f4a">
   <tr>
     <td align="center" style="padding:32px 16px">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#fffaf0;border:1px solid #e7decd;border-radius:6px">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#fffaf0;border:1px solid #2d5639;border-radius:6px">
         <tr>
           <td style="padding:32px 36px 36px 36px;font-size:15px;color:#2a2622">
             <div class="email-body" style="font-size:15px;line-height:1.55">${safeBody}</div>
           </td>
         </tr>
       </table>
-      <p style="margin:16px 0 0;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;letter-spacing:0.08em;color:#7a7268;text-transform:uppercase">
+      <p style="margin:16px 0 0;font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;letter-spacing:0.08em;color:#e8e2d2;text-transform:uppercase">
         South Sound Theatre Artists
       </p>
     </td>
