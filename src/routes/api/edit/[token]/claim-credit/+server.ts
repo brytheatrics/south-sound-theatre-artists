@@ -82,7 +82,15 @@ export const POST: RequestHandler = async ({ params, request }) => {
       source: "artist",
       created_by_email: profile.email,
     });
-    return json({ ok: true, credit });
+    return json({
+      ok: true,
+      credit,
+      // "promoted" = an existing hand-entered resume row was upgraded to
+      // linked. "inboxed" = a fresh row landed in the artist's inbox.
+      // The artist-side ClaimCreditForm reads this to render the right
+      // success message.
+      resume_placement: credit.resume_placement,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Could not claim credit.";
     error(400, msg);

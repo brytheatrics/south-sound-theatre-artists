@@ -126,7 +126,7 @@ export async function createProductionCredit(input: {
   category: ProductionCreditCategory;
   source: ProductionCreditSource;
   created_by_email?: string | null;
-}): Promise<ProductionCreditRow> {
+}): Promise<ProductionCreditRow & { resume_placement: ResumePlacement }> {
   const display_name = trimName(input.display_name);
   const position = trimPosition(input.position);
   if (!display_name) throw new Error("Name is required.");
@@ -170,7 +170,11 @@ export async function createProductionCredit(input: {
       .ilike("position", position)
       .is("deleted_at", null)
       .maybeSingle();
-    if (dup) return dup as ProductionCreditRow;
+    if (dup) {
+      return Object.assign(dup as ProductionCreditRow, {
+        resume_placement: "duplicate" as ResumePlacement,
+      });
+    }
   }
 
   // Sort: append to the bottom of the same category section.
@@ -203,20 +207,35 @@ export async function createProductionCredit(input: {
   }
   const credit = data as ProductionCreditRow;
 
+  let resumePlacement: ResumePlacement = "skipped";
   if (credit.profile_id) {
-    await autoCreateLinkedResumeEntry(credit);
+    resumePlacement = await autoCreateLinkedResumeEntry(credit);
   }
 
-  return credit;
+  // Stash the placement on the returned object so callers (the artist
+  // self-claim endpoint, in particular) can tell the user whether the
+  // credit landed in their inbox or got merged into an existing hand
+  // row. Lives in a non-DB property; consumers ignore it when they
+  // don't care.
+  return Object.assign(credit, { resume_placement: resumePlacement });
 }
+
+export type ResumePlacement = "promoted" | "inboxed" | "duplicate" | "skipped";
 
 /** Auto-create a linked resume_entries row when a production credit is
  *  tagged on a real profile. Lands in the artist's inbox (unassigned)
  *  by default - they assign it to specific resumes from the editor.
  *  Dedup: if an existing hand-entered row matches title+company+year,
- *  promote it to linked instead of creating a duplicate. */
-async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise<void> {
-  if (!credit.profile_id) return;
+ *  promote it to linked instead of creating a duplicate.
+ *
+ *  Return value tells the caller which path fired so user-facing
+ *  messaging can match: "promoted" = upgraded an existing hand row,
+ *  "inboxed" = new row in the inbox, "skipped" = no profile to file
+ *  against (free-text credit; no resume entry possible). */
+async function autoCreateLinkedResumeEntry(
+  credit: ProductionCreditRow,
+): Promise<ResumePlacement> {
+  if (!credit.profile_id) return "skipped";
 
   // Pull production data to denormalize into the resume entry.
   const { data: production } = await supabaseAdmin
@@ -224,7 +243,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
     .select("id, title, run_start, organization_id")
     .eq("id", credit.production_id)
     .maybeSingle();
-  if (!production) return;
+  if (!production) return "skipped";
   let companyName = "";
   if (production.organization_id) {
     const { data: org } = await supabaseAdmin
@@ -267,7 +286,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
           data,
         })
         .eq("id", row.id);
-      return;
+      return "promoted";
     }
   }
 
@@ -280,6 +299,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
     resume_ids: [], // inbox - artist assigns later
     sort_order: 0,
   });
+  return "inboxed";
 }
 
 /** Soft-delete a credit. The linked resume row (if any) gets converted

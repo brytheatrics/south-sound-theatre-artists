@@ -73,7 +73,20 @@
           throw new Error(text || "Could not claim credit.");
         }
       }
-      msg = "Credit claimed. It's in your resume inbox - assign it to a resume above.";
+      const body = (await res.json().catch(() => ({}))) as { resume_placement?: string };
+      switch (body.resume_placement) {
+        case "duplicate":
+          msg = "You've already claimed this credit. It's still on your resume - no further action needed.";
+          break;
+        case "promoted":
+          msg = "Credit claimed. We linked it to the resume entry you already had for this show - it stays right where it is, now connected to the production.";
+          break;
+        case "inboxed":
+          msg = "Credit claimed. It's in your resume inbox - open the resume builder above to assign it to a resume.";
+          break;
+        default:
+          msg = "Credit claimed.";
+      }
       isError = false;
       pickedId = null;
       position = "";
