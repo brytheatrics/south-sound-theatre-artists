@@ -198,12 +198,18 @@ export const load: PageServerLoad = async () => {
     if (wantAppearingIn) {
       const appearances = await loadCurrentAppearancesForMarquee();
       appearingItems = appearances.slice(0, 30).map((a) => {
-        const verb = a.category === "cast" ? "appearing in" : "working on";
-        const tail = a.org_name ? ` (${a.org_name})` : "";
+        // Format: "{name}, {position} {preposition} {show} at {org}"
+        // Cast credits read "in {show}" (you appear in a show); production
+        // team reads "on {show}" (you work on a show). The position sits
+        // right after the name as an appositive so the eye doesn't trip
+        // over "{name} {verb} {position}" parsing as "name doing thing
+        // to a person."
+        const preposition = a.category === "cast" ? "in" : "on";
+        const orgTail = a.org_name ? ` at ${a.org_name}` : "";
         return {
           id: `app-${a.profile_slug}-${a.production_title}`,
           glyph: "✱",
-          text: `${a.profile_name} ${verb} ${a.position} - ${a.production_title}${tail}`,
+          text: `${a.profile_name}, ${a.position} ${preposition} ${a.production_title}${orgTail}`,
           href: `/artists/${a.profile_slug}`,
         };
       });
