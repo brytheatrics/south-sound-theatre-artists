@@ -163,7 +163,6 @@ export const actions: Actions = {
         geographic_area: finalArea,
         city: city || null,
         resumes,
-        resume_data: resumeData,
         mentorship_offering: mentorshipOffering,
         mentorship_seeking: mentorshipSeeking,
         published: publish,

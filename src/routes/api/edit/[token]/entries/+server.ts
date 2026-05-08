@@ -11,7 +11,6 @@ import { validateEditToken } from "$lib/server/editToken";
 import {
   loadProfileResumes,
   normalizeEntryData,
-  syncLegacyResumeData,
   type ResumeEntryKind,
 } from "$lib/server/resumes";
 
@@ -78,6 +77,5 @@ export const POST: RequestHandler = async ({ params, request }) => {
     });
   if (insertErr) error(500, "Could not create entry.");
 
-  await syncLegacyResumeData(token.target_id);
   return json(await loadProfileResumes(token.target_id));
 };

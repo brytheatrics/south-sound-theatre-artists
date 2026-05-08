@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .from("profiles")
     .select(
       `id, slug, full_name, pronouns, bio, disciplines, geographic_area, city,
-       resumes, resume_data, mentorship_offering, mentorship_seeking,
+       resumes, mentorship_offering, mentorship_seeking,
        playable_age_min, playable_age_max, languages, unions, ethnicities,
        headshot_url, instagram_handle, facebook_url, tiktok_handle,
        linkedin_url, twitter_handle, youtube_url, website_url, member_since,

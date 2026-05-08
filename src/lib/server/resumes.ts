@@ -251,37 +251,6 @@ export function entriesForResume(
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 
-/** Re-derive the legacy resume_data jsonb from current entries. Called
- *  after every mutation so /admin/profiles legacy display + the
- *  pending pending_submissions backwards-compat shim stay accurate.
- *  Only includes hand-source entries from the artist's first resume,
- *  which keeps backwards-compat reads producing the same shape they
- *  always have for single-resume artists. */
-export async function syncLegacyResumeData(profileId: string): Promise<void> {
-  const { resumes, entries } = await loadProfileResumes(profileId);
-  if (resumes.length === 0) {
-    await supabaseAdmin
-      .from("profiles")
-      .update({ resume_data: { credits: [], training: [], skills: [] } })
-      .eq("id", profileId);
-    return;
-  }
-  const first = resumes[0];
-  const visible = entries.filter((e) => e.resume_ids.includes(first.id));
-  const credits = visible
-    .filter((e) => e.kind === "credit")
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((e) => e.data);
-  const training = visible
-    .filter((e) => e.kind === "training")
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((e) => e.data);
-  const skills = visible
-    .filter((e) => e.kind === "skill")
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((e) => e.data);
-  await supabaseAdmin
-    .from("profiles")
-    .update({ resume_data: { credits, training, skills } })
-    .eq("id", profileId);
-}
+// syncLegacyResumeData() was removed in mig 087. The new relational
+// resumes / resume_entries tables are the only source of truth now;
+// the profiles.resume_data jsonb column was dropped.

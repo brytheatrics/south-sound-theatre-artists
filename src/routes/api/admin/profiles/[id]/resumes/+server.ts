@@ -9,7 +9,6 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import {
   loadProfileResumes,
   normalizeResumeName,
-  syncLegacyResumeData,
 } from "$lib/server/resumes";
 
 const MAX_RESUMES = 8;
@@ -31,6 +30,5 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     .from("resumes")
     .insert({ profile_id: params.id, name, sort_order: nextOrder });
   if (insertErr) error(500, "Could not create resume.");
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };

@@ -7,7 +7,6 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import {
   loadProfileResumes,
   normalizeResumeName,
-  syncLegacyResumeData,
 } from "$lib/server/resumes";
 
 async function requireOwnership(rid: string, profileId: string): Promise<void> {
@@ -37,7 +36,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     .update(update)
     .eq("id", params.rid);
   if (updErr) error(500, "Could not update resume.");
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };
 
@@ -63,6 +61,5 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     .delete()
     .eq("id", params.rid);
   if (delErr) error(500, "Could not delete resume.");
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };

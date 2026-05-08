@@ -14,7 +14,6 @@ import { validateEditToken } from "$lib/server/editToken";
 import {
   loadProfileResumes,
   normalizeResumeName,
-  syncLegacyResumeData,
 } from "$lib/server/resumes";
 
 async function requireOwnership(
@@ -57,7 +56,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     .eq("id", params.id);
   if (updateErr) error(500, "Could not update resume.");
 
-  await syncLegacyResumeData(token.target_id);
   return json(await loadProfileResumes(token.target_id));
 };
 
@@ -90,6 +88,5 @@ export const DELETE: RequestHandler = async ({ params }) => {
     .eq("id", params.id);
   if (deleteErr) error(500, "Could not delete resume.");
 
-  await syncLegacyResumeData(token.target_id);
   return json(await loadProfileResumes(token.target_id));
 };

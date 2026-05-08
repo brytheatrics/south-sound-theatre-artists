@@ -14,7 +14,6 @@ import { validateEditToken } from "$lib/server/editToken";
 import {
   loadProfileResumes,
   normalizeEntryData,
-  syncLegacyResumeData,
   type ResumeEntryKind,
 } from "$lib/server/resumes";
 
@@ -91,7 +90,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     .eq("id", params.id);
   if (updErr) error(500, "Could not update entry.");
 
-  await syncLegacyResumeData(token.target_id);
   return json(await loadProfileResumes(token.target_id));
 };
 
@@ -106,6 +104,5 @@ export const DELETE: RequestHandler = async ({ params }) => {
     .eq("id", params.id);
   if (delErr) error(500, "Could not delete entry.");
 
-  await syncLegacyResumeData(token.target_id);
   return json(await loadProfileResumes(token.target_id));
 };

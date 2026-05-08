@@ -7,7 +7,6 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import {
   loadProfileResumes,
   normalizeEntryData,
-  syncLegacyResumeData,
   type ResumeEntryKind,
 } from "$lib/server/resumes";
 
@@ -69,7 +68,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     .eq("id", params.eid);
   if (updErr) error(500, "Could not update entry.");
 
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };
 
@@ -81,6 +79,5 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     .delete()
     .eq("id", params.eid);
   if (delErr) error(500, "Could not delete entry.");
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };

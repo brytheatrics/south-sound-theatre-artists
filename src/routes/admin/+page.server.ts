@@ -9,6 +9,7 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { expandLegacyResumeData } from "$lib/server/resumes";
 
 const EDIT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -254,7 +255,6 @@ async function approveOne(
       geographic_area: sub.geographic_area,
       city: sub.city,
       resumes: sub.resumes ?? [],
-      resume_data: sub.resume_data ?? {},
       mentorship_offering: sub.mentorship_offering ?? [],
       mentorship_seeking: sub.mentorship_seeking ?? [],
       playable_age_min: sub.playable_age_min,
@@ -284,6 +284,11 @@ async function approveOne(
     console.error("approve: profile insert failed", insertErr);
     return { id, ok: false, reason: "insert_failed" };
   }
+
+  // Expand the submission's legacy resume_data jsonb into the new
+  // relational tables (mig 078). pending_submissions still uses jsonb;
+  // profiles now use resumes + resume_entries.
+  await expandLegacyResumeData(profile.id, sub.resume_data);
 
   await supabaseAdmin
     .from("pending_submissions")

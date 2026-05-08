@@ -5,7 +5,6 @@
 // to type the same info twice. Deleting / detaching reverses cleanly.
 
 import { supabaseAdmin } from "$lib/server/supabase";
-import { syncLegacyResumeData } from "$lib/server/resumes";
 
 // v1.1 originally had cast / creative / crew. Simplified to cast /
 // production after early feedback that the creative-vs-crew split was
@@ -268,7 +267,6 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
           data,
         })
         .eq("id", row.id);
-      await syncLegacyResumeData(credit.profile_id);
       return;
     }
   }
@@ -282,7 +280,6 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
     resume_ids: [], // inbox - artist assigns later
     sort_order: 0,
   });
-  await syncLegacyResumeData(credit.profile_id);
 }
 
 /** Soft-delete a credit. The linked resume row (if any) gets converted
@@ -301,7 +298,6 @@ export async function deleteProductionCredit(creditId: string): Promise<void> {
       .from("resume_entries")
       .update({ source: "hand", production_credit_id: null })
       .eq("production_credit_id", creditId);
-    await syncLegacyResumeData(credit.profile_id);
   }
 
   // Hard-delete the credit (sets the FK column on resume_entries to
@@ -343,7 +339,6 @@ export async function updateProductionCreditPosition(
         .from("resume_entries")
         .update({ data: { ...data, role: trimmed } })
         .eq("id", entry.id);
-      await syncLegacyResumeData(credit.profile_id);
     }
   }
 }

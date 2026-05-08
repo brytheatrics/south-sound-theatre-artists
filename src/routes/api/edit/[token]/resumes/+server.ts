@@ -12,7 +12,6 @@ import { validateEditToken } from "$lib/server/editToken";
 import {
   loadProfileResumes,
   normalizeResumeName,
-  syncLegacyResumeData,
 } from "$lib/server/resumes";
 
 const MAX_RESUMES = 8;
@@ -43,7 +42,6 @@ export const POST: RequestHandler = async ({ params, request }) => {
     });
   if (insertErr) error(500, "Could not create resume.");
 
-  await syncLegacyResumeData(token.target_id);
   const snapshot = await loadProfileResumes(token.target_id);
   return json(snapshot);
 };

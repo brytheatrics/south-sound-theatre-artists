@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       `id, profile_id, proposed_changes, status, rejection_reason,
        reviewed_at, created_at,
        profile:profiles ( slug, full_name, email, headshot_url,
-                          bio, disciplines, resumes, resume_data, trusted )`,
+                          bio, disciplines, resumes, trusted )`,
     )
     .order("created_at", { ascending: false });
 
@@ -68,7 +68,6 @@ export const actions: Actions = {
       "headshot_url",
       "disciplines",
       "resumes",
-      "resume_data",
     ];
     const update: Record<string, unknown> = {};
     for (const k of allowed) {

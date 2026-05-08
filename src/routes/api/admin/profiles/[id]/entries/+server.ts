@@ -7,7 +7,6 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import {
   loadProfileResumes,
   normalizeEntryData,
-  syncLegacyResumeData,
   type ResumeEntryKind,
 } from "$lib/server/resumes";
 
@@ -68,6 +67,5 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     });
   if (insertErr) error(500, "Could not create entry.");
 
-  await syncLegacyResumeData(params.id);
   return json(await loadProfileResumes(params.id));
 };
