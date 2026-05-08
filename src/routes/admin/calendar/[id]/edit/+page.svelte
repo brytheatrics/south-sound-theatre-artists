@@ -158,6 +158,14 @@
   </label>
 
   <label class="field">
+    <span>Cover image URL (poster)</span>
+    <input name="cover_url" type="url" value={data.production.cover_url ?? ""} placeholder="https://res.cloudinary.com/..." />
+    {#if data.production.cover_url}
+      <img src={data.production.cover_url} alt="Cover preview" style="max-width: 220px; max-height: 320px; border-radius: var(--radius); margin-top: 8px;" />
+    {/if}
+  </label>
+
+  <label class="field">
     <span>Status</span>
     <select name="status">
       <option value="approved" selected={data.production.status === "approved"}>Approved (visible)</option>

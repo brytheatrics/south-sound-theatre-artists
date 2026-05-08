@@ -9,7 +9,8 @@
   type Production = {
     id: string; title: string; description: string | null;
     run_start: string; run_end: string | null; show_dates: string | null;
-    detail_url: string | null; status: string; category_id: string | null;
+    detail_url: string | null; cover_url: string | null;
+    status: string; category_id: string | null;
     organizations: Org | Org[] | null; category_name: string | null;
   };
   // svelte-ignore state_referenced_locally
@@ -57,9 +58,17 @@
     name="description"
     content={p.description ? p.description.slice(0, 160) : `${p.title} at ${p.organizations?.name ?? "South Sound theatre"}`}
   />
+  {#if p.cover_url}
+    <meta property="og:image" content={p.cover_url} />
+  {/if}
 </svelte:head>
 
 <article class="prod">
+  {#if p.cover_url}
+    <div class="cover">
+      <img src={p.cover_url} alt={`${p.title} poster`} />
+    </div>
+  {/if}
   <header class="head">
     <span class="eyebrow">
       <span class="num">·</span>{p.category_name ?? "Production"}
@@ -178,6 +187,17 @@
     max-width: 760px;
     margin: 0 auto;
     padding: 2rem 1.25rem 4rem;
+  }
+  .cover {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+  }
+  .cover img {
+    max-width: 100%;
+    max-height: 540px;
+    border-radius: var(--radius);
+    border: 1px solid var(--rule);
   }
   .head {
     display: flex;

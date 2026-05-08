@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
   import SchedulePatternEditor from "$lib/components/SchedulePatternEditor.svelte";
+  import CreditsSubmitForm from "$lib/components/CreditsSubmitForm.svelte";
+  import PosterUpload from "$lib/components/PosterUpload.svelte";
   let { data, form } = $props();
 
   // Form state. Performances are required (server-side validated).
@@ -154,6 +156,14 @@
 
   <button type="button" class="bt bt-ghost" onclick={addPerf}>+ Add performance</button>
   {#if errs.performances}<p class="err perf-err">{errs.performances}</p>{/if}
+
+  <!-- Poster -->
+  <h2 class="block-title">Poster (optional)</h2>
+  <PosterUpload />
+
+  <!-- Cast & creative -->
+  <h2 class="block-title">Cast &amp; creative (optional)</h2>
+  <CreditsSubmitForm />
 
   <!-- Submitter -->
   <h2 class="block-title">You</h2>

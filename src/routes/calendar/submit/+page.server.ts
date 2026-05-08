@@ -21,6 +21,11 @@ import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
+import {
+  createProductionCredit,
+  isCategory,
+  type ProductionCreditCategory,
+} from "$lib/server/productionCredits";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -77,12 +82,49 @@ type Values = {
   runStart: string;
   runEnd: string;
   detailUrl: string;
+  coverUrl: string;
   categoryId: string;
   areaId: string;
   performancesJson: string;
+  creditsJson: string;
   submitterName: string;
   submitterEmail: string;
 };
+
+type ParsedCredit = {
+  profile_id: string | null;
+  display_name: string;
+  position: string;
+  category: ProductionCreditCategory;
+};
+
+function parseCreditsJson(raw: string): ParsedCredit[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const out: ParsedCredit[] = [];
+    for (const c of parsed.slice(0, 200)) {
+      if (!c || typeof c !== "object") continue;
+      const o = c as Record<string, unknown>;
+      const display = typeof o.display_name === "string" ? o.display_name.trim().slice(0, 120) : "";
+      if (!display) continue;
+      const position = typeof o.position === "string" ? o.position.trim().slice(0, 120) : "";
+      if (!isCategory(o.category)) continue;
+      out.push({
+        profile_id:
+          typeof o.profile_id === "string" && o.profile_id.length >= 16
+            ? o.profile_id
+            : null,
+        display_name: display,
+        position: position || (o.category === "cast" ? "Ensemble" : "TBD"),
+        category: o.category,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 export const actions: Actions = {
   default: async ({ request, getClientAddress }) => {
@@ -108,9 +150,11 @@ export const actions: Actions = {
       runStart: ((data.get("run_start") as string) ?? "").trim(),
       runEnd: ((data.get("run_end") as string) ?? "").trim(),
       detailUrl: ((data.get("detail_url") as string) ?? "").trim(),
+      coverUrl: ((data.get("cover_url") as string) ?? "").trim(),
       categoryId: ((data.get("category_id") as string) ?? "").trim(),
       areaId: ((data.get("area_id") as string) ?? "").trim(),
       performancesJson: ((data.get("performances_json") as string) ?? "[]").trim(),
+      creditsJson: ((data.get("credits_json") as string) ?? "[]").trim(),
       submitterName: ((data.get("submitter_name") as string) ?? "").trim(),
       submitterEmail: ((data.get("submitter_email") as string) ?? "").trim().toLowerCase(),
     };
@@ -176,6 +220,7 @@ export const actions: Actions = {
         run_start: values.runStart,
         run_end: values.runEnd,
         detail_url: values.detailUrl || null,
+        cover_url: values.coverUrl || null,
         category_id: values.categoryId,
         area_id: values.areaId,
         organization_id: org?.id ?? null,
@@ -193,6 +238,27 @@ export const actions: Actions = {
         errors: { _form: "Could not save your submission. Please try again." },
         values,
       });
+    }
+
+    // Insert credits if any. Source='org' across the board - submission
+    // is by someone claiming to represent the org. Credits exist in the
+    // table but stay invisible on /calendar/[id] until status='approved'
+    // (the public production page query filters on that).
+    const credits = parseCreditsJson(values.creditsJson);
+    for (const c of credits) {
+      try {
+        await createProductionCredit({
+          production_id: prod.id,
+          profile_id: c.profile_id,
+          display_name: c.display_name,
+          position: c.position,
+          category: c.category,
+          source: "org",
+          created_by_email: values.submitterEmail,
+        });
+      } catch (err) {
+        console.error("submit credit insert failed", err);
+      }
     }
 
     // Insert performances if provided. Skip malformed entries silently.

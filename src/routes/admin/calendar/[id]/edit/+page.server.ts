@@ -58,7 +58,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const { data: prod, error: prodErr } = await supabaseAdmin
     .from("productions")
     .select(
-      `id, title, organization_name, run_start, run_end, detail_url,
+      `id, title, organization_name, run_start, run_end, detail_url, cover_url,
        description, category_id, area_id, organization_id, status,
        rejection_reason, deleted_at, admin_edited_at, created_at, updated_at`,
     )
@@ -124,6 +124,7 @@ export const actions: Actions = {
     const run_start = String(fd.get("run_start") ?? "").trim() || null;
     const run_end = String(fd.get("run_end") ?? "").trim() || null;
     const detail_url = String(fd.get("detail_url") ?? "").trim() || null;
+    const cover_url = String(fd.get("cover_url") ?? "").trim() || null;
     const category_id = String(fd.get("category_id") ?? "").trim() || null;
     const area_id = String(fd.get("area_id") ?? "").trim() || null;
     const status = String(fd.get("status") ?? "").trim();
@@ -142,6 +143,7 @@ export const actions: Actions = {
         run_start,
         run_end,
         detail_url,
+        cover_url,
         category_id,
         area_id,
         status,

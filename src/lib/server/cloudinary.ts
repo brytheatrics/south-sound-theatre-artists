@@ -60,6 +60,17 @@ export function signLogoUpload(): SignedUpload {
 }
 
 /**
+ * Signed upload for production posters submitted via /calendar/submit.
+ * Public endpoint (the submit form is public) but rate-limited via the
+ * existing submit_rate_limits table. Larger max-edge than headshots so
+ * portrait-orientation 2:3 posters render cleanly without bandwidth
+ * blowing up.
+ */
+export function signPosterUpload(): SignedUpload {
+  return signFolder("posters", "c_limit,w_2000,h_2400,q_auto,f_auto");
+}
+
+/**
  * Signed upload for resume PDFs. PDFs are not images, so they go in as
  * Cloudinary's `raw` resource type (no image transformations). The
  * client posts to `/raw/upload` instead of `/image/upload`.
