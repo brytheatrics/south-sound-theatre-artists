@@ -76,10 +76,16 @@
     {#if p.show_dates}
       <p class="dates-detail">{p.show_dates}</p>
     {/if}
-    {#if p.detail_url}
+    {#if p.detail_url || p.organizations?.homepage_url}
       <p class="cta">
-        <a class="bt-pri" href={p.detail_url} target="_blank" rel="noopener">
-          Tickets &amp; details <span aria-hidden="true">↗</span>
+        <a
+          class="bt-pri"
+          href={p.detail_url ?? p.organizations!.homepage_url!}
+          target="_blank"
+          rel="noopener"
+        >
+          {p.detail_url ? "Tickets & details" : `Visit ${p.organizations!.name}`}
+          <span aria-hidden="true">↗</span>
         </a>
       </p>
     {/if}
