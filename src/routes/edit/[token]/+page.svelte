@@ -319,10 +319,11 @@
     <fieldset>
       <legend>Bio</legend>
       <p class="hint">
-        Optional. What collaborators should know - training, recent work,
+        Required. What collaborators should know - training, recent work,
         what you're looking for. A few sentences is plenty.
       </p>
-      <textarea name="bio" rows="5" bind:value={bio}></textarea>
+      <textarea name="bio" rows="8" bind:value={bio} aria-invalid={!!errors.bio}></textarea>
+      {#if errors.bio}<span class="error">{errors.bio}</span>{/if}
     </fieldset>
 
     <details class="collapsible-fieldset">
@@ -610,10 +611,10 @@
     margin-right: 0.6em;
   }
   .collapsible-fieldset > summary::after {
-    content: "▾";
+    content: "▼";
     margin-left: auto;
-    color: var(--muted);
-    font-size: 0.9em;
+    color: var(--accent);
+    font-size: 1.05em;
     transition: transform 120ms;
   }
   .collapsible-fieldset[open] > summary::after { transform: rotate(180deg); }
@@ -687,8 +688,10 @@
     border-color: var(--accent);
   }
   textarea {
+    width: 100%;
+    box-sizing: border-box;
     resize: vertical;
-    min-height: 140px;
+    min-height: 200px;
   }
   .age-row {
     display: flex;

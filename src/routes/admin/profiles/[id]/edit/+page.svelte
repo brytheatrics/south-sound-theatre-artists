@@ -257,8 +257,13 @@
     </label>
   </section>
 
-  <section class="row">
-    <h2 class="block-h">Resume builder</h2>
+  <details class="row collapsible-row">
+    <summary>
+      <span class="block-h">Resume builder</span>
+      <span class="summary-meta">
+        {data.resumeSnapshot?.entries?.length ?? 0} entr{(data.resumeSnapshot?.entries?.length ?? 0) === 1 ? "y" : "ies"}
+      </span>
+    </summary>
     <p class="hint">
       Multi-resume editor. Changes save as you type - they aren't part of
       the form's main Save button. Useful when an artist asks you to add
@@ -268,7 +273,7 @@
       initial={data.resumeSnapshot}
       apiBase={`/api/admin/profiles/${p.id}`}
     />
-  </section>
+  </details>
 
   <section class="row">
     <h2 class="block-h">Resume PDFs</h2>
@@ -592,6 +597,39 @@
     color: var(--muted);
     margin: 0;
     font-weight: 500;
+  }
+  /* Collapsible rows: same shape as .row but the summary is the
+     clickable heading. Matches the artist-side /edit/[token] pattern
+     so admin reviewing the same surface gets the same affordance. */
+  .collapsible-row > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .collapsible-row > summary::-webkit-details-marker { display: none; }
+  .collapsible-row > summary::after {
+    content: "▼";
+    margin-left: auto;
+    color: var(--accent);
+    font-size: 1.05em;
+    transition: transform 120ms;
+  }
+  .collapsible-row[open] > summary::after { transform: rotate(180deg); }
+  .collapsible-row .summary-meta {
+    text-transform: none;
+    letter-spacing: 0.04em;
+    font-size: 10.5px;
+    color: var(--muted);
+    font-weight: 400;
   }
   .field {
     display: flex;

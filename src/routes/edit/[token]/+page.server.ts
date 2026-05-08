@@ -196,6 +196,7 @@ export const actions: Actions = {
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
+    if (!bio) errors.bio = "Add a short bio so people can learn who you are.";
     if (!headshotUrl) {
       errors.headshot_url = "Add a clear photo of yourself.";
     } else if (!headshotConsent) {
