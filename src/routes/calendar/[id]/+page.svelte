@@ -67,7 +67,7 @@
     <h1 class="title">{p.title}</h1>
     {#if p.organizations}
       <p class="org">
-        <a href={`/theatres/${p.organizations.slug}`}>{p.organizations.name}</a>
+        <a href={`/theatres#${p.organizations.slug}`}>{p.organizations.name}</a>
       </p>
     {/if}
     {#if fmtRunRange()}
@@ -77,9 +77,9 @@
       <p class="dates-detail">{p.show_dates}</p>
     {/if}
     {#if p.detail_url}
-      <p>
-        <a class="bt-ghost" href={p.detail_url} target="_blank" rel="noopener">
-          Tickets / details <span aria-hidden="true">↗</span>
+      <p class="cta">
+        <a class="bt-pri" href={p.detail_url} target="_blank" rel="noopener">
+          Tickets &amp; details <span aria-hidden="true">↗</span>
         </a>
       </p>
     {/if}
@@ -226,21 +226,26 @@
     font-size: 13px;
     color: var(--muted);
   }
-  .bt-ghost {
+  .cta {
+    margin-top: 0.75rem;
+  }
+  .bt-pri {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: 1px solid var(--ink);
-    border-radius: var(--radius);
-    color: var(--ink);
-    font-family: var(--font-body);
-    font-size: 14px;
-    text-decoration: none;
-  }
-  .bt-ghost:hover {
+    gap: 8px;
+    padding: 11px 22px;
     background: var(--ink);
     color: var(--bg);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .bt-pri:hover {
+    background: var(--accent);
+    border-color: var(--accent);
   }
   .rule {
     border: 0;

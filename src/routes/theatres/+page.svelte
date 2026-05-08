@@ -77,7 +77,7 @@
       </h2>
       <div class="card-grid">
         {#each group.list as t (t.slug)}
-          <article class="card">
+          <article class="card" id={t.slug}>
             <div
               class="card-logo"
               style:background={LOGO_BG_HEX[t.logo_bg] ?? LOGO_BG_HEX.paper}
