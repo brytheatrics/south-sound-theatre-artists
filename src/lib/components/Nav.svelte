@@ -41,13 +41,13 @@
     { href: "/callboard", label: labels.callboard },
     { href: "/resources", label: labels.resources },
     { href: "/digest", label: labels.digest },
+    { href: "/blog", label: "Blog" },
   ]);
 
   // Hamburger menu items: secondary destinations, organized roughly by
   // "learn" -> "act" -> "legal".
   const menuLinks: Link[] = [
     { href: "/about", label: "About" },
-    { href: "/blog", label: "Blog" },
     { href: "/theatres", label: "Theatres" },
     { href: "/mentorship", label: "Mentorship" },
     { href: "/contact", label: "Contact" },
