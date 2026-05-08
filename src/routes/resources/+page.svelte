@@ -214,7 +214,7 @@
   .links {
     list-style: none;
     padding: 0 var(--page-pad-x);
-    margin: 0 auto;
+    margin: 0;
     max-width: 900px;
     display: flex;
     flex-direction: column;
