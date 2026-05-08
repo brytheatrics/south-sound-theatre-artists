@@ -88,11 +88,16 @@ async function main() {
     }
 
     // === Stage 2: archive non-responders ===
+    // Stamps archived_stale=true alongside deleted_at so the hard-purge
+    // sweep below knows to skip these rows. Admin-clicked deletes go
+    // through /admin/profiles/[id] (or /admin/profiles/trash) and
+    // leave archived_stale=false, so they purge after 30 days as before.
     const archiveCutoff = new Date(Date.now() - ARCHIVE_AFTER_MS).toISOString();
     const archiveRes = await db.query(
       `update profiles
          set deleted_at = now(),
-             published = false
+             published = false,
+             archived_stale = true
        where deleted_at is null
          and stale_pinged_at is not null
          and stale_pinged_at < $1
@@ -103,11 +108,16 @@ async function main() {
     archived = archiveRes.rowCount ?? 0;
 
     // === Stage 3: hard-purge the long-soft-deleted ===
+    // archived_stale=true rows are excluded - those are auto-archived
+    // stale profiles that admin should keep recoverable indefinitely
+    // (the artist might return; we'd rather restore than make them
+    // re-submit). Only admin-deleted profiles hard-purge.
     const purgeCutoff = new Date(Date.now() - TRASH_PURGE_MS).toISOString();
     const purgeRes = await db.query(
       `delete from profiles
        where deleted_at is not null
          and deleted_at < $1
+         and archived_stale = false
        returning id`,
       [purgeCutoff],
     );

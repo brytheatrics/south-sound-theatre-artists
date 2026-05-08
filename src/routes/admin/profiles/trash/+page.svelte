@@ -39,8 +39,11 @@
   <h1 class="h1-display">Recently removed.</h1>
   <p class="lede">
     {data.trashed.length}
-    {data.trashed.length === 1 ? "profile" : "profiles"} in trash. Auto-deleted
-    after 30 days.
+    {data.trashed.length === 1 ? "profile" : "profiles"} in trash.
+    Admin-deleted profiles auto-purge after 30 days; profiles with the
+    <span class="stale-pill inline">Stale</span> badge are auto-archived
+    non-responders to the 18-month ping and stay here indefinitely so
+    you can restore them if the artist comes back.
   </p>
   <p>
     <a class="bt bt-ghost" href="/admin/profiles">← Back to profiles</a>
@@ -58,7 +61,13 @@
       <li class="row">
         <div>
           <span class="name">{t.full_name}</span>
-          <span class="meta">{t.email} · removed {daysAgo(t.deleted_at)}</span>
+          {#if t.archived_stale}
+            <span class="stale-pill" title="Auto-archived after 18-month ping with no response. Will not auto-purge.">Stale</span>
+          {/if}
+          <span class="meta">
+            {t.email} · removed {daysAgo(t.deleted_at)}
+            {#if t.archived_stale}· kept indefinitely{:else}· auto-purges in 30d{/if}
+          </span>
         </div>
         <div class="actions">
           <form method="POST" action="?/restore" use:enhance={() => { busyId = t.id; return async ({ update }) => { await update(); busyId = null; }; }}>
@@ -162,4 +171,20 @@
   }
   .bt-link.warn { color: var(--warn); }
   .bt-link:hover { text-decoration: underline; }
+  .stale-pill {
+    display: inline-block;
+    padding: 1px 0.55em;
+    margin-left: 0.4em;
+    border-radius: 999px;
+    background: #f4ecd8;
+    color: #8a6e1c;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 0.1em;
+    font-weight: 600;
+    border: 1px solid #d4be7c;
+  }
+  .stale-pill.inline { margin-left: 0.1em; }
 </style>
