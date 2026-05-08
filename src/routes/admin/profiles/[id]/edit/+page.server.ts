@@ -155,8 +155,12 @@ export const actions: Actions = {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Valid email required.";
     }
-    if (disciplines.length === 0) errors.disciplines = "Choose at least one discipline.";
-    if (!area) errors.area = "Choose an area.";
+    // Admin save: only the slug + email are truly required (those gate
+    // routing + magic-link delivery). Disciplines and area are required
+    // for *publish* but admins should be able to save partial rows so
+    // they can fix things on artists' behalf without needing every
+    // field. The publish gate on the public profile page query already
+    // filters out incomplete rows.
 
     let ageMin: number | null = null;
     let ageMax: number | null = null;

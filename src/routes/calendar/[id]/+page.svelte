@@ -75,7 +75,13 @@
     <h1 class="title">{p.title}</h1>
     {#if p.organizations}
       <p class="org">
-        <a href={`/theatres#${p.organizations.slug}`}>{p.organizations.name}</a>
+        {#if p.organizations.homepage_url}
+          <a href={p.organizations.homepage_url} target="_blank" rel="noopener">
+            {p.organizations.name} <span aria-hidden="true">↗</span>
+          </a>
+        {:else}
+          <a href={`/theatres#${p.organizations.slug}`}>{p.organizations.name}</a>
+        {/if}
       </p>
     {/if}
     {#if fmtRunRange()}

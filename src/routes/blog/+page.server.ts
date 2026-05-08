@@ -9,6 +9,7 @@ export const load: PageServerLoad = async () => {
       .from("blog_posts")
       .select("slug, title, body_markdown, cover_url, author_display_name, published_at")
       .eq("published", true)
+      .lte("published_at", new Date().toISOString())
       .is("deleted_at", null)
       .order("published_at", { ascending: false }),
     supabaseAdmin

@@ -385,6 +385,11 @@
       <p class="hint">
         Optional. Fill in any sections that apply - credits, training,
         skills. Sections you skip don't render on your profile.
+        <strong>You can also keep multiple named resumes</strong> (a
+        Director resume, a Stage Manager resume, an Actor resume,
+        etc.) and assign each entry to whichever ones it belongs on -
+        but that's available after you submit, from your profile's
+        edit page. No need to set it up here.
       </p>
       <ResumeBuilder bind:value={resumeData} />
     </fieldset>
@@ -393,7 +398,8 @@
       <legend>Resume PDFs</legend>
       <p class="hint">
         Optional. If you'd rather attach an existing PDF (or several -
-        acting, directing, design), upload here.
+        acting, directing, design), upload here. More can be added
+        later from your edit page.
       </p>
       <ResumesEditor bind:value={resumes} />
     </fieldset>

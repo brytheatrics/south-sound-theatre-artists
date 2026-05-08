@@ -13,7 +13,24 @@
   let coverUrl = $state(p.cover_url ?? "");
   let author = $state(p.author_display_name ?? "Lexi Barnett");
   let publish = $state(p.published);
+  // Datetime-local string ("YYYY-MM-DDTHH:MM") in the admin's local
+  // time. Empty means "publish immediately"; a future value means
+  // "schedule for that time". Pre-fills from existing published_at
+  // when it's in the future, or stays empty otherwise.
+  let scheduledAt = $state(initialScheduleString(p.published_at));
   let busy = $state(false);
+
+  function initialScheduleString(iso: string | null): string {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (d.getTime() <= Date.now()) return "";
+    // Format back to "YYYY-MM-DDTHH:MM" in local time.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  const isScheduled = $derived(
+    publish && scheduledAt && new Date(scheduledAt).getTime() > Date.now(),
+  );
 
   let coverInput = $state<HTMLInputElement | undefined>();
   let uploading = $state(false);
@@ -115,10 +132,32 @@
     </div>
   </div>
 
-  <label class="checkbox">
-    <input type="checkbox" name="publish" bind:checked={publish} />
-    <span>Published (visible at /blog/{slug})</span>
-  </label>
+  <div class="publish-block">
+    <label class="checkbox">
+      <input type="checkbox" name="publish" bind:checked={publish} />
+      <span>Published (visible at /blog/{slug})</span>
+    </label>
+    {#if publish}
+      <label class="f schedule-f">
+        <span>Schedule for (optional)</span>
+        <input
+          type="datetime-local"
+          name="scheduled_at"
+          bind:value={scheduledAt}
+        />
+        {#if isScheduled}
+          <span class="hint">
+            ⏰ Scheduled - will go public on {new Date(scheduledAt).toLocaleString()}.
+            Leave blank to publish immediately on save.
+          </span>
+        {:else}
+          <span class="hint">
+            Pick a future date + time to schedule the post. Leave blank to publish immediately.
+          </span>
+        {/if}
+      </label>
+    {/if}
+  </div>
 
   <div class="actions">
     <button type="submit" class="bt bt-pri" disabled={busy}>
@@ -151,6 +190,9 @@
   .preview-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
   .prose { padding: 14px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-raised); min-height: 300px; }
   .checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; }
+  .publish-block { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-raised); max-width: 520px; }
+  .schedule-f { gap: 4px; }
+  .schedule-f input { max-width: 240px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: var(--radius); font-family: var(--font-body); font-size: 13px; background: var(--bg); color: var(--ink); }
   .actions { display: flex; gap: 12px; align-items: center; }
   .bt { padding: 9px 18px; border-radius: var(--radius); border: 1px solid transparent; font-family: var(--font-body); font-size: 14px; cursor: pointer; }
   .bt-pri { background: var(--ink); color: var(--bg); }

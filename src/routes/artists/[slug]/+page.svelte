@@ -222,19 +222,37 @@
   </div>
 
   {#if data.currentAppearances && data.currentAppearances.length > 0}
+    {@const castRows = data.currentAppearances.filter((a) => a.category === "cast")}
+    {@const prodRows = data.currentAppearances.filter((a) => a.category === "production")}
     <aside class="appearing">
-      <span class="appearing-label">Currently appearing in</span>
-      <ul class="appearing-list">
-        {#each data.currentAppearances as a (a.production_id)}
-          <li>
-            <a href={`/calendar/${a.production_id}`}>
-              <strong>{a.title}</strong>
-              {#if a.position}<span class="appearing-pos"> - {a.position}</span>{/if}
-              {#if a.org_name}<span class="appearing-org"> · {a.org_name}</span>{/if}
-            </a>
-          </li>
-        {/each}
-      </ul>
+      {#if castRows.length > 0}
+        <span class="appearing-label">Currently appearing in</span>
+        <ul class="appearing-list">
+          {#each castRows as a (a.production_id)}
+            <li>
+              <a href={`/calendar/${a.production_id}`}>
+                <strong>{a.title}</strong>
+                {#if a.position}<span class="appearing-pos"> - {a.position}</span>{/if}
+                {#if a.org_name}<span class="appearing-org"> · {a.org_name}</span>{/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+      {#if prodRows.length > 0}
+        <span class="appearing-label" class:second-label={castRows.length > 0}>Currently working on</span>
+        <ul class="appearing-list">
+          {#each prodRows as a (a.production_id)}
+            <li>
+              <a href={`/calendar/${a.production_id}`}>
+                <strong>{a.title}</strong>
+                {#if a.position}<span class="appearing-pos"> - {a.position}</span>{/if}
+                {#if a.org_name}<span class="appearing-org"> · {a.org_name}</span>{/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </aside>
   {/if}
 
@@ -751,6 +769,9 @@
     letter-spacing: 0.12em;
     color: var(--accent);
     margin-bottom: 6px;
+  }
+  .appearing-label.second-label {
+    margin-top: 12px;
   }
   .appearing-list {
     list-style: none;

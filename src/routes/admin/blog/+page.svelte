@@ -44,8 +44,13 @@
             <span class="slug-meta">/{p.slug}</span>
           </td>
           <td data-label="Status">
-            {#if p.published}<span class="pill on">Published</span>
-            {:else}<span class="pill">Draft</span>{/if}
+            {#if p.published && p.published_at && new Date(p.published_at).getTime() > Date.now()}
+              <span class="pill scheduled">⏰ Scheduled</span>
+            {:else if p.published}
+              <span class="pill on">Published</span>
+            {:else}
+              <span class="pill">Draft</span>
+            {/if}
           </td>
           <td data-label="Published" class="mono">{fmtDate(p.published_at)}</td>
           <td data-label="Updated" class="mono">{fmtDate(p.updated_at)}</td>
@@ -105,6 +110,7 @@
   .mono { font-family: var(--font-mono); font-size: 12px; }
   .pill { padding: 2px 8px; border: 1px solid var(--rule); border-radius: 999px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; }
   .pill.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .pill.scheduled { background: transparent; color: var(--accent); border-color: var(--accent); }
   .bt-link { background: transparent; border: 0; color: var(--ink); font-family: var(--font-body); font-size: 13px; cursor: pointer; text-decoration: underline; }
   .bt-link.warn { color: var(--warn); }
   .block-h { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }

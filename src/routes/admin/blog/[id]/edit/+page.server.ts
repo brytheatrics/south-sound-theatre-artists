@@ -35,6 +35,12 @@ export const actions: Actions = {
     const coverUrl = ((fd.get("cover_url") as string) ?? "").trim();
     const authorName = ((fd.get("author") as string) ?? "").trim() || "Lexi Barnett";
     const publish = fd.get("publish") === "on";
+    // Optional scheduled-publish datetime in the admin's local time
+    // ("YYYY-MM-DDTHH:MM"). If provided AND in the future, the post
+    // becomes visible automatically when the time arrives - the
+    // public-side query filters published_at <= now(). If unset and
+    // publish=true, we stamp published_at = now() like before.
+    const scheduleAtRaw = ((fd.get("scheduled_at") as string) ?? "").trim();
 
     if (!title) return fail(400, { error: "Title is required." });
     let slug = slugify(slugInput || title);
@@ -56,9 +62,26 @@ export const actions: Actions = {
       .eq("id", params.id)
       .maybeSingle();
     const wasPublished = existing?.published === true;
-    const publishedAt = publish
-      ? existing?.published_at ?? new Date().toISOString()
-      : existing?.published_at ?? null;
+
+    let publishedAt: string | null;
+    if (!publish) {
+      // Draft: keep any existing published_at as a memo, but the
+      // public query gates on `published=true` anyway so it stays
+      // hidden either way.
+      publishedAt = existing?.published_at ?? null;
+    } else if (scheduleAtRaw) {
+      // The datetime-local input gives a "YYYY-MM-DDTHH:MM" string in
+      // the admin's local time. JS Date constructor interprets it as
+      // local; toISOString() converts to UTC for storage.
+      const parsed = new Date(scheduleAtRaw);
+      if (Number.isNaN(parsed.getTime())) {
+        return fail(400, { error: "Couldn't parse the schedule time." });
+      }
+      publishedAt = parsed.toISOString();
+    } else {
+      // Publish-now: stamp published_at if it wasn't already set.
+      publishedAt = existing?.published_at ?? new Date().toISOString();
+    }
 
     const { error: updErr } = await supabaseAdmin
       .from("blog_posts")

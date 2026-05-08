@@ -477,12 +477,14 @@ export async function loadProductionCredits(productionId: string): Promise<{
   };
 }
 
-/** "Currently appearing in" data for an artist profile. Returns
- *  productions where:
+/** "Currently appearing in" / "currently working on" data for an
+ *  artist profile. Returns productions where:
  *   - this artist is credited (production_credits.profile_id = id)
  *   - production is approved + not deleted
  *   - run dates include today (or are upcoming within next 60 days)
- *  Used by /artists/[slug] for the marquee badge. */
+ *  Each row carries the credit's category so the artist profile can
+ *  render cast credits as "Currently appearing in" and production-team
+ *  credits as "Currently working on". */
 export async function loadCurrentAppearances(profileId: string): Promise<
   Array<{
     production_id: string;
@@ -490,6 +492,7 @@ export async function loadCurrentAppearances(profileId: string): Promise<
     run_start: string;
     run_end: string | null;
     position: string;
+    category: ProductionCreditCategory;
     org_name: string | null;
   }>
 > {
@@ -497,7 +500,7 @@ export async function loadCurrentAppearances(profileId: string): Promise<
   const { data } = await supabaseAdmin
     .from("production_credits")
     .select(
-      `id, position,
+      `id, position, category,
        productions:production_id ( id, title, run_start, run_end, status, deleted_at, organization_id,
                                    organizations:organization_id ( name ) )`,
     )
@@ -505,11 +508,14 @@ export async function loadCurrentAppearances(profileId: string): Promise<
     .is("deleted_at", null);
   return (data ?? [])
     .map((row) => {
-      const p = (row as unknown as { productions: { id: string; title: string; run_start: string; run_end: string | null; status: string; deleted_at: string | null; organization_id: string | null; organizations: { name: string } | null } }).productions;
+      const r = row as unknown as {
+        position: string;
+        category: string;
+        productions: { id: string; title: string; run_start: string; run_end: string | null; status: string; deleted_at: string | null; organization_id: string | null; organizations: { name: string } | null };
+      };
+      const p = r.productions;
       if (!p) return null;
       if (p.status !== "approved" || p.deleted_at) return null;
-      // Active window: run_start <= today + 60 days AND
-      // (run_end is null OR run_end >= today).
       const start = p.run_start;
       const end = p.run_end ?? p.run_start;
       const sixty = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
@@ -522,7 +528,8 @@ export async function loadCurrentAppearances(profileId: string): Promise<
         title: p.title,
         run_start: p.run_start,
         run_end: p.run_end,
-        position: (row as { position: string }).position,
+        position: r.position,
+        category: coerceCategory(r.category),
         org_name: p.organizations?.name ?? null,
       };
     })

@@ -11,7 +11,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .select("slug, title, body_markdown, cover_url, author_display_name, published, published_at")
     .eq("slug", params.slug)
     .is("deleted_at", null);
-  if (!isAdmin) query = query.eq("published", true);
+  if (!isAdmin) {
+    query = query.eq("published", true).lte("published_at", new Date().toISOString());
+  }
   const { data } = await query.maybeSingle();
   if (!data) error(404, "Post not found.");
   return { post: data };
