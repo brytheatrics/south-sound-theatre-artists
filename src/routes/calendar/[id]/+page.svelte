@@ -147,16 +147,31 @@
 
       {#if credits.creative.length > 0}
         <h3 class="sub-h">Creative team</h3>
-        <ul class="credits compact">
+        <ul class="credits">
           {#each credits.creative as c (c.id)}
             {@const linked = c.profile_id ? profileMap[c.profile_id] : null}
-            <li class="cred row">
-              <span class="cred-text">
-                <strong>{c.position}:</strong>
+            <li class="cred">
+              <div class="ava">
                 {#if linked}
-                  <a class="cred-link" href={`/artists/${linked.slug}`}>{c.display_name}</a>
-                {:else}{c.display_name}{/if}
-              </span>
+                  <a href={`/artists/${linked.slug}`}>
+                    <HeadshotPlaceholder
+                      name={linked.full_name}
+                      src={linked.headshot_url}
+                      ratio="1 / 1"
+                    />
+                  </a>
+                {:else}
+                  <HeadshotPlaceholder name={c.display_name} src={null} ratio="1 / 1" />
+                {/if}
+              </div>
+              <div class="cred-text">
+                <strong>
+                  {#if linked}
+                    <a class="cred-link" href={`/artists/${linked.slug}`}>{c.display_name}</a>
+                  {:else}{c.display_name}{/if}
+                </strong>
+                {#if c.position}<span class="cred-position">{c.position}</span>{/if}
+              </div>
             </li>
           {/each}
         </ul>
