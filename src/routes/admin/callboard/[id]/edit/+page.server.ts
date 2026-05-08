@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ params }) => {
       `id, post_type, title, organization_name, area_id, location,
        description, roles, compensation_type, compensation, contact_info,
        key_dates, deadline_text, expires_at, ticket_url, submitter_email,
-       organization_id, status, published, created_at, updated_at,
+       organization_id, status, published, is_ssta_event, created_at, updated_at,
        reviewed_at, deleted_at`,
     )
     .eq("id", params.id)
@@ -86,6 +86,7 @@ export const actions: Actions = {
     const ticket_url = String(fd.get("ticket_url") ?? "").trim();
     const status = String(fd.get("status") ?? "").trim();
     const published = fd.get("published") === "on";
+    const is_ssta_event = fd.get("is_ssta_event") === "1";
 
     const errors: Record<string, string> = {};
     if (!title) errors.title = "Required.";
@@ -161,6 +162,7 @@ export const actions: Actions = {
         ticket_url: ticket_url || null,
         status,
         published,
+        is_ssta_event,
       })
       .eq("id", params.id);
 

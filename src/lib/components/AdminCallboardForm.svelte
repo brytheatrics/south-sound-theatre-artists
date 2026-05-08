@@ -21,6 +21,7 @@
     ticket_url?: string | null;
     status?: string;
     published?: boolean;
+    is_ssta_event?: boolean;
   };
 
   type Props = {
@@ -235,6 +236,14 @@
       <span class="check-label">Publish immediately</span>
     </label>
   {/if}
+
+  <label class="field check-field">
+    <input type="checkbox" name="is_ssta_event" value="1" checked={initial.is_ssta_event === true} />
+    <span class="check-label">
+      <strong>SSTA event</strong>
+      — SSTA itself is posting this. Pins to the top of its post type on the public callboard + digest and shows an "SSTA" badge.
+    </span>
+  </label>
 
   <div class="actions">
     <button type="submit" class="bt bt-pri">

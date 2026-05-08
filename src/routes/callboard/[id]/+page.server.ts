@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ params }) => {
       `id, post_type, title, organization_name, location, description,
        roles, compensation_type, compensation, contact_info,
        key_dates, deadline_text, expires_at, ticket_url,
-       organization_id, created_at, updated_at`,
+       organization_id, is_ssta_event, created_at, updated_at`,
     )
     .eq("id", params.id)
     .eq("published", true)

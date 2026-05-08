@@ -98,7 +98,7 @@ async function main() {
       .slice(0, 10);
     const upcomingProdRes = await db.query(
       `select id, title, organization_name, run_start, run_end,
-              area_id, category_id
+              area_id, category_id, is_ssta_event
          from productions
         where status = 'approved'
           and deleted_at is null
@@ -106,7 +106,7 @@ async function main() {
           and run_start is not null
           and run_start >= $1::date
           and run_start <= $2::date
-        order by run_start asc
+        order by is_ssta_event desc, run_start asc
         limit 60`,
       [today, horizon],
     );
@@ -167,7 +167,8 @@ async function main() {
               ? `-${formatRunDate(p.run_end)}`
               : "";
           const window = start ? ` (${start}${end})` : "";
-          return `- ${p.organization_name} - ${p.title}${window}`;
+          const tag = p.is_ssta_event ? " [SSTA]" : "";
+          return `-${tag} ${p.organization_name} - ${p.title}${window}`;
         })
         .join("\n");
     }
@@ -263,10 +264,10 @@ async function main() {
 
       const newPosts = await db.query(
         `select id, post_type, title, organization_name, deadline_text,
-                location
+                location, is_ssta_event
          from callboard_posts
          ${where}
-         order by created_at desc
+         order by is_ssta_event desc, created_at desc
          limit 30`,
         params,
       );
@@ -292,7 +293,8 @@ async function main() {
           : p.location
           ? ` (${p.location})`
           : "";
-        return `- ${label}: ${p.organization_name} - ${p.title}${tail}\n  ${siteUrl}/callboard/${p.id}`;
+        const tag = p.is_ssta_event ? " [SSTA]" : "";
+        return `-${tag} ${label}: ${p.organization_name} - ${p.title}${tail}\n  ${siteUrl}/callboard/${p.id}`;
       });
       const postsBlock =
         lines.length > 0

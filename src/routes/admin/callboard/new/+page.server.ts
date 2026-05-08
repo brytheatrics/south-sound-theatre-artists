@@ -58,6 +58,7 @@ export const actions: Actions = {
     const expires_at_raw = String(fd.get("expires_at") ?? "").trim();
     const ticket_url = String(fd.get("ticket_url") ?? "").trim();
     const published = fd.get("published") === "on";
+    const is_ssta_event = fd.get("is_ssta_event") === "1";
 
     const errors: Record<string, string> = {};
     if (!title) errors.title = "Required.";
@@ -134,6 +135,7 @@ export const actions: Actions = {
         submitter_email: ADMIN_EMAIL.toLowerCase(),
         status: "approved",
         published,
+        is_ssta_event,
         reviewed_at: new Date().toISOString(),
       })
       .select("id")

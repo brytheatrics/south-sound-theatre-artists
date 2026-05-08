@@ -22,6 +22,7 @@ export type Performance = {
     category_name: string | null;
     area_id: string | null;
     area_name: string | null;
+    is_ssta_event: boolean;
   };
 };
 
@@ -120,7 +121,8 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, hidden_at, category_id, organization_id, area_id`,
+         status, deleted_at, hidden_at, category_id, organization_id, area_id,
+         is_ssta_event`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
@@ -192,10 +194,27 @@ export const load: PageServerLoad = async ({ url }) => {
           category_name: cat?.name ?? null,
           area_id: areaId ?? null,
           area_name: area?.name ?? null,
+          is_ssta_event: !!prod.is_ssta_event,
         },
       };
     })
     .filter((p): p is Performance => p !== null);
+
+  // Re-sort within each calendar day so SSTA-tagged events pin to the
+  // top of the day. The original query already ordered by performs_at;
+  // a stable sort here re-groups SSTA-true within each day cluster
+  // without touching cross-day order. The performs_at sort key is the
+  // ISO timestamp string, which sorts day-then-time lexicographically.
+  performances.sort((a, b) => {
+    const ad = a.performs_at.slice(0, 10);
+    const bd = b.performs_at.slice(0, 10);
+    if (ad !== bd) return ad < bd ? -1 : 1;
+    // Within the same day: SSTA first, then time.
+    if (a.production.is_ssta_event !== b.production.is_ssta_event) {
+      return a.production.is_ssta_event ? -1 : 1;
+    }
+    return a.performs_at < b.performs_at ? -1 : 1;
+  });
 
   // Total upcoming (forward-looking, all months) for masthead. We count
   // raw performances; RLS-cascade via productions.deleted_at would be

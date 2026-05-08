@@ -156,6 +156,14 @@
 
   <button type="button" class="bt bt-ghost" onclick={addPerf}>+ Add performance</button>
 
+  <label class="field check-field">
+    <input type="checkbox" name="is_ssta_event" value="1" />
+    <span>
+      <strong>SSTA event</strong>
+      <span class="hint">— SSTA itself is hosting / sponsoring this. Pins to the top of its day on the public calendar and shows an "SSTA" badge.</span>
+    </span>
+  </label>
+
   <div class="actions">
     <button type="submit" class="bt bt-pri" disabled={busy}>
       {busy ? "Saving..." : `Save${perfs.length > 0 ? ` with ${perfs.length} performance${perfs.length === 1 ? "" : "s"}` : ""}`}
@@ -179,6 +187,9 @@
   .h1-display { font-family: var(--font-display); font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 600; margin: 0 0 0.5rem; }
   .lede { color: var(--ink-soft); max-width: 60ch; margin: 0 0 1rem; }
   .form-error { padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; background: #f9e0d4; color: var(--error); border: 1px solid var(--error); }
+  .check-field { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 0.85rem; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius); margin: 1rem 0; }
+  .check-field input { margin-top: 0.25rem; }
+  .check-field .hint { color: var(--muted); font-size: 0.85rem; font-weight: normal; }
   /* Org-context banner: shown on top of the form when admin arrived
      via "+ Add show" on a specific org row. Soft moss-on-cream so it
      reads as informational, not as a warning. */

@@ -51,7 +51,12 @@
       {/if}
     </div>
 
-    <h1 class="post-title">{post.title}</h1>
+    <h1 class="post-title">
+      {#if post.is_ssta_event}
+        <span class="ssta-pill" title="SSTA event">SSTA</span>
+      {/if}
+      {post.title}
+    </h1>
 
     {#if post.compensation}
       <div class="comp-line mono-label">{post.compensation}</div>
@@ -208,6 +213,20 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .ssta-pill {
+    display: inline-block;
+    padding: 0.05em 0.5em;
+    margin-right: 0.4em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.4em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: 0.55em;
+    font-weight: 600;
   }
   .post-title {
     font-family: var(--font-display);

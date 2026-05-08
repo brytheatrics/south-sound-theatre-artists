@@ -23,6 +23,7 @@ export type CallboardPost = {
   expires_at: string | null;
   ticket_url: string | null;
   organization_id: string | null;
+  is_ssta_event: boolean;
   created_at: string;
 };
 
@@ -67,7 +68,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .select(
       `id, post_type, title, organization_name, location, description,
        roles, compensation_type, compensation, key_dates, deadline_text,
-       expires_at, ticket_url, organization_id, created_at`,
+       expires_at, ticket_url, organization_id, is_ssta_event, created_at`,
       { count: "exact" },
     )
     .eq("published", true)
@@ -85,6 +86,9 @@ export const load: PageServerLoad = async ({ url }) => {
   if (verifiedOnly) {
     query = query.not("organization_id", "is", null);
   }
+  // SSTA-tagged posts pin to the top within whatever sort the user
+  // picked. Boolean DESC: true (1) sorts before false (0).
+  query = query.order("is_ssta_event", { ascending: false });
   if (sort === "deadline") {
     query = query.order("expires_at", { ascending: true, nullsFirst: false });
   } else {

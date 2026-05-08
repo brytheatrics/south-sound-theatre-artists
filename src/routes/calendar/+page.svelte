@@ -357,7 +357,12 @@
                   data-production-id={p.production.id}
                 >
                   <span class="perf-time">{fmtTime(p.performs_at)}</span>
-                  <span class="perf-title">{p.production.title}</span>
+                  <span class="perf-title">
+                    {#if p.production.is_ssta_event}
+                      <span class="ssta-pill" title="SSTA event">SSTA</span>
+                    {/if}
+                    {p.production.title}
+                  </span>
                   <span class="perf-org">{p.production.organization_name}</span>
                   {#if p.note}
                     <span class="note-badge" aria-label={p.note}>✦</span>
@@ -389,7 +394,12 @@
             <li class="perf-row" data-production-id={p.production.id}>
               <span class="perf-time-list">{fmtTime(p.performs_at)}</span>
               <div class="perf-meat">
-                <a class="perf-title-list" href={`/calendar/${p.production.id}`}>{p.production.title}</a>
+                <a class="perf-title-list" href={`/calendar/${p.production.id}`}>
+                  {#if p.production.is_ssta_event}
+                    <span class="ssta-pill" title="SSTA event">SSTA</span>
+                  {/if}
+                  {p.production.title}
+                </a>
                 <div class="perf-org-list">
                   {p.production.organization_name}
                   {#if p.note}
@@ -710,6 +720,21 @@
      performance has a note (Pay-What-You-Can, ASL, Talkback, etc).
      Hovering the pill reveals the full note text via the title attr.
      The list view shows the note inline so this is grid-only. */
+  .ssta-pill {
+    display: inline-block;
+    padding: 0 0.4em;
+    margin-right: 0.3em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.65em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.6;
+    vertical-align: 0.1em;
+    font-weight: 600;
+  }
   .note-badge {
     position: absolute;
     top: 1px;
