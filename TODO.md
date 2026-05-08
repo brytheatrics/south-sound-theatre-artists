@@ -47,30 +47,25 @@ Before flipping `southsoundtheatreartists.org` DNS at Cloudflare to Netlify:
 
 ## 2. Unpushed commits (need a push to deploy)
 
-Since the last push (`85c1c9b` env fix), these have landed locally but not on staging. Many are user-visible. Push when ready:
+Since the last push (`c786304` email-pause allowlist), 32 commits have landed locally but not on staging. This is the v1.1 batch plus this week's polish — almost all of it is user-visible. Push when ready.
 
-- `32037b5` Theme: drop Auto mode
-- `36c0d95` Resources: multi-category tagging
-- `5dab51c` Compat shim: re-add `resources.category_id` temporarily
-- `200b172` Resources: trigger to sync `category_id ← category_ids[1]`
-- `22b832f` Mentorship: dedicated `/mentorship` discovery page
-- `362287e` Homepage: playbill redesign + three-door nav + spotlight rework
-- `a0ae07f` Mentorship: accordion discipline filter to match `/directory`
-- `27051ed` Calendar org consolidation → single `organizations` table (mig 065)
-- `7a2da7e` Trust-this-device admin login (mig 066)
-- `2849902` Marquee: calendar items deep-link with `?highlight=` and pulse
-- `5d502ac` Email: HTML pipeline with signature substitution (migs 067 + 068)
-- `c1197c0` Weekly community digest: double-opt-in + calendar slice (mig 069)
-- ... plus everything from this week's sessions (color revert, "Other" area fixes, three new bulk-imported profiles, favicon tint, etc.)
+Highlights:
 
-After this batch ships, run the parked migration:
+- **v1.1 features.** Multi-resume builder (mig 078), production credits + public detail page + admin/org editors (mig 079, 082, 086), artist self-claim + org self-serve credit tagging, multi-admin per-user accounts + invite flow (mig 080), native blog (mig 081), per-artist OG / social-share cards via Cloudinary, drop legacy `profiles.resume_data` jsonb (mig 087).
+- **v1.1 polish.** Cast-list paste parser, type-ahead in credits editor, creative team card grid, "Currently appearing in" badge, calendar/[id] public detail page, credit-category collapse to cast/production, nav blog link, /admin/organizations name+slug+area edit panel, org-wide ticketing URL fallback.
+- **Bug fixes.** /admin/admins 500 fix, "Lexi" hardcoding removed from user-visible defaults, MultiResumeBuilder inbox copy clarified, multi-fix commit covering admin profile edit / theatre link / appearing-in copy / blog scheduling / submit hint.
+- **Docs.** TODO + HISTORY updated for v1.3.
+
+Migrations applied in this batch: `078` through `087`. All ran cleanly against the dev DB. After the push, the deploy will run them against staging automatically.
+
+There is still one parked migration in `supabase/migrations/_pending/070_resources_cleanup.sql` — it drops the `resources.category_id` compat shim from migs 062 + 063. Note `070` is already taken in the main folder, so renumber it to `088` before moving:
 
 ```bash
-mv supabase/migrations/_pending/070_resources_cleanup.sql supabase/migrations/
+mv supabase/migrations/_pending/070_resources_cleanup.sql supabase/migrations/088_resources_cleanup.sql
 pnpm db:migrate
 ```
 
-That migration drops the `resources.category_id` compat shim from migs 062 + 063.
+(Hold this until after the v1.1 push lands cleanly — one thing at a time.)
 
 ---
 
