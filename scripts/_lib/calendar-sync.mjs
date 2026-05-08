@@ -332,8 +332,11 @@ async function getDefaultCategoryId(db) {
 // part of the match key so that admin renames don't cause the cron to
 // create a duplicate alongside the renamed row.
 //
-// Three short-circuits:
+// Four short-circuits:
 //   - admin_edited_at is set: row is admin-locked, skip everything
+//   - hidden_at is set: row is admin-hidden (e.g., theatre hasn't
+//     formally announced the show yet), treat like admin-locked so
+//     cron doesn't churn the row while it's hidden
 //   - deleted_at is set: row was admin-removed, skip (don't reanimate)
 //   - found + clean: update fields + replace performances
 //   - not found: insert new
@@ -350,7 +353,7 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
   if (!title) return; // skip empty titles after normalisation
 
   const findRes = await db.query(
-    `select id, admin_edited_at, deleted_at from public.productions
+    `select id, admin_edited_at, hidden_at, deleted_at from public.productions
       where organization_id = $1
         and (run_start is null or run_start between ($2::date - interval '30 days') and ($2::date + interval '30 days'))
       limit 1`,
@@ -359,9 +362,10 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
 
   if (findRes.rowCount > 0) {
     const existing = findRes.rows[0];
-    if (existing.admin_edited_at || existing.deleted_at) {
-      // Admin owns this row (edit-locked or removed). Cron leaves it
-      // alone - neither updates metadata nor touches performances.
+    if (existing.admin_edited_at || existing.hidden_at || existing.deleted_at) {
+      // Admin owns this row (edit-locked, hidden, or removed). Cron
+      // leaves it alone - neither updates metadata nor touches
+      // performances.
       return existing.id;
     }
   }

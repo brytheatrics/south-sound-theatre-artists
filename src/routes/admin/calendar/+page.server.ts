@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .from("productions")
     .select(
       `id, title, organization_name, run_start, run_end, status, organization_id,
-       category_id, detail_url, admin_edited_at, created_at, updated_at`,
+       category_id, detail_url, admin_edited_at, hidden_at, created_at, updated_at`,
       { count: "exact" },
     )
     .is("deleted_at", null);
@@ -120,6 +120,7 @@ export const load: PageServerLoad = async ({ url }) => {
       category_name: p.category_id ? categoryNameById.get(p.category_id) ?? null : null,
       is_auto_pop: p.organization_id !== null,
       is_admin_locked: p.admin_edited_at !== null,
+      is_hidden: p.hidden_at !== null,
     })),
     total: count ?? 0,
     pendingCount: pendingCount ?? 0,
@@ -222,5 +223,29 @@ export const actions: Actions = {
       .in("id", ids);
     if (error) return fail(500, { error: "Could not delete." });
     return { deleted: ids.length };
+  },
+
+  hide: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("productions")
+      .update({ hidden_at: new Date().toISOString() })
+      .in("id", ids);
+    if (error) return fail(500, { error: "Could not hide." });
+    return { hidden: ids.length };
+  },
+
+  show: async ({ request }) => {
+    const data = await request.formData();
+    const ids = data.getAll("id").map(String).filter(Boolean);
+    if (ids.length === 0) return fail(400, { error: "Nothing selected." });
+    const { error } = await supabaseAdmin
+      .from("productions")
+      .update({ hidden_at: null })
+      .in("id", ids);
+    if (error) return fail(500, { error: "Could not show." });
+    return { shown: ids.length };
   },
 };

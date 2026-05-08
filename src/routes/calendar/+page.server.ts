@@ -120,11 +120,12 @@ export const load: PageServerLoad = async ({ url }) => {
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, category_id, organization_id, area_id`,
+         status, deleted_at, hidden_at, category_id, organization_id, area_id`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .is("hidden_at", null);
 
     productionsMap = new Map((prodRows ?? []).map((p) => [p.id, p]));
   }

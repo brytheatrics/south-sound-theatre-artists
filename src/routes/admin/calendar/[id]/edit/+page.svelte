@@ -240,6 +240,25 @@
   </form>
 {/if}
 
+<form method="POST" action={data.production.hidden_at ? "?/show" : "?/hide"} class="hide-zone" use:enhance>
+  <h3 class="resync-title">{data.production.hidden_at ? "Currently hidden from public" : "Visible to public"}</h3>
+  <p class="confirm-text">
+    {#if data.production.hidden_at}
+      This production is hidden from the public calendar. Click to unhide
+      and put it back on the calendar.
+    {:else}
+      Hide this production from the public calendar without deleting it.
+      Useful when the cron pulled a show before the theatre formally
+      announced it. The cron will leave it alone while it's hidden, so
+      flipping it back on later restores it exactly as it is now.
+    {/if}
+  </p>
+  <button type="submit" class="bt bt-ghost">
+    {data.production.hidden_at ? "Unhide and show on calendar" : "Hide from public calendar"}
+  </button>
+</form>
+
+
 <form method="POST" action="?/softDelete" class="delete-zone" use:enhance>
   <h3 class="danger-title">Danger zone</h3>
   {#if !confirmingDelete}
@@ -297,7 +316,7 @@
     max-width: 720px;
   }
   .info-soft em { font-style: italic; }
-  .resync-zone {
+  .resync-zone, .hide-zone {
     margin-top: 1.5rem;
     padding: 1rem 1.25rem;
     background: var(--bg-raised);

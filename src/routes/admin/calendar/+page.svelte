@@ -62,6 +62,8 @@
 {#if form?.approved}<div class="form-ok" role="status">Approved {form.approved}.</div>{/if}
 {#if form?.rejected}<div class="form-ok" role="status">Rejected {form.rejected}.</div>{/if}
 {#if form?.deleted}<div class="form-ok" role="status">Moved {form.deleted} to trash.</div>{/if}
+{#if form?.hidden}<div class="form-ok" role="status">Hidden from public: {form.hidden}.</div>{/if}
+{#if form?.shown}<div class="form-ok" role="status">Now visible to public: {form.shown}.</div>{/if}
 
 <!-- FILTERS -->
 <form method="GET" class="filters" data-sveltekit-noscroll>
@@ -110,6 +112,14 @@
     <form method="POST" action="?/approve" use:enhance>
       {#each Array.from(selectedIds) as id (id)}<input type="hidden" name="id" value={id} />{/each}
       <button type="submit" class="bt bt-ghost">Approve</button>
+    </form>
+    <form method="POST" action="?/hide" use:enhance>
+      {#each Array.from(selectedIds) as id (id)}<input type="hidden" name="id" value={id} />{/each}
+      <button type="submit" class="bt bt-ghost" title="Hide from public calendar but keep the row. Cron won't refresh it while hidden.">Hide</button>
+    </form>
+    <form method="POST" action="?/show" use:enhance>
+      {#each Array.from(selectedIds) as id (id)}<input type="hidden" name="id" value={id} />{/each}
+      <button type="submit" class="bt bt-ghost">Show</button>
     </form>
     <form method="POST" action="?/softDelete" use:enhance>
       {#each Array.from(selectedIds) as id (id)}<input type="hidden" name="id" value={id} />{/each}
@@ -173,6 +183,9 @@
             {/if}
             {#if p.is_admin_locked}
               <span class="src-pill src-locked" title="Admin-edited - cron will skip this row on future syncs">🔒 locked</span>
+            {/if}
+            {#if p.is_hidden}
+              <span class="src-pill src-hidden" title="Hidden from public calendar. Cron won't refresh it while hidden.">○ hidden</span>
             {/if}
           </td>
           <td class="actions-cell">
@@ -338,6 +351,7 @@
   .src-auto { background: #e1ebf2; color: #406480; }
   .src-manual { background: #f1ede0; color: var(--muted); }
   .src-locked { background: #f4ecd8; color: #8a6e1c; margin-left: 0.25rem; }
+  .src-hidden { background: #ece6da; color: #6a5a3a; margin-left: 0.25rem; font-style: italic; }
   .actions-cell { text-align: right; white-space: nowrap; }
 
   .pagination {
