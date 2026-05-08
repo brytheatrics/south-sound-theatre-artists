@@ -56,16 +56,7 @@ Highlights:
 - **Bug fixes.** /admin/admins 500 fix, "Lexi" hardcoding removed from user-visible defaults, MultiResumeBuilder inbox copy clarified, multi-fix commit covering admin profile edit / theatre link / appearing-in copy / blog scheduling / submit hint.
 - **Docs.** TODO + HISTORY updated for v1.3.
 
-Migrations applied in this batch: `078` through `087`. All ran cleanly against the dev DB. After the push, the deploy will run them against staging automatically.
-
-There is still one parked migration in `supabase/migrations/_pending/070_resources_cleanup.sql` — it drops the `resources.category_id` compat shim from migs 062 + 063. Note `070` is already taken in the main folder, so renumber it to `088` before moving:
-
-```bash
-mv supabase/migrations/_pending/070_resources_cleanup.sql supabase/migrations/088_resources_cleanup.sql
-pnpm db:migrate
-```
-
-(Hold this until after the v1.1 push lands cleanly — one thing at a time.)
+Migrations applied in this batch: `078` through `088`. `088` is the long-parked `resources.category_id` cleanup (drops the compat shim from migs 062 + 063), unparked + applied right after the v1.1 push landed. The `_pending/` folder is now empty.
 
 ---
 
