@@ -50,6 +50,10 @@
   let newCategory = $state<Category>("cast");
   let newName = $state("");
   let newPosition = $state("");
+  // Type-ahead for the quick-add name input.
+  let qaMatches = $state<Array<{ id: string; full_name: string }>>([]);
+  let qaPickedId = $state<string | null>(null);
+  let qaSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
   let pendingDelete = $state<Credit | null>(null);
 
@@ -98,9 +102,41 @@
       display_name: name,
       position: position || (newCategory === "cast" ? "Ensemble" : "TBD"),
       category: newCategory,
+      profile_id: qaPickedId,
     });
     newName = "";
     newPosition = "";
+    qaPickedId = null;
+    qaMatches = [];
+  }
+
+  function searchArtists(q: string) {
+    qaPickedId = null;
+    if (qaSearchTimer) clearTimeout(qaSearchTimer);
+    if (q.trim().length < 2) {
+      qaMatches = [];
+      return;
+    }
+    qaSearchTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${apiBase}/credits/match`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: q }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { matches: Array<{ id: string; full_name: string }> };
+        qaMatches = data.matches;
+      } catch {
+        qaMatches = [];
+      }
+    }, 200);
+  }
+
+  function pickQa(m: { id: string; full_name: string }) {
+    newName = m.full_name;
+    qaPickedId = m.id;
+    qaMatches = [];
   }
 
   async function pasteApply() {
@@ -154,12 +190,30 @@
         <option value="creative">Creative</option>
         <option value="crew">Crew</option>
       </select>
-      <input
-        type="text"
-        placeholder="Name"
-        bind:value={newName}
-        onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addOne())}
-      />
+      <div class="qa-name">
+        <input
+          type="text"
+          placeholder="Name"
+          bind:value={newName}
+          oninput={(e) => searchArtists((e.currentTarget as HTMLInputElement).value)}
+          onkeydown={(e) => e.key === "Enter" && (e.preventDefault(), addOne())}
+          autocomplete="off"
+        />
+        {#if qaPickedId}
+          <span class="link-tag-inline">🔗 Linked</span>
+        {/if}
+        {#if qaMatches.length > 0 && !qaPickedId}
+          <ul class="ac">
+            {#each qaMatches as m (m.id)}
+              <li>
+                <button type="button" onclick={() => pickQa(m)}>
+                  Link to <strong>{m.full_name}</strong>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
       <input
         type="text"
         placeholder={newCategory === "cast" ? "Role (e.g. Hamlet)" : "Position (e.g. Director)"}
@@ -314,6 +368,55 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+  .qa-name {
+    position: relative;
+    flex: 1 1 200px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .qa-name input {
+    flex: 1;
+  }
+  .link-tag-inline {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .ac {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    z-index: 10;
+    margin-top: 4px;
+  }
+  .ac button {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    padding: 6px 10px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: var(--radius);
+  }
+  .ac button:hover {
+    background: var(--bg-raised);
   }
   .qa-row select,
   .qa-row input {
