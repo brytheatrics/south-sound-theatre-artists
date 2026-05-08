@@ -10,6 +10,8 @@
   /* svelte-ignore state_referenced_locally */
   let cycleAllCalendar = $state(data.settings.include_all_calendar ?? true);
   /* svelte-ignore state_referenced_locally */
+  let includeAppearingIn = $state(data.settings.include_appearing_in ?? true);
+  /* svelte-ignore state_referenced_locally */
   let enabled = $state(data.settings.enabled);
   /* svelte-ignore state_referenced_locally */
   let pickedPostIds = $state<Set<string>>(
@@ -150,6 +152,24 @@
         </div>
       {/if}
     {/if}
+  </div>
+
+  <hr class="rule" />
+
+  <div class="cb-block">
+    <span class="block-label">Appearing in / Working on</span>
+    <p class="hint">
+      Artists who are currently credited (cast or production team) on a
+      show whose run window contains today. Each item links to the
+      artist's profile. Cast credits read "appearing in"; production-team
+      credits read "working on". Minor profiles + unpublished profiles
+      are skipped automatically.
+    </p>
+
+    <label class="check">
+      <input type="checkbox" name="include_appearing_in" bind:checked={includeAppearingIn} />
+      <span>Include <strong>currently credited artists</strong> on the marquee</span>
+    </label>
   </div>
 
   <button type="submit" class="bt bt-pri" disabled={busy}>

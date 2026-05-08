@@ -5,6 +5,7 @@
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { loadCurrentAppearancesForMarquee } from "$lib/server/productionCredits";
 
 type ProfileRow = {
   slug: string;
@@ -89,7 +90,8 @@ export const load: PageServerLoad = async () => {
       .from("marquee_settings")
       .select(
         `enabled, include_all_callboard, include_callboard_post_ids,
-         include_all_calendar, include_calendar_production_ids`,
+         include_all_calendar, include_calendar_production_ids,
+         include_appearing_in`,
       )
       .eq("id", 1)
       .maybeSingle(),
@@ -122,9 +124,11 @@ export const load: PageServerLoad = async () => {
     const wantAllCallboard = marqueeSettings.include_all_callboard;
     const calendarIds = (marqueeSettings.include_calendar_production_ids ?? []) as string[];
     const wantAllCalendar = marqueeSettings.include_all_calendar;
+    const wantAppearingIn = marqueeSettings.include_appearing_in !== false;
 
     let callboardItems: MarqueeItem[] = [];
     let calendarItems: MarqueeItem[] = [];
+    let appearingItems: MarqueeItem[] = [];
 
     if (wantAllCallboard || callboardIds.length > 0) {
       let q = supabaseAdmin
@@ -191,10 +195,24 @@ export const load: PageServerLoad = async () => {
       });
     }
 
-    // Interleave callboard + calendar so the marquee mixes them rather
-    // than running all of one then all of the other. If either source is
-    // empty the result is just the non-empty one.
-    marquee = interleave(callboardItems, calendarItems);
+    if (wantAppearingIn) {
+      const appearances = await loadCurrentAppearancesForMarquee();
+      appearingItems = appearances.slice(0, 30).map((a) => {
+        const verb = a.category === "cast" ? "appearing in" : "working on";
+        const tail = a.org_name ? ` (${a.org_name})` : "";
+        return {
+          id: `app-${a.profile_slug}-${a.production_title}`,
+          glyph: "✱",
+          text: `${a.profile_name} ${verb} ${a.position} - ${a.production_title}${tail}`,
+          href: `/artists/${a.profile_slug}`,
+        };
+      });
+    }
+
+    // Interleave the three sources so the marquee mixes them rather
+    // than running all of one then all of the others. Any empty source
+    // is silently skipped by the interleave helper.
+    marquee = interleaveAll([callboardItems, calendarItems, appearingItems]);
   }
 
   // Curated rotation has priority. Fall back to a date-seeded shuffle of
@@ -259,15 +277,17 @@ export const load: PageServerLoad = async () => {
   };
 };
 
-// Interleave two arrays element-by-element so the marquee alternates
-// callboard / calendar / callboard / calendar instead of grouping them.
-// Whatever runs longer fills the tail.
-function interleave<T>(a: T[], b: T[]): T[] {
+// Interleave N arrays element-by-element so the marquee mixes the
+// sources (callboard / calendar / appearing-in) instead of running
+// them in long blocks. Each round picks index i from every array
+// that still has an element at that index.
+function interleaveAll<T>(arrays: T[][]): T[] {
   const out: T[] = [];
-  const len = Math.max(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    if (i < a.length) out.push(a[i]);
-    if (i < b.length) out.push(b[i]);
+  const max = Math.max(0, ...arrays.map((a) => a.length));
+  for (let i = 0; i < max; i++) {
+    for (const a of arrays) {
+      if (i < a.length) out.push(a[i]);
+    }
   }
   return out;
 }
