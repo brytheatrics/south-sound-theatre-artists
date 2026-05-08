@@ -83,30 +83,51 @@
     credits = credits.filter((_, idx) => idx !== i);
   }
 
-  // Local copy of the same line-format heuristics the server-side
-  // parser uses (server re-parses on submit; this is just for the
-  // optimistic "show me what I just pasted" preview).
-  function parseLine(line: string): { name: string; position: string } {
+  // Mirrors src/lib/server/productionCredits.ts.parseCastList for the
+  // optimistic preview. Server re-parses on submit so this only
+  // affects the count we show on the "Add N rows" button.
+  const ROLE_HINT = /\b(director|music director|musical director|choreographer|stage manager|assistant stage manager|asm|sound designer|lighting designer|set designer|scenic designer|costume designer|props|properties|dramaturg|dramaturgy|fight choreographer|fight director|intimacy director|cast|carpenter|technician|photography|technical director|scenic artist|visuals|interns?|orchestra|conductor|playwright|writer|producer|production manager|house manager|wardrobe|hair|makeup|board op|board operator|projection|video|chief|assistant|associate|crew|run crew|deck|deck chief|spot operator|swing|dance captain|fight captain|vocal director)\b/i;
+
+  const ROLE_HINT_GLOBAL = new RegExp(ROLE_HINT.source, "gi");
+  function roleDensity(s: string): number {
+    const tokens = s.split(/[\s/&]+/).map((t) => t.trim()).filter(Boolean);
+    if (tokens.length === 0) return 0;
+    const matches = s.match(ROLE_HINT_GLOBAL);
+    return (matches ? matches.length : 0) / tokens.length;
+  }
+  function orient(a: string, b: string): { name: string; position: string } {
+    const da = roleDensity(a);
+    const db = roleDensity(b);
+    if (da > db) return { name: b, position: a };
+    if (db > da) return { name: a, position: b };
+    return { name: a, position: b };
+  }
+  function splitNames(name: string): string[] {
+    const parts = name
+      .split(/\s*(?:,|&|\sand\s)\s*/i)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return parts.length > 0 ? parts : [name];
+  }
+  function parseLine(line: string): Array<{ name: string; position: string }> {
+    let parsed: { name: string; position: string } | null = null;
     const asMatch = line.match(/^(.+?)\s+as\s+(.+)$/i);
-    if (asMatch) return { name: asMatch[1].trim(), position: asMatch[2].trim() };
-    const dashMatch = line.match(/^(.+?)\s+[-—–]\s+(.+)$/);
-    if (dashMatch) return { name: dashMatch[1].trim(), position: dashMatch[2].trim() };
-    const colonMatch = line.match(/^(.+?):\s+(.+)$/);
-    if (colonMatch) {
-      const lhs = colonMatch[1].trim();
-      const rhs = colonMatch[2].trim();
-      if (
-        /^(director|music director|choreographer|stage manager|sound designer|lighting designer|set designer|costume designer|props designer|cast)$/i.test(
-          lhs,
-        )
-      ) {
-        return { name: rhs, position: lhs };
-      }
-      return { name: lhs, position: rhs };
+    if (asMatch) parsed = { name: asMatch[1].trim(), position: asMatch[2].trim() };
+    if (!parsed) {
+      let dashMatch = line.match(/^(.+?)\s+[-—–]\s+(.+)$/);
+      if (!dashMatch) dashMatch = line.match(/^(.+?)\s*[-—–]\s*(.+)$/);
+      if (dashMatch) parsed = orient(dashMatch[1].trim(), dashMatch[2].trim());
     }
-    const commaMatch = line.match(/^([^,]+),\s+(.+)$/);
-    if (commaMatch) return { name: commaMatch[1].trim(), position: commaMatch[2].trim() };
-    return { name: line.trim(), position: "" };
+    if (!parsed) {
+      const colonMatch = line.match(/^(.+?):\s*(.+)$/);
+      if (colonMatch) parsed = orient(colonMatch[1].trim(), colonMatch[2].trim());
+    }
+    if (!parsed) {
+      const commaMatch = line.match(/^([^,]+),\s+(.+)$/);
+      if (commaMatch) parsed = { name: commaMatch[1].trim(), position: commaMatch[2].trim() };
+    }
+    if (!parsed) return [{ name: line.trim(), position: "" }];
+    return splitNames(parsed.name).map((n) => ({ name: n, position: parsed!.position }));
   }
 
   function applyPaste() {
@@ -117,14 +138,15 @@
     if (lines.length === 0) return;
     const next: Credit[] = [];
     for (const line of lines) {
-      const { name, position } = parseLine(line);
-      if (!name) continue;
-      next.push({
-        profile_id: null,
-        display_name: name,
-        position: position || (pasteCategory === "cast" ? "Ensemble" : "TBD"),
-        category: pasteCategory,
-      });
+      for (const { name, position } of parseLine(line)) {
+        if (!name) continue;
+        next.push({
+          profile_id: null,
+          display_name: name,
+          position: position || (pasteCategory === "cast" ? "Ensemble" : "TBD"),
+          category: pasteCategory,
+        });
+      }
     }
     credits = [...credits, ...next];
     pasteText = "";

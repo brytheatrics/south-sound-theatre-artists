@@ -43,26 +43,38 @@ export function isCategory(v: unknown): v is ProductionCreditCategory {
 }
 
 /** Fuzzy name matching: returns up to N profile candidates ordered by
- *  best score. Used by the org self-serve paste-cast parser to suggest
- *  a profile link for each pasted name. Hits on full_name (case
- *  insensitive substring + first/last token equality). */
+ *  best score. Used by the credits editor's "Find profile" button + the
+ *  paste-cast parser to suggest a link for each pasted name.
+ *
+ *  Strategy: tokenize the query by whitespace, require every token to
+ *  appear (case-insensitive substring) in full_name. So "Blake York"
+ *  matches "Blake R. York" because both tokens are present. Then score
+ *  the resulting candidates so exact / startsWith / token-boundary
+ *  matches sort to the top. */
 export async function findProfileMatches(
   name: string,
   limit = 5,
 ): Promise<Array<{ id: string; slug: string; full_name: string; score: number }>> {
   const trimmed = name.trim();
   if (!trimmed) return [];
-  // Postgres ilike for substring match. We refine in JS afterward to
-  // score exact-token matches higher than partial substrings.
-  const { data } = await supabaseAdmin
+  const tokens = trimmed.toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+  if (tokens.length === 0) return [];
+
+  // Each ilike() in the chain is AND'd together server-side, so the
+  // resulting set is the intersection: every token must appear in the
+  // full_name. Avoids matching "Blake Smith" when looking for "Blake
+  // York" (would happen with a single substring search).
+  let query = supabaseAdmin
     .from("profiles")
     .select("id, slug, full_name")
-    .ilike("full_name", `%${trimmed}%`)
     .is("deleted_at", null)
-    .eq("published", true)
-    .limit(20);
+    .eq("published", true);
+  for (const t of tokens) {
+    query = query.ilike("full_name", `%${t}%`);
+  }
+  const { data } = await query.limit(20);
+
   const lower = trimmed.toLowerCase();
-  const tokens = lower.split(/\s+/).filter(Boolean);
   const scored = (data ?? []).map((p) => {
     const fnLower = p.full_name.toLowerCase();
     let score = 0;
@@ -111,11 +123,26 @@ export async function createProductionCredit(input: {
   let profile_id = input.profile_id;
   if (!profile_id) {
     const matches = await findProfileMatches(display_name, 5);
-    const exact = matches.filter(
-      (m) => m.full_name.trim().toLowerCase() === display_name.toLowerCase(),
-    );
-    if (exact.length === 1) {
-      profile_id = exact[0].id;
+    // Tokenized AND-search already guarantees every query token is in
+    // each candidate's full_name. So if exactly one candidate comes
+    // back AND the query has 2+ tokens (i.e. "first last"-shaped, not
+    // a single-token search like "Sarah" which is too ambiguous),
+    // we're confident enough to auto-link. Catches cases like
+    // "Blake York" -> "Blake R. York".
+    const tokens = display_name
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 2);
+    if (matches.length === 1 && tokens.length >= 2) {
+      profile_id = matches[0].id;
+    } else {
+      const exact = matches.filter(
+        (m) => m.full_name.trim().toLowerCase() === display_name.toLowerCase(),
+      );
+      if (exact.length === 1) {
+        profile_id = exact[0].id;
+      }
     }
   }
 
@@ -307,47 +334,108 @@ export async function updateProductionCreditPosition(
   }
 }
 
-/** Parse a pasted cast list. Each line is one credit; we recognize a
- *  few common formats:
- *   - "Name as Role"
- *   - "Name - Role"
- *   - "Name: Role"
- *   - "Role: Name" (less common; only when first token looks like a role)
- *   - "Name, Role"
- *  Falls back to {name: line, position: ""} when no separator is found
- *  so the admin can still edit. */
+// Words that strongly suggest a side of the line is the role/position
+// rather than a person's name. Used by orient() when the separator
+// alone doesn't tell us which side is which (hyphen + colon are
+// ambiguous - programs use both "Name - Role" and "Role - Name").
+const ROLE_HINT = /\b(director|music director|musical director|choreographer|stage manager|assistant stage manager|asm|sound designer|lighting designer|set designer|scenic designer|costume designer|props|properties|dramaturg|dramaturgy|fight choreographer|fight director|intimacy director|cast|carpenter|technician|photography|technical director|scenic artist|visuals|interns?|orchestra|conductor|playwright|writer|producer|production manager|house manager|wardrobe|hair|makeup|board op|board operator|projection|video|chief|assistant|associate|crew|run crew|deck|deck chief|spot operator|swing|dance captain|fight captain|vocal director|hair and makeup|hair\/makeup)\b/i;
+
+// "Density" of role-keyword matches in `s`: number of regex hits
+// across the whole string divided by the token count. Counting
+// matches against the whole string (rather than per-token) lets
+// multi-word roles like "Stage Manager" register without each
+// token having to match alone. Splits on whitespace, slashes, and
+// ampersands so multi-role positions tokenize cleanly.
+const ROLE_HINT_GLOBAL = new RegExp(ROLE_HINT.source, "gi");
+function roleDensity(s: string): number {
+  const tokens = s.split(/[\s/&]+/).map((t) => t.trim()).filter(Boolean);
+  if (tokens.length === 0) return 0;
+  const matches = s.match(ROLE_HINT_GLOBAL);
+  return (matches ? matches.length : 0) / tokens.length;
+}
+
+// Choose which of two halves is the name vs the position by comparing
+// role density. Side with the higher fraction of role keywords is the
+// position; the other side is the name. Ties fall back to "name first"
+// (the more common program convention).
+function orient(a: string, b: string): { name: string; position: string } {
+  const da = roleDensity(a);
+  const db = roleDensity(b);
+  if (da > db) return { name: b, position: a };
+  if (db > da) return { name: a, position: b };
+  return { name: a, position: b };
+}
+
+// Split a "name" segment into multiple names when it contains
+// "and"/"&" / "," / ampersand-style separators. Returns one entry
+// per detected name. Used so a line like "Interns - Nova and Savannah"
+// becomes two credits.
+function splitNames(name: string): string[] {
+  const parts = name
+    .split(/\s*(?:,|&|\sand\s)\s*/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : [name];
+}
+
+/** Parse a pasted cast list. Each line is normally one credit; lines
+ *  with multiple names ("Nova and Savannah") expand to multiple
+ *  credits sharing the same position.
+ *
+ *  Recognised line formats:
+ *   - "Name as Role"                   (oriented: name first)
+ *   - "Name, Role"                     (oriented: name first)
+ *   - "Name - Role" / "Role - Name"    (orientation by role keyword)
+ *   - "Name: Role" / "Role: Name"      (orientation by role keyword)
+ *   - "Name-Role" / "Role-Name"        (no spaces around hyphen)
+ *  Falls back to {name: line, position: ""} when no separator is
+ *  found so the admin can still edit. */
 export function parseCastList(raw: string): Array<{ name: string; position: string }> {
   const lines = raw
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  return lines.map((line) => {
-    // " as " separator - prefers Name as Role.
+  const out: Array<{ name: string; position: string }> = [];
+  for (const line of lines) {
+    let parsed: { name: string; position: string } | null = null;
+
+    // " as " - unambiguous name-first convention.
     const asMatch = line.match(/^(.+?)\s+as\s+(.+)$/i);
-    if (asMatch) return { name: asMatch[1].trim(), position: asMatch[2].trim() };
-    // " - " or " — " separator.
-    const dashMatch = line.match(/^(.+?)\s+[-—–]\s+(.+)$/);
-    if (dashMatch) return { name: dashMatch[1].trim(), position: dashMatch[2].trim() };
-    // ": " separator (could be either order).
-    const colonMatch = line.match(/^(.+?):\s+(.+)$/);
-    if (colonMatch) {
-      // If the LHS looks like a role keyword, treat as Role: Name.
-      const lhs = colonMatch[1].trim();
-      const rhs = colonMatch[2].trim();
-      if (
-        /^(director|music director|choreographer|stage manager|assistant stage manager|asm|sound designer|lighting designer|set designer|costume designer|props designer|dramaturg|fight choreographer|intimacy director|cast)$/i.test(
-          lhs,
-        )
-      ) {
-        return { name: rhs, position: lhs };
-      }
-      return { name: lhs, position: rhs };
+    if (asMatch) {
+      parsed = { name: asMatch[1].trim(), position: asMatch[2].trim() };
     }
-    // ", " separator - prefers Name, Role.
-    const commaMatch = line.match(/^([^,]+),\s+(.+)$/);
-    if (commaMatch) return { name: commaMatch[1].trim(), position: commaMatch[2].trim() };
-    return { name: line, position: "" };
-  });
+    // Hyphen / em-dash / en-dash. Try with-spaces first so a hyphenated
+    // name like "Layla Tobar-Thompson - Stage Manager" splits at the
+    // outer hyphen, not the one inside the surname. Fall back to the
+    // no-space variant for "Director-Name" style entries.
+    if (!parsed) {
+      let dashMatch = line.match(/^(.+?)\s+[-—–]\s+(.+)$/);
+      if (!dashMatch) dashMatch = line.match(/^(.+?)\s*[-—–]\s*(.+)$/);
+      if (dashMatch) parsed = orient(dashMatch[1].trim(), dashMatch[2].trim());
+    }
+    // ":" - orientation by role keyword.
+    if (!parsed) {
+      const colonMatch = line.match(/^(.+?):\s*(.+)$/);
+      if (colonMatch) parsed = orient(colonMatch[1].trim(), colonMatch[2].trim());
+    }
+    // ", " - prefers name first.
+    if (!parsed) {
+      const commaMatch = line.match(/^([^,]+),\s+(.+)$/);
+      if (commaMatch) {
+        parsed = { name: commaMatch[1].trim(), position: commaMatch[2].trim() };
+      }
+    }
+    if (!parsed) {
+      out.push({ name: line, position: "" });
+      continue;
+    }
+
+    // Expand "Name1 and Name2" into multiple credits sharing position.
+    for (const n of splitNames(parsed.name)) {
+      out.push({ name: n, position: parsed.position });
+    }
+  }
+  return out;
 }
 
 /** Load the credits for one production, grouped by category and ordered
