@@ -234,16 +234,16 @@
       >
         All entries <span class="count">({entries.length})</span>
       </button>
-      {#if inboxCount > 0}
-        <button
-          type="button"
-          class="tab inbox"
-          class:active={view === "inbox"}
-          onclick={() => (view = "inbox")}
-        >
-          Inbox <span class="count">({inboxCount})</span>
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="tab inbox"
+        class:active={view === "inbox"}
+        class:empty={inboxCount === 0}
+        onclick={() => (view = "inbox")}
+        title="Production credits land here when an org or admin tags you. Click to assign each one to your resumes."
+      >
+        Inbox <span class="count">({inboxCount})</span>
+      </button>
       {#each resumes as r (r.id)}
         <div class="tab-wrap" class:active={view === r.id}>
           {#if renamingResume === r.id}
@@ -736,6 +736,17 @@
   }
   .tab.inbox {
     border-style: dashed;
+  }
+  /* Empty inbox: visible but understated so the artist sees the
+     feature exists ("oh, that's where new credits land") without
+     it screaming for attention. */
+  .tab.inbox.empty {
+    color: var(--muted);
+    border-color: var(--rule-soft);
+  }
+  .tab.inbox.empty:hover {
+    color: var(--ink);
+    border-color: var(--rule);
   }
   .tab .count {
     font-family: var(--font-mono);
