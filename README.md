@@ -4,9 +4,12 @@ A free community web platform for theatre artists in the South Sound region of W
 
 ## Documentation
 
-- **`PRODUCT_SPEC.md`** - full project scope: artist profiles, callboard, admin panel, filters, resume system, email infrastructure
-- **`BUILD_PLAN.md`** - phased implementation plan (v1 directory, v1.1 resumes, v1.2 callboard, v1.3 discovery features), architecture decisions, launch checklist
-- **`CLAUDE.md`** - project conventions for Claude Code sessions
+- **`CLAUDE.md`** - project conventions + where-to-look index for Claude Code sessions
+- **`TODO.md`** - master active-work list (launch-blocking, unpushed commits, parking lot, v1.1 build notes)
+- **`ARCHITECTURE.md`** - schema, auth model, conventions, cron schedule, infrastructure
+- **`HISTORY.md`** - what shipped, version-by-version (v1 → v1.3) + the v2.x calendar audit
+- **`PRODUCT_SPEC.md`** - original product vision (reference only)
+- **`scripts/BULK_IMPORT_README.md`** - operational doc for the artist bulk-importer
 
 ## Tech Stack
 
@@ -55,4 +58,4 @@ Deploys to Netlify on push to `main` (when configured). Free-tier limits apply: 
 
 ## Project Status
 
-Pre-implementation. Service accounts and infrastructure are set up. Code work begins with v1 per `BUILD_PLAN.md`.
+Pre-launch. v1 (directory), v1.1 (resumes + mentorship), v1.2 (callboard + verified orgs + auto-pulled calendar), and v1.3 (multi-resume + production credits + multi-admin + blog + per-artist OG cards) are all shipped to staging at `https://southsoundtheatreartists.netlify.app`. Custom domain DNS flip + final smoke test are launch-blocking — see `TODO.md` Section 1.

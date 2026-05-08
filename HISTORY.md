@@ -127,6 +127,71 @@ Mostly listed as commits in [TODO.md](TODO.md) "Unpushed commits." Highlights:
 
 ---
 
+## v1.3 — Multi-resume + Production credits + Multi-admin + Blog + OG cards (shipped 2026-05-07)
+
+Big batch from a single working session. ~25-35 hrs of focused work distilled to one day. Migs 078–087.
+
+### Multi-resume (mig 078)
+- Replaces single `profiles.resume_data` jsonb with relational `resumes` + `resume_entries` tables.
+- Artists can keep multiple named resumes (Actor / Director / Scenic Designer / etc.); each entry's `resume_ids` array decides which resumes it appears on. Same credit can land on two resumes via the chip toggles.
+- Public picker on `/artists/[slug]?resume=<id>`; defaults to the resume with the most entries.
+- New `MultiResumeBuilder` component on `/edit/[token]` and `/admin/profiles/[id]/edit` — live-mutation API at `/api/edit/[token]/resumes` and `/api/admin/profiles/[id]/...` (token-validation never burns the token, only the main form submit does).
+- Resume changes no longer flow through the trust gate (low abuse risk; production-credit auto-link is the real constraint).
+- `resume_data` column kept as a synced shim through the session, then dropped entirely (mig 087) along with `syncLegacyResumeData()` once all reads / writes were redirected.
+
+### Production credits (mig 079)
+- Each calendar item gets a public `/calendar/[id]` page with cast + production team in card grid layout (face-detected headshot + name + role).
+- New `production_credits` table with `category` enum (originally cast/creative/crew, simplified to cast/production in migs 084 + 085) and `source` enum tracking who tagged it (`admin` / `org` / `artist`).
+- Admin editor at `/admin/calendar/[id]/credits`: quick-add row, paste-cast-list parser (handles "Name as Role", "Name - Role", "Director-Name", "Name, Role", multi-name lines like "Interns - Nova and Savannah", multi-role positions like "Tech Director/Scenic Designer/Visuals"), fuzzy "Find profile" with token-AND substring matching, inline category + position edit.
+- Auto-link by exact (and fuzzy 2-token) name when admin/org/submitter types a name without clicking the autocomplete: "Blake York" → links to "Blake R. York" if exactly one published profile matches.
+- Tagging an artist auto-creates a linked `resume_entries` row in the artist's inbox; admin/org untag converts it to source='hand' so the artist keeps the earned credit.
+- "Currently appearing in" badge on profile pages for cast credits + "Currently working on" for production-team credits.
+- Calendar list links each entry to `/calendar/[id]`; external "Tickets ↗" still surfaces from the detail page.
+
+### Org self-serve credit tagging
+- Admin generates a magic-link from `/admin/organizations` (60-day TTL, purpose=`org_edit`), copies the URL out of the form-ok banner and shares with the org rep out of band. No public request form — keeps the v1.1 surface small.
+- Org rep lands on `/org-edit/[token]`, sees their org's productions, manages credits per-production via the same `ProductionCreditsEditor` component admin uses (different `apiBase`).
+
+### Artist self-claim credits
+- "Claim a production credit" form on `/edit/[token]`: search productions by title, pick one, fill role + category. New credit gets `source='artist'`; the linked resume row lands in the artist's inbox.
+
+### Cast list capture on `/calendar/submit` (mig 082)
+- Optional poster image upload (Cloudinary `posters` folder, public `/api/cloudinary/sign-poster` endpoint) + "Cast & production" section with type-ahead artist autocomplete + paste-cast support. Credits insert at submission time, stay invisible until status='approved'.
+
+### Multi-admin (mig 080)
+- `admin_users` table replaces single env-var auth. First login from ADMIN_EMAIL+ADMIN_PASSWORD bootstraps the owner row (scrypt password hash, no new dep — uses `node:crypto`).
+- 2FA codes route to the admin's own email after multi-admin migration (not the ADMIN_EMAIL env).
+- `/admin/admins` (owner-only) — invite via 7-day magic link → invitee sets password at `/admin/accept-invite/[token]`. `admin_sessions` and `admin_trusted_devices` carry `admin_user_id` FK.
+- mig 083 extended `magic_link_tokens.purpose` check constraint to allow `org_edit` and `admin_invite`.
+
+### Blog (mig 081)
+- `/blog` public list + `/blog/[slug]` detail. Markdown editor + toolbar matching `/admin/content`, optional cover image (Cloudinary), author byline.
+- Scheduled publishing: optional datetime-local field, public query gates on `published_at <= now()`, no cron needed. "⏰ Scheduled" pill in admin list.
+- Footer + nav header link to `/blog`.
+
+### Per-artist OG / social-share cards
+- `buildOgCardUrl()` in `src/lib/server/cloudinary.ts` produces a Cloudinary delivery URL (face-detected headshot fill + name in Playfair Display + discipline in Work Sans + SSTA wordmark logo overlay). Falls back to the generic site card for non-Cloudinary headshots and minor profiles.
+- One-off `scripts/upload_og_logo.mjs` uploaded `static/logo-long.svg` to Cloudinary at `brand/og-logo` for the layer.
+
+### Admin panel improvements
+- `/admin/organizations`: name, slug, area, description, homepage, ticketing URL, logo all editable from one panel. Slug-collision check excludes the row being edited.
+- `/admin/calendar/[id]/edit`: cover image URL field with preview. Theatre name on `/calendar/[id]` now opens the org homepage in a new tab when set.
+- `/admin/profiles/[id]/edit`: drops the disciplines + area required-field checks (admin can save partial rows; the public profile query still gates on `published=true`).
+- `/admin/blog`: list + new + edit + soft-delete + restore. "Lexi" hardcoded defaults removed from blog author byline + admin profile bio placeholder.
+
+### Schema migrations applied
+- 078 `multi_resume` — resumes + resume_entries
+- 079 `production_credits` — credits + FK back to resume_entries
+- 080 `admin_users` — multi-admin tables + session FKs
+- 081 `blog_posts`
+- 082 `production_cover_url`
+- 083 `magic_link_purposes` — extends purpose check constraint
+- 084 + 085 `production_category_value` + `_backfill` — cast/production simplification
+- 086 `org_ticketing_url`
+- 087 `drop_resume_data_jsonb` — removes the legacy column
+
+---
+
 ## v2.x audit (2026-05-02) — ready for Phase 0 dry-run
 
 **Goal:** the site shows what's playing across South Sound theatre even when companies don't manually post to the callboard.

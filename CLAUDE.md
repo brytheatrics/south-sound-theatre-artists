@@ -1,6 +1,6 @@
 # Claude Code Instructions for South Sound Theatre Artists
 
-A free community web platform for South Sound (Tacoma / Olympia / Gig Harbor) theatre artists. Two main surfaces: a searchable artist directory and a callboard for audition notices and production announcements. Maintained by a single non-technical admin (Lexi).
+A free community web platform for South Sound (Tacoma / Olympia / Gig Harbor) theatre artists. Surfaces: artist directory, callboard for audition notices, calendar of productions with cast / production-team tagging, public theatre directory, native blog, mentorship discovery. Maintained by Lexi (non-technical) with optional co-admins (multi-admin live since mig 080).
 
 ---
 
@@ -44,7 +44,7 @@ Quick reminders. The full set lives in [ARCHITECTURE.md](ARCHITECTURE.md#convent
 - **APIs accept arrays from day one.** `{ ids: [...] }` even when called with one ID.
 - **All emails go through one wrapper** that logs to `email_log` before calling Resend.
 - **Soft-delete by default for admin actions.** 30-day trash before hard-delete.
-- **No traditional accounts.** Browse + submit are public. Edit via single-use magic link. Admin uses password + 2FA + session cookie.
+- **No traditional accounts.** Browse + submit are public. Edit via single-use magic link. Org-rep credit-tagging via admin-issued 60-day org-edit link. Admin uses email + password + 2FA + session cookie (multi-admin: each admin has their own row in `admin_users`; ADMIN_EMAIL/ADMIN_PASSWORD env vars are the bootstrap path on a freshly-empty table).
 - **Markdown + toolbar for admin content editing.** Live preview pane. Image button uploads to Cloudinary.
 
 ---

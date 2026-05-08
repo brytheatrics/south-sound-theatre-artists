@@ -26,12 +26,13 @@ Free-tier ceilings: Resend 3000/mo, Supabase 500MB DB + 7-day pause, Cloudinary 
 
 ## Auth model
 
-No traditional accounts. Three access tiers:
+No traditional accounts. Five access tiers:
 
-- **Browse** (directory, profiles, callboard, all public pages): zero auth.
-- **Submit** (new profile, callboard post, report, contact form): zero auth + one-time email verification before the submission appears in Lexi's queue. Filters bots automatically.
-- **Edit own profile / change notification preferences**: magic link to artist's email. Tokens are **single-use, 24-hour expiry, invalidated on use**.
-- **Admin (Lexi)**: password (Netlify env var) + magic-link 2FA (6-digit code to admin email) + 30-day session cookie + server-side session token (revocable). 5 attempts per IP per 15 minutes on the password endpoint, then lockout. "Trust this device for 30 days" cookie skips the 2FA round-trip on subsequent logins (mig 066).
+- **Browse** (directory, profiles, callboard, calendar, /theatres, /blog, /productions, all public pages): zero auth.
+- **Submit** (new profile, callboard post, calendar entry, report, contact form): zero auth + one-time email verification before the submission appears in Lexi's queue. Filters bots automatically.
+- **Edit own profile / claim production credits / change notification preferences**: magic link to artist's email at `/edit/[token]`. Tokens are **single-use, 24-hour expiry, invalidated on use** (the live API endpoints reuse the token without burning it; only the main form submit burns it).
+- **Org rep manage credits on their org's productions**: admin-issued magic link from `/admin/organizations` to the org's `contact_email`, lands at `/org-edit/[token]`. 60-day TTL, never burned (live API). Mig 080 + 083.
+- **Admin** (Lexi + invited co-admins): email + password + 6-digit 2FA → 30-day session cookie. Multi-admin since mig 080: each admin has a row in `admin_users` with their own scrypt-hashed password and 2FA-to-their-own-email; sessions and trusted devices carry an `admin_user_id` FK. The `ADMIN_PASSWORD` / `ADMIN_EMAIL` env vars still work as the bootstrap path on a freshly-empty `admin_users` table. Owner can invite/remove other admins from `/admin/admins`. 5 attempts per IP per 15 minutes on the password endpoint, then lockout. "Trust this device for 30 days" cookie skips the 2FA round-trip (mig 066).
 
 ---
 
@@ -39,8 +40,10 @@ No traditional accounts. Three access tiers:
 
 | Table | Purpose |
 |---|---|
-| `profiles` | Live artist profiles. v1.1 added `last_name` (generated, indexed), `trusted` (bool), `city` (text), `resumes` (jsonb of `{label, url}`), `resume_data` (jsonb of credits/training/skills), `mentorship_offering` + `mentorship_seeking` (text arrays). v1.2 minor flow added `is_minor`, `guardian_email`, `guardian_name` (mig 054). |
-| `pending_submissions` | New profiles awaiting email verify + admin approval. Mirrors v1.1 columns. |
+| `profiles` | Live artist profiles. v1.1 added `last_name` (generated, indexed), `trusted` (bool), `city` (text), `resumes` (jsonb of `{label, url}`), `mentorship_offering` + `mentorship_seeking` (text arrays). v1.2 minor flow added `is_minor`, `guardian_email`, `guardian_name` (mig 054). The legacy `resume_data` jsonb column was dropped in mig 087 once the multi-resume relational tables (mig 078) became authoritative. |
+| `resumes` | Per-profile named resumes (mig 078). One artist can have N resumes ("Director Resume", "Actor Resume", "Scenic Designer Resume"). Public profile picker at `/artists/[slug]?resume=<id>`. |
+| `resume_entries` | One row per credit / training / skill entry (mig 078). `kind` enum + `data` jsonb keeps the table simple while still letting each kind carry its own field shape. `resume_ids` uuid array → which resumes the entry appears on (empty = "inbox", surfaced for triage). `source` enum: `hand` (artist-typed) / `production` (auto-created from a production_credit) / `admin`. Production-sourced rows are FK'd to `production_credits.id`. |
+| `pending_submissions` | New profiles awaiting email verify + admin approval. Still uses jsonb `resume_data` as the public submit form's storage; on approval, the data expands into `resumes` + `resume_entries` via `expandLegacyResumeData()`. |
 | `flagged_edits` | Untrusted artists' major edits queue here as one row per submission with `proposed_changes jsonb`. Admin reviews at `/admin/flagged-edits`. |
 | `magic_link_tokens` | Single-use edit tokens (24h) and admin 2FA codes (10 min). Stale-cleanup cron also issues 30-day edit tokens when pinging long-quiet profiles. |
 | `email_log` | Every Resend send: hashed recipient + type + sent_at. Drives the volume alert. |
@@ -55,9 +58,12 @@ No traditional accounts. Three access tiers:
 | `areas` | Region chips (`Tacoma / Pierce County`, `South Pierce`, `Olympia / Thurston County`, `South King County`, `Gig Harbor / Kitsap`, `Other`) with `description` for hover tooltips. Realigned to v2.x audit taxonomy in mig 045. |
 | `unions` + `ethnicities` | Reference lists with descriptions. Renamed-cascade to profile arrays. |
 | `admin_sessions` + `admin_login_attempts` + `admin_trusted_devices` | Login + rate-limit + remember-this-device. |
-| `productions` | Shows extracted from approved callboard posts (v1.2). Side-effect of approving audition / production posts in either admin or verified-org auto-publish path. |
+| `productions` | Shows extracted from approved callboard posts (v1.2) + manual submissions via `/calendar/submit` + the auto-sync. v1.3 added `cover_url` (mig 082) for poster images shown hero-style on `/calendar/[id]`. |
+| `production_credits` | Cast / production-team tagging on productions (mig 079). `category` enum: `cast` / `production` (originally cast/creative/crew, simplified in migs 084 + 085). `source` enum: `org` / `artist` / `admin` tracks who tagged the credit. `created_by_email` for moderation. When tagged on a real profile, auto-creates a linked `resume_entries` row in the artist's inbox; deleting the credit converts the linked row to source='hand' so the artist keeps the credit they earned. |
+| `admin_users` | Multi-admin (mig 080). One row per admin with email, scrypt password hash, role (`owner` or `admin`), invited_by FK, password_set_at, last_login_at. Owner is bootstrapped on first login from ADMIN_EMAIL+ADMIN_PASSWORD env vars; subsequent admins added via `/admin/admins` invite flow. `admin_sessions` and `admin_trusted_devices` both gained `admin_user_id` FK. |
+| `blog_posts` | Native blog posts (mig 081) at `/blog` and `/blog/[slug]`. `body_markdown` rendered via the existing markdown pipeline. Optional `cover_url`, scheduled-publish via `published_at` (public query gates on `published_at <= now()`). Author defaults to the logged-in admin's display name. Editor at `/admin/blog`. |
 | `callboard_posts` | Audition notices, designer / crew calls, production announcements, general opportunities (v1.2). Email-verify token + status workflow same as `pending_submissions`. |
-| `organizations` | **Single source of truth for theatre orgs (mig 065).** Folds the old `event_sources` + `verified_orgs` into one. `verified=true` orgs skip per-post review on callboard + calendar submits. `productions.organization_id` and `callboard_posts.organization_id` both FK here. |
+| `organizations` | **Single source of truth for theatre orgs (mig 065).** Folds the old `event_sources` + `verified_orgs` into one. `verified=true` orgs skip per-post review on callboard + calendar submits. `productions.organization_id` and `callboard_posts.organization_id` both FK here. v1.3 added `ticketing_url` (mig 086) for org-wide ticketing pages — show page button falls back: per-show `detail_url` → org `ticketing_url` → org `homepage_url`. Manual orgs (`adapter='manual'`) appear on `/theatres` like any other; the cron filters them out via `adapter <> 'manual'`. Editable from `/admin/organizations` (name / slug / area / description / homepage / ticketing / logo since v1.3). |
 | `callboard_subscriptions` | Opt-in weekly digest. `subscriber_email` unique, `disciplines` text[], `post_types` text[], `last_digest_at`, `unsubscribed_at`, per-row `unsubscribe_token` (v1.2). Double-opt-in via `confirmed_at` + `confirmation_token` (mig 069). |
 | `marquee_settings` | Single-row config for homepage scrolling ticker. Cycles callboard posts + calendar productions. Admin-edited at `/admin/marquee` (v1.2 + mig 053). |
 | `resources` + `resource_categories` | Curated link library at `/resources`. Soft-deleted with `deleted_at`. Multi-category tagging via `category_ids` (mig 062 + 063). |
