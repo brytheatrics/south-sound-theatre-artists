@@ -93,17 +93,23 @@ async function main() {
     // through /admin/profiles/[id] (or /admin/profiles/trash) and
     // leave archived_stale=false, so they purge after 30 days as before.
     const archiveCutoff = new Date(Date.now() - ARCHIVE_AFTER_MS).toISOString();
+    const todayIso = new Date().toISOString().slice(0, 10);
     const archiveRes = await db.query(
+      // coalesce keeps any pre-existing admin_note intact (admin might
+      // have left context that's still useful) - we only stamp the
+      // auto-archive note when admin_note is null/empty.
       `update profiles
          set deleted_at = now(),
              published = false,
-             archived_stale = true
+             archived_stale = true,
+             admin_note = coalesce(nullif(admin_note, ''),
+               'Auto-archived: 18-month inactivity ping, no response by ' || $2 || '.')
        where deleted_at is null
          and stale_pinged_at is not null
          and stale_pinged_at < $1
          and updated_at <= stale_pinged_at
        returning id`,
-      [archiveCutoff],
+      [archiveCutoff, todayIso],
     );
     archived = archiveRes.rowCount ?? 0;
 

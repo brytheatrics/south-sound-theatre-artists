@@ -9,7 +9,7 @@ import { supabaseAdmin } from "$lib/server/supabase";
 export const load: PageServerLoad = async () => {
   const { data, error } = await supabaseAdmin
     .from("profiles")
-    .select("id, slug, full_name, email, deleted_at, archived_stale")
+    .select("id, slug, full_name, email, deleted_at, archived_stale, admin_note")
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
   if (error) throw error;

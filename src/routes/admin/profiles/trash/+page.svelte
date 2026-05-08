@@ -68,6 +68,9 @@
             {t.email} · removed {daysAgo(t.deleted_at)}
             {#if t.archived_stale}· kept indefinitely{:else}· auto-purges in 30d{/if}
           </span>
+          {#if t.admin_note}
+            <p class="admin-note">{t.admin_note}</p>
+          {/if}
         </div>
         <div class="actions">
           <form method="POST" action="?/restore" use:enhance={() => { busyId = t.id; return async ({ update }) => { await update(); busyId = null; }; }}>
@@ -187,4 +190,17 @@
     border: 1px solid #d4be7c;
   }
   .stale-pill.inline { margin-left: 0.1em; }
+  .admin-note {
+    margin: 6px 0 0;
+    padding: 6px 10px;
+    background: var(--paper-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 2px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+  .row > div:first-child { flex: 1; min-width: 0; }
 </style>

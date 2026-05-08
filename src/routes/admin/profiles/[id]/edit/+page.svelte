@@ -46,6 +46,7 @@
   let twitter = $state(p.twitter_handle ?? "");
   let youtube = $state(p.youtube_url ?? "");
   let website = $state(p.website_url ?? "");
+  let adminNote = $state(p.admin_note ?? "");
 
   // Source of truth for disciplines is an ordered array since the
   // directory + homepage cards render the first two entries. The Set
@@ -438,6 +439,21 @@
     </div>
   </section>
 
+  <fieldset class="admin-note-block">
+    <legend>Admin note (private)</legend>
+    <p class="admin-note-help">
+      Free-form context for other admins. Useful when a profile is
+      unpublished, hidden, or in trash so the next person knows why.
+      Never shown to the public.
+    </p>
+    <textarea
+      name="admin_note"
+      rows="3"
+      bind:value={adminNote}
+      placeholder="e.g. Hidden 2026-05-08 - reported for repeated harassment in callboard comments. Re-evaluate after 6 months."
+    ></textarea>
+  </fieldset>
+
   <div class="actions">
     <!-- Same banners we render in the header, repeated here so feedback
          lands next to the click on long forms. Without this the only
@@ -697,5 +713,41 @@
   .actions {
     display: flex;
     gap: 8px;
+  }
+  .admin-note-block {
+    margin: 1.5rem 0 0.5rem;
+    padding: 1rem 1.1rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .admin-note-block legend {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    padding: 0 0.4em;
+  }
+  .admin-note-help {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .admin-note-block textarea {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    resize: vertical;
   }
 </style>

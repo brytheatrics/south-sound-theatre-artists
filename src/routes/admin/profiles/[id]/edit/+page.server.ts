@@ -134,6 +134,7 @@ export const actions: Actions = {
     const unionOther = ((data.get("union_other") as string) ?? "").trim();
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
+    const adminNote = ((data.get("admin_note") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
     // Resume builder entries are now relational (mig 078) and saved live
     // via the /api/admin/profiles/[id]/* endpoints during the edit
@@ -248,6 +249,7 @@ export const actions: Actions = {
         website_url: normalizeUrl(website) || null,
         mentorship_offering: mentorshipOffering,
         mentorship_seeking: mentorshipSeeking,
+        admin_note: adminNote || null,
       })
       .eq("id", params.id);
 
