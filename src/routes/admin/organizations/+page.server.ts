@@ -56,6 +56,7 @@ export const load: PageServerLoad = async ({ url }) => {
     verifiedOrgs: enriched.filter((o) => o.verified),
     autoSources: enriched.filter((o) => !o.is_manual),
     manualSources: enriched.filter((o) => o.is_manual),
+    areas: areas ?? [],
     justCreated,
   };
 };
@@ -68,12 +69,31 @@ export const actions: Actions = {
     const id = String(fd.get("id") ?? "");
     if (!id) return fail(400, { error: "missing organization id" });
 
+    const name = String(fd.get("name") ?? "").trim();
+    const slug = String(fd.get("slug") ?? "").trim().toLowerCase();
+    const areaId = String(fd.get("area_id") ?? "").trim() || null;
     const description = String(fd.get("description") ?? "").trim();
     const homepageUrl = String(fd.get("homepage_url") ?? "").trim();
     const ticketingUrl = String(fd.get("ticketing_url") ?? "").trim();
     const logoUrl = String(fd.get("logo_url") ?? "").trim();
     const logoBg = String(fd.get("logo_bg") ?? "paper").trim();
 
+    if (!name) return fail(400, { error: "Name is required." });
+    if (name.length > 120) return fail(400, { error: "Name should be under 120 characters." });
+    if (!slug || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
+      return fail(400, { error: "Slug must be lowercase letters/numbers/hyphens, no leading or trailing hyphen." });
+    }
+    // Slug-collision check (excluding the row being edited).
+    const { data: dupSlug } = await supabaseAdmin
+      .from("organizations")
+      .select("id")
+      .eq("slug", slug)
+      .neq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (dupSlug) {
+      return fail(409, { error: `Slug "${slug}" is taken by another organization.` });
+    }
     const looksLikeUrl = (s: string) => /^https?:\/\//i.test(s);
     if (homepageUrl && !looksLikeUrl(homepageUrl)) {
       return fail(400, { error: "Homepage URL must start with http:// or https://" });
@@ -95,6 +115,9 @@ export const actions: Actions = {
     const { data: row, error } = await supabaseAdmin
       .from("organizations")
       .update({
+        name,
+        slug,
+        area_id: areaId,
         description: description || null,
         homepage_url: homepageUrl || null,
         ticketing_url: ticketingUrl || null,

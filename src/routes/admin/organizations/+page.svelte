@@ -134,9 +134,9 @@
   }
 </script>
 
-{#snippet publicEdit(s: { id: string; slug: string; description: string | null; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null; logo_bg: string })}
+{#snippet publicEdit(s: { id: string; slug: string; name: string; area_id: string | null; description: string | null; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null; logo_bg: string })}
   <details class="public-edit">
-    <summary>Edit public details — description, homepage, tickets, logo</summary>
+    <summary>Edit public details — name, slug, area, description, homepage, tickets, logo</summary>
     <form
       method="POST"
       action="?/updatePublic"
@@ -150,6 +150,35 @@
       }}
     >
       <input type="hidden" name="id" value={s.id} />
+      <label class="pe-field">
+        <span class="pe-label">Name</span>
+        <input
+          name="name"
+          type="text"
+          required
+          maxlength="120"
+          value={s.name}
+        />
+      </label>
+      <label class="pe-field">
+        <span class="pe-label">Slug <span class="pe-hint">(URL identifier - changes break old links)</span></span>
+        <input
+          name="slug"
+          type="text"
+          required
+          pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+          value={s.slug}
+        />
+      </label>
+      <label class="pe-field">
+        <span class="pe-label">Area</span>
+        <select name="area_id">
+          <option value="" selected={s.area_id === null}>(no area set)</option>
+          {#each data.areas as a (a.id)}
+            <option value={a.id} selected={s.area_id === a.id}>{a.name}</option>
+          {/each}
+        </select>
+      </label>
       <label class="pe-field">
         <span class="pe-label">Description</span>
         <textarea
