@@ -528,16 +528,39 @@ async function buildVars(
     case "callboard_weekly_digest": {
       const sub = await getOrCreateTestSubscription();
       // Stub blocks so the rendering is realistic. Real digests build
-      // these from live data; the test here just shows that the
-      // template renders.
+      // these from live data via the cron; the test here just shows
+      // that the template + sub-section structure render correctly.
+      const callboardBlock = `## Callboard
+
+### New this week
+
+- Audition: Test Organization - TEST CALLBOARD POST (Posted today)
+  ${PUBLIC_SITE_URL}/callboard
+
+### Closing this week
+
+- Designer call: Test Organization - Test Designer Call (closes Friday)
+  ${PUBLIC_SITE_URL}/callboard
+`;
+      const calendarBlock = `## What's playing
+
+### Opening this week
+
+- Test Organization - TEST PRODUCTION (Jan 1-Jan 31, 2099)
+
+### Currently running
+
+- Another Test Org - SAMPLE SHOW (Dec 15-Feb 5)
+
+### Closing this week
+
+- Closing Test Org - LAST WEEKEND (Jan 28-Feb 8)
+`;
       return {
         vars: {
           name: "Test Subscriber",
-          posts:
-            "- Audition: Test Organization - TEST CALLBOARD POST (Posted today)\n  " +
-            `${PUBLIC_SITE_URL}/callboard`,
-          productions:
-            "- Test Organization - TEST PRODUCTION (Jan 1 – Jan 31, 2099)",
+          callboard: callboardBlock,
+          calendar: calendarBlock,
           blog: "## New on the blog\n\n- [Sample blog post title](" + `${PUBLIC_SITE_URL}/blog/sample` + ")",
           callboard_url: `${PUBLIC_SITE_URL}/callboard`,
           calendar_url: `${PUBLIC_SITE_URL}/calendar`,

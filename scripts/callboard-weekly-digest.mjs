@@ -88,15 +88,21 @@ async function main() {
     const areaById = new Map(areasRes.rows.map((r) => [r.id, r]));
     const eventCatById = new Map(eventCatsRes.rows.map((r) => [r.id, r]));
 
-    // Calendar slice: productions opening (run_start >= today) in the
-    // next 14 days. Pulled once globally; per-subscriber filtering by
-    // category_id + area_id happens in JS. category_id and area_id are
-    // both included in the select for that filter.
+    // Calendar slice: pull every production whose run window overlaps
+    // [today, today+14d] OR closes within [today, today+7d]. Then per-
+    // subscriber we filter by category/area and bucket each show into
+    // exactly one of: opening this week, opening soon (8-14d),
+    // currently running, closing this week. A show appears in only one
+    // bucket per digest (decided by the most newsworthy bucket it
+    // matches: opening > closing > running).
     const today = new Date().toISOString().slice(0, 10);
+    const weekHorizon = new Date(Date.now() + 7 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     const horizon = new Date(Date.now() + 14 * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    const upcomingProdRes = await db.query(
+    const calendarProdRes = await db.query(
       `select id, title, organization_name, run_start, run_end,
               area_id, category_id, is_ssta_event
          from productions
@@ -104,13 +110,19 @@ async function main() {
           and deleted_at is null
           and hidden_at is null
           and run_start is not null
-          and run_start >= $1::date
-          and run_start <= $2::date
+          and (
+            -- Opening within the next 14 days
+            (run_start >= $1::date and run_start <= $2::date)
+            -- Or already running and closing within 7 days
+            or (run_start <= $1::date and run_end >= $1::date and run_end <= $3::date)
+            -- Or currently running with no near-term close
+            or (run_start <= $1::date and run_end >= $1::date)
+          )
         order by is_ssta_event desc, run_start asc
-        limit 60`,
-      [today, horizon],
+        limit 120`,
+      [today, horizon, weekHorizon],
     );
-    const allUpcomingProds = upcomingProdRes.rows;
+    const allCalendarProds = calendarProdRes.rows;
 
     // Blog posts published since each subscriber's last digest. Pulled
     // globally; per-subscriber filter is just the include_blog opt-in
@@ -140,37 +152,91 @@ async function main() {
       return `## New on the blog\n\n${lines.join("\n")}\n`;
     }
 
-    function buildProductionsBlock(categoryIds, areaIds) {
-      // Both arrays use the empty = "no filter" sentinel.
-      const filtered = allUpcomingProds.filter((p) => {
+    // Bucket each show into exactly one section. Order of preference
+    // from most-newsworthy to least: opening this week, opening soon,
+    // closing this week (still in run), currently running.
+    function bucketProduction(p, todayDate, weekFromNow, twoWeeksFromNow) {
+      const start = p.run_start ? new Date(`${p.run_start}T12:00:00Z`) : null;
+      const end = p.run_end ? new Date(`${p.run_end}T12:00:00Z`) : start;
+      if (!start) return null;
+      // Opening this week: run_start in [today, today+7d]
+      if (start >= todayDate && start <= weekFromNow) return "openingThisWeek";
+      // Opening soon: run_start in (today+7d, today+14d]
+      if (start > weekFromNow && start <= twoWeeksFromNow) return "openingSoon";
+      // Already running. Bucket on whether it's closing this week.
+      if (start < todayDate && end >= todayDate) {
+        if (end <= weekFromNow) return "closingThisWeek";
+        return "currentlyRunning";
+      }
+      return null;
+    }
+
+    function renderProdLine(p) {
+      const start = p.run_start ? formatRunDate(p.run_start) : "";
+      const end =
+        p.run_end && p.run_end !== p.run_start
+          ? `-${formatRunDate(p.run_end)}`
+          : "";
+      const window = start ? ` (${start}${end})` : "";
+      const tag = p.is_ssta_event ? " [SSTA]" : "";
+      return `-${tag} ${p.organization_name} - ${p.title}${window}`;
+    }
+
+    // Build the entire calendar block (with sub-section headers) for one
+    // subscriber's category/area filter. Returns "" when no productions
+    // match in any sub-bucket - the caller treats that as "no calendar
+    // content this week."
+    function buildCalendarBlock(categoryIds, areaIds) {
+      const todayDate = new Date(`${today}T12:00:00Z`);
+      const weekFromNow = new Date(Date.now() + 7 * 86_400_000);
+      const twoWeeksFromNow = new Date(Date.now() + 14 * 86_400_000);
+
+      const filtered = allCalendarProds.filter((p) => {
         if (categoryIds && categoryIds.length > 0) {
           if (!p.category_id || !categoryIds.includes(p.category_id)) return false;
         }
         if (areaIds && areaIds.length > 0) {
-          // Treat null area_id on a production as "fits every area" so
-          // recently-tagged orgs don't silently disappear during catch-up.
-          // Productions populated by the cron always have area_id set;
-          // only manual entries can have null.
           if (p.area_id && !areaIds.includes(p.area_id)) return false;
         }
         return true;
       });
-      if (filtered.length === 0) {
-        return "_Nothing new on the calendar this week._";
+
+      const buckets = {
+        openingThisWeek: [],
+        openingSoon: [],
+        closingThisWeek: [],
+        currentlyRunning: [],
+      };
+      for (const p of filtered) {
+        const b = bucketProduction(p, todayDate, weekFromNow, twoWeeksFromNow);
+        if (b) buckets[b].push(p);
       }
-      return filtered
-        .slice(0, 30)
-        .map((p) => {
-          const start = p.run_start ? formatRunDate(p.run_start) : "";
-          const end =
-            p.run_end && p.run_end !== p.run_start
-              ? `-${formatRunDate(p.run_end)}`
-              : "";
-          const window = start ? ` (${start}${end})` : "";
-          const tag = p.is_ssta_event ? " [SSTA]" : "";
-          return `-${tag} ${p.organization_name} - ${p.title}${window}`;
-        })
-        .join("\n");
+      // Cap each bucket to keep the email reasonable
+      for (const k of Object.keys(buckets)) buckets[k] = buckets[k].slice(0, 20);
+
+      const sections = [];
+      if (buckets.openingThisWeek.length) {
+        sections.push(
+          `### Opening this week\n\n${buckets.openingThisWeek.map(renderProdLine).join("\n")}`,
+        );
+      }
+      if (buckets.openingSoon.length) {
+        sections.push(
+          `### Opening next week\n\n${buckets.openingSoon.map(renderProdLine).join("\n")}`,
+        );
+      }
+      if (buckets.currentlyRunning.length) {
+        sections.push(
+          `### Currently running\n\n${buckets.currentlyRunning.map(renderProdLine).join("\n")}`,
+        );
+      }
+      if (buckets.closingThisWeek.length) {
+        sections.push(
+          `### Closing this week\n\n${buckets.closingThisWeek.map(renderProdLine).join("\n")}`,
+        );
+      }
+      if (sections.length === 0) return "";
+      return `## What's playing\n\n${sections.join("\n\n")}\n`;
     }
 
     // Detect "new options added since you last edited preferences".
@@ -222,37 +288,29 @@ async function main() {
     let skipped = 0;
     let errored = 0;
 
-    for (const sub of subsRes.rows) {
-      const since = sub.last_digest_at ?? sub.confirmed_at ?? sub.created_at;
-
-      // Per-subscriber callboard query: assemble WHERE conditionally so
-      // empty-array dimensions skip their filter clause entirely.
-      const params = [since];
-      let where = `
-        where status = 'approved'
-          and published = true
-          and deleted_at is null
-          and created_at > $1`;
-
+    // Helper: build the WHERE+params shared between the two callboard
+    // queries (new since last digest, closing this week). Both queries
+    // need the same per-subscriber category/area/role filters.
+    function callboardFilterClause(sub, baseParams) {
+      const params = [...baseParams];
+      let clause = "";
       if (sub.post_types && sub.post_types.length > 0) {
         params.push(sub.post_types);
-        where += `\n          and post_type = any($${params.length}::text[])`;
+        clause += `\n          and post_type = any($${params.length}::text[])`;
       }
-
       if (sub.callboard_area_ids && sub.callboard_area_ids.length > 0) {
         // Treat null area_id on a callboard post as universal so old
-        // pre-mig-071 posts aren't silently excluded during the
-        // backfill catch-up. New posts post-mig-071 are required to
-        // have area_id at submit time.
+        // pre-mig-071 posts aren't silently excluded during the backfill
+        // catch-up. New posts post-mig-071 are required to have area_id
+        // at submit time.
         params.push(sub.callboard_area_ids);
         const idx = params.length;
-        where += `\n          and (area_id is null or area_id = any($${idx}::uuid[]))`;
+        clause += `\n          and (area_id is null or area_id = any($${idx}::uuid[]))`;
       }
-
       if (sub.disciplines && sub.disciplines.length > 0) {
         params.push(sub.disciplines);
         const idx = params.length;
-        where += `
+        clause += `
           and (
             roles && $${idx}::text[]
             or exists (
@@ -261,45 +319,94 @@ async function main() {
             )
           )`;
       }
+      return { clause, params };
+    }
 
+    function renderCallboardLine(p) {
+      const label = labelFor(p.post_type);
+      const tail = p.deadline_text
+        ? ` (${p.deadline_text})`
+        : p.location
+        ? ` (${p.location})`
+        : "";
+      const tag = p.is_ssta_event ? " [SSTA]" : "";
+      return `-${tag} ${label}: ${p.organization_name} - ${p.title}${tail}\n  ${siteUrl}/callboard/${p.id}`;
+    }
+
+    for (const sub of subsRes.rows) {
+      const since = sub.last_digest_at ?? sub.confirmed_at ?? sub.created_at;
+      const closingSoonCutoff = new Date(Date.now() + 7 * 86_400_000).toISOString();
+
+      // Callboard "new this week": posts created since last digest,
+      // matching the subscriber's filters.
+      const newFilter = callboardFilterClause(sub, [since]);
       const newPosts = await db.query(
         `select id, post_type, title, organization_name, deadline_text,
-                location, is_ssta_event
-         from callboard_posts
-         ${where}
-         order by is_ssta_event desc, created_at desc
-         limit 30`,
-        params,
+                location, is_ssta_event, expires_at
+           from callboard_posts
+          where status = 'approved'
+            and published = true
+            and deleted_at is null
+            and created_at > $1${newFilter.clause}
+          order by is_ssta_event desc, created_at desc
+          limit 30`,
+        newFilter.params,
       );
 
-      const productionsBlock = buildProductionsBlock(
+      // Callboard "closing this week": posts whose expires_at is within
+      // the next 7 days (regardless of when they were posted), matching
+      // the same filters. We dedup against the New list at render time
+      // so a job posted yesterday and closing Friday lives only in
+      // Closing (more actionable framing).
+      const closingFilter = callboardFilterClause(sub, [today, closingSoonCutoff]);
+      const closingPosts = await db.query(
+        `select id, post_type, title, organization_name, deadline_text,
+                location, is_ssta_event, expires_at
+           from callboard_posts
+          where status = 'approved'
+            and published = true
+            and deleted_at is null
+            and expires_at is not null
+            and expires_at >= $1::date
+            and expires_at <= $2::date${closingFilter.clause}
+          order by is_ssta_event desc, expires_at asc
+          limit 20`,
+        closingFilter.params,
+      );
+
+      const closingIds = new Set(closingPosts.rows.map((p) => p.id));
+      const newOnly = newPosts.rows.filter((p) => !closingIds.has(p.id));
+
+      const callboardSections = [];
+      if (newOnly.length > 0) {
+        callboardSections.push(
+          `### New this week\n\n${newOnly.map(renderCallboardLine).join("\n\n")}`,
+        );
+      }
+      if (closingPosts.rowCount > 0) {
+        callboardSections.push(
+          `### Closing this week\n\n${closingPosts.rows.map(renderCallboardLine).join("\n\n")}`,
+        );
+      }
+      const callboardBlock =
+        callboardSections.length > 0
+          ? `## Callboard\n\n${callboardSections.join("\n\n")}\n`
+          : "";
+
+      const calendarBlock = buildCalendarBlock(
         sub.calendar_category_ids,
         sub.calendar_area_ids,
       );
-      const hasProductions = !productionsBlock.startsWith("_Nothing");
 
       const blogBlock = buildBlogBlock(sub.include_blog, since);
-      const hasBlog = blogBlock !== "";
 
-      if (newPosts.rowCount === 0 && !hasProductions && !hasBlog) {
+      // No-content guard: if all three sections came up empty, skip the
+      // send entirely. The /callboard/subscribe page tells subscribers
+      // we won't email them on weeks with nothing to report.
+      if (!callboardBlock && !calendarBlock && !blogBlock) {
         skipped++;
         continue;
       }
-
-      const lines = newPosts.rows.map((p) => {
-        const label = labelFor(p.post_type);
-        const tail = p.deadline_text
-          ? ` (${p.deadline_text})`
-          : p.location
-          ? ` (${p.location})`
-          : "";
-        const tag = p.is_ssta_event ? " [SSTA]" : "";
-        return `-${tag} ${label}: ${p.organization_name} - ${p.title}${tail}\n  ${siteUrl}/callboard/${p.id}`;
-      });
-      const postsBlock =
-        lines.length > 0
-          ? lines.join("\n\n")
-          : "_Nothing new on the callboard this week._";
 
       const manageUrl = sub.unsubscribe_token
         ? `${siteUrl}/callboard/subscribe/manage/${sub.unsubscribe_token}`
@@ -322,8 +429,8 @@ async function main() {
         templateSlug: "callboard_weekly_digest",
         vars: {
           name: "there",
-          posts: postsBlock,
-          productions: productionsBlock,
+          callboard: callboardBlock,
+          calendar: calendarBlock,
           blog: blogBlock,
           callboard_url: `${siteUrl}/callboard`,
           calendar_url: `${siteUrl}/calendar`,
