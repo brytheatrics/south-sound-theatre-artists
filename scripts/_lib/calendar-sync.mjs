@@ -636,6 +636,64 @@ async function extractAiGeneric(source, opts, today) {
     show.detail_url = absoluteUrl(show.detail_url, source.source_url);
   }
 
+  // Rescue pass: when the season page links several /shows/, /show/,
+  // /productions/, or /production/ subpages that Claude didn't claim
+  // (common with Next.js streaming HTML where titles get duplicated
+  // and confuse enumeration), add stub entries so the detail-crawl
+  // below picks them up. Conservative: only fires when Claude returned
+  // < 3 shows and there are >= 3 candidate links.
+  if (rawShows.length < 3) {
+    const candidatePaths = /\/(?:shows?|productions?)\/[a-z0-9-]+/gi;
+    const seen = new Set(
+      rawShows
+        .map((s) => (s.detail_url ? new URL(s.detail_url).pathname : null))
+        .filter(Boolean),
+    );
+    const linkMatches = [
+      ...html.matchAll(
+        new RegExp(
+          `<a[^>]+href="((?:https?://[^"]+)?\\/(?:shows?|productions?)\\/[a-z0-9-]+)"[^>]*>([^<]{2,80})<\\/a>`,
+          "gi",
+        ),
+      ),
+    ];
+    const candidates = [];
+    for (const m of linkMatches) {
+      const absUrl = absoluteUrl(m[1], source.source_url);
+      if (!absUrl) continue;
+      const pathname = new URL(absUrl).pathname;
+      if (seen.has(pathname)) continue;
+      const titleHint = m[2].replace(/\s+/g, " ").trim();
+      // Skip nav/utility anchors that match the same pattern.
+      if (/^(view|see|all|more|back|home|tickets?|buy)$/i.test(titleHint)) continue;
+      candidates.push({ url: absUrl, titleHint, pathname });
+    }
+    // Dedup by pathname
+    const uniqueCandidates = [];
+    const seenPaths = new Set();
+    for (const c of candidates) {
+      if (seenPaths.has(c.pathname)) continue;
+      seenPaths.add(c.pathname);
+      uniqueCandidates.push(c);
+    }
+    if (uniqueCandidates.length >= 3) {
+      console.log(
+        `  rescue: claude returned ${rawShows.length} shows, page has ${uniqueCandidates.length} unclaimed show-link anchors; adding stubs`,
+      );
+      for (const c of uniqueCandidates) {
+        rawShows.push({
+          title: c.titleHint,
+          run_start: null,
+          run_end: null,
+          detail_url: c.url,
+          schedule: [],
+          special: [],
+          explicit_performances: [],
+        });
+      }
+    }
+  }
+
   // Detail-page crawl for shows that need deepening
   for (let i = 0; i < rawShows.length; i++) {
     const show = rawShows[i];
