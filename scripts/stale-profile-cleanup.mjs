@@ -68,6 +68,10 @@ async function main() {
         templateSlug: "stale_profile_ping",
         vars: {
           name: p.full_name,
+          // Same raw token used for both URLs. The /still-active route
+          // doesn't burn the token, so the artist can confirm AND edit
+          // from the same email if they want.
+          still_active_url: `${siteUrl}/still-active/${token}`,
           edit_url: `${siteUrl}/edit/${token}`,
         },
       });

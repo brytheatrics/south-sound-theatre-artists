@@ -478,6 +478,7 @@ async function buildVars(
       return {
         vars: {
           name: profile.full_name,
+          still_active_url: `${PUBLIC_SITE_URL}/still-active/${raw}`,
           edit_url: `${PUBLIC_SITE_URL}/edit/${raw}`,
         },
       };
