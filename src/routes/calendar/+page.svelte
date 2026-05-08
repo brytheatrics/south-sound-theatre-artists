@@ -46,10 +46,11 @@
   // ---- URL state helper ------------------------------------------
   function buildUrl(overrides: Record<string, string | null>) {
     const base: Record<string, string | null> = {
-      month: data.monthIso,
-      view: data.view === "list" ? "list" : null,
+      month: data.isSearching ? null : data.monthIso,
+      view: data.view === "list" && !data.isSearching ? "list" : null,
       cats: serializeCats(data.activeCats, data.categories),
       areas: serializeAreas(data.activeAreas, data.areas),
+      q: data.q || null,
     };
     const merged = { ...base, ...overrides };
     const p = new URLSearchParams();
@@ -253,6 +254,38 @@
   </div>
 </header>
 
+<!-- SEARCH BAR -->
+<form class="search-bar" method="GET" data-sveltekit-noscroll>
+  <!-- Preserve current filters as hidden fields so submitting search
+       doesn't drop the user's category / area picks. -->
+  {#if data.activeCats.length > 0}
+    <input type="hidden" name="cats" value={data.activeCats.join(",")} />
+  {/if}
+  {#if data.activeAreas !== null && data.activeAreas.length > 0}
+    <input type="hidden" name="areas" value={data.activeAreas.join(",")} />
+  {/if}
+  <input
+    type="search"
+    name="q"
+    value={data.q}
+    placeholder="Search shows or theatres..."
+    aria-label="Search shows or theatres"
+    autocomplete="off"
+  />
+  <button type="submit" class="search-btn">Search</button>
+  {#if data.isSearching}
+    <a class="search-clear" href={buildUrl({ q: null })} title="Clear search">Clear</a>
+  {/if}
+</form>
+
+{#if data.isSearching}
+  <p class="search-meta">
+    Showing {data.performances.length}
+    {data.performances.length === 1 ? "performance" : "performances"} matching
+    <strong>"{data.q}"</strong> over the next 12 months.
+  </p>
+{/if}
+
 <!-- CATEGORY FILTER STRIP -->
 <div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
   <span class="filter-label eyebrow">Show</span>
@@ -290,7 +323,9 @@
   {/if}
 </div>
 
-<!-- SECONDARY: month nav + view toggle -->
+<!-- SECONDARY: month nav + view toggle (hidden when searching since
+     results span the next 12 months) -->
+{#if !data.isSearching}
 <div class="secondary-row" data-sveltekit-noscroll data-sveltekit-replacestate>
   <div class="month-nav">
     <a class="nav-btn" href={buildUrl({ month: data.prevMonthIso })} aria-label="Previous month">‹</a>
@@ -318,14 +353,20 @@
     </a>
   </div>
 </div>
+{/if}
 
 {#if data.performances.length === 0}
   <div class="empty">
-    <p>No performances match your filters this month.</p>
-    {#if data.activeCats.length < data.categories.length}
-      <a class="bt bt-ghost" href={buildUrl({ cats: data.categories.map(c => c.slug).join(",") })}>
-        Show all categories
-      </a>
+    {#if data.isSearching}
+      <p>No upcoming performances match <strong>"{data.q}"</strong>.</p>
+      <a class="bt bt-ghost" href={buildUrl({ q: null })}>Clear search</a>
+    {:else}
+      <p>No performances match your filters this month.</p>
+      {#if data.activeCats.length < data.categories.length}
+        <a class="bt bt-ghost" href={buildUrl({ cats: data.categories.map(c => c.slug).join(",") })}>
+          Show all categories
+        </a>
+      {/if}
     {/if}
   </div>
 {:else}
@@ -517,6 +558,60 @@
   }
 
   /* FILTER STRIP */
+  .search-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 0 1rem;
+  }
+  .search-bar input[type="search"] {
+    flex: 1 1 280px;
+    min-width: 200px;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .search-bar input[type="search"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .search-btn {
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .search-btn:hover { background: var(--accent); border-color: var(--accent); }
+  .search-clear {
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .search-clear:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .search-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+  }
+  .search-meta strong { color: var(--accent); font-weight: 500; }
+
   .filter-strip {
     display: flex;
     flex-wrap: wrap;

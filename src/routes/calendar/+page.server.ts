@@ -66,8 +66,18 @@ export const load: PageServerLoad = async ({ url }) => {
   const monthIso = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
+  // ---- Search ------------------------------------------------------
+  // When q is set, the page widens the date window from "just this
+  // month" to "today through 12 months out" so a search hits across
+  // months. Productions are filtered server-side by ilike on title +
+  // organization_name. The grid view doesn't make sense across a
+  // multi-month range, so we force list view while a search is active.
+  const q = (params.get("q") ?? "").trim();
+  const isSearching = q.length > 0;
+
   // ---- View --------------------------------------------------------
-  const view = params.get("view") === "list" ? "list" : "grid";
+  // List view is forced when searching; otherwise honour the URL.
+  const view = isSearching || params.get("view") === "list" ? "list" : "grid";
 
   // ---- Categories --------------------------------------------------
   const { data: catData } = await supabaseAdmin
@@ -103,21 +113,31 @@ export const load: PageServerLoad = async ({ url }) => {
     ? areas.filter((a) => activeAreaNames.includes(a.name)).map((a) => a.id)
     : null;
 
-  // ---- Performances in this month ---------------------------------
+  // ---- Performances ------------------------------------------------
+  // Date window: just the current month for the regular calendar view,
+  // or today -> 12 months out when a search is active so results hit
+  // across months. Soft cap on row count keeps the response sane if the
+  // search is broad.
+  const perfStart = isSearching ? new Date() : monthStart;
+  const perfEnd = isSearching
+    ? new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), now.getUTCDate(), 8, 0, 0))
+    : monthEnd;
+
   const { data: perfRows } = await supabaseAdmin
     .from("performances")
     .select("id, performs_at, note, production_id")
-    .gte("performs_at", monthStart.toISOString())
-    .lt("performs_at", monthEnd.toISOString())
+    .gte("performs_at", perfStart.toISOString())
+    .lt("performs_at", perfEnd.toISOString())
     .eq("cancelled", false)
-    .order("performs_at");
+    .order("performs_at")
+    .limit(isSearching ? 800 : 400);
 
   const perfs = perfRows ?? [];
   const productionIds = [...new Set(perfs.map((p) => p.production_id))];
 
   let productionsMap = new Map<string, any>();
   if (productionIds.length > 0) {
-    const { data: prodRows } = await supabaseAdmin
+    let prodQuery = supabaseAdmin
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
@@ -129,6 +149,17 @@ export const load: PageServerLoad = async ({ url }) => {
       .is("deleted_at", null)
       .is("hidden_at", null);
 
+    if (isSearching) {
+      // Escape the % wildcard meaning so user input doesn't accidentally
+      // build broader patterns. Stick a regular % at start + end so the
+      // match is "contains anywhere."
+      const safe = q.replace(/[%_,]/g, "");
+      prodQuery = prodQuery.or(
+        `title.ilike.%${safe}%,organization_name.ilike.%${safe}%`,
+      );
+    }
+
+    const { data: prodRows } = await prodQuery;
     productionsMap = new Map((prodRows ?? []).map((p) => [p.id, p]));
   }
 
@@ -242,6 +273,8 @@ export const load: PageServerLoad = async ({ url }) => {
     areas,
     activeAreas: activeAreaNames, // null = show all
     view,
+    q,
+    isSearching,
     monthIso: monthIso(monthStart),
     monthLabel: monthStart.toLocaleString("en-US", {
       month: "long",
