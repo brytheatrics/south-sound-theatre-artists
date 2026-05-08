@@ -55,6 +55,53 @@ function unmaskEscapes(s: string): string {
     .replace(new RegExp(ESC_NBSP, "g"), "&nbsp;");
 }
 
+// Allowlist of URL schemes the markdown link / image renderer will pass
+// through. Anything else (`javascript:`, `data:`, `vbscript:`, custom
+// app schemes) is replaced with `#`. The threat model is a rogue or
+// compromised co-admin (multi-admin shipped) writing a stored-XSS
+// payload into a blog post, site_content lede, or resource description
+// that gets rendered to public visitors via {@html ...}.
+const SAFE_LINK_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
+const SAFE_IMG_SCHEMES = new Set(["http", "https"]);
+
+function safeUrl(url: string, allowedSchemes: Set<string>): string {
+  // Strip ASCII control chars + whitespace before the scheme check.
+  // Browsers strip these from URLs at parse time, so a hidden \x00 in
+  // "java\x00script:" would become a live `javascript:` URL after
+  // parsing if we only checked the literal characters.
+  const cleaned = url.replace(/[\x00-\x20\x7F]/g, "");
+  if (!cleaned) return "#";
+  let safe: string;
+  if (cleaned.startsWith("/") || cleaned.startsWith("#") || cleaned.startsWith("?")) {
+    safe = cleaned;
+  } else {
+    const colonIdx = cleaned.indexOf(":");
+    if (colonIdx === -1) {
+      safe = cleaned;
+    } else {
+      // A `:` further along than the first `/`, `?`, or `#` is part of
+      // the path/query/fragment, not a scheme separator (`foo/bar:baz`).
+      const firstPathChar = Math.min(
+        ...["/", "?", "#"].map((c) => {
+          const i = cleaned.indexOf(c);
+          return i === -1 ? Infinity : i;
+        }),
+      );
+      if (colonIdx > firstPathChar) {
+        safe = cleaned;
+      } else {
+        const scheme = cleaned.slice(0, colonIdx).toLowerCase();
+        safe = allowedSchemes.has(scheme) ? cleaned : "#";
+      }
+    }
+  }
+  // Belt-and-suspenders attribute-breakout defense. The outer escape()
+  // pass only handles `&`, `<`, `>` — a literal `"` in the URL would
+  // close the href attribute and let the rest become injected attrs
+  // (`http://x" onmouseover="alert(1)`).
+  return safe.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export function renderMarkdown(md: string): string {
   if (!md) return "";
   const escape = (s: string) =>
@@ -109,8 +156,16 @@ export function renderMarkdown(md: string): string {
 
 function inline(s: string): string {
   return s
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (_, alt: string, src: string) =>
+        `<img src="${safeUrl(src, SAFE_IMG_SCHEMES)}" alt="${alt}" />`,
+    )
+    .replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_, text: string, href: string) =>
+        `<a href="${safeUrl(href, SAFE_LINK_SCHEMES)}">${text}</a>`,
+    )
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
