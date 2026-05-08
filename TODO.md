@@ -28,6 +28,7 @@ Before flipping `southsoundtheatreartists.org` DNS at Cloudflare to Netlify:
 - [ ] **Mail-merge the magic-link URLs** from `Submissions/_results.csv`. Swap `localhost:5173` for `https://southsoundtheatreartists.org` per row before sending.
 - [ ] **Backup cron secrets** — set `BACKUP_REPO` (`owner/repo`) and `BACKUP_REPO_TOKEN` (fine-grained PAT with `contents:write`) once the destination repo exists.
 - [ ] **`ADMIN_GUIDE.md`** — operator's reference for Lexi. Deferred to give her time on the staging deploy first; pull common-task notes from real use.
+- [ ] **Remove filler info from Callboard.** Wipe the seeded / placeholder callboard posts before invitations go out so the public callboard reads as empty (or only contains real posts) on launch day. Same for any throwaway calendar entries or test profiles that slipped through.
 - [ ] **Final smoke test on the .org URL** post-DNS-flip: magic-link resend, contact form delivery, admin login + 2FA, callboard submission, marquee render, all working against the live domain.
 
 ### Pre-launch verification
