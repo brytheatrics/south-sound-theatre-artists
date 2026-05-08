@@ -21,6 +21,7 @@
 import { config as loadDotenv } from "dotenv";
 import pg from "pg";
 import { syncEventSource } from "./_lib/calendar-sync.mjs";
+import { closeBrowser } from "./_lib/playwright-fetch.mjs";
 
 loadDotenv({ override: true });
 
@@ -136,6 +137,9 @@ async function main() {
     );
   } finally {
     await db.end();
+    // Headless browser launched lazily by playwright-using adapters.
+    // Close it explicitly so the cron job doesn't hang on Chromium.
+    await closeBrowser();
   }
 }
 

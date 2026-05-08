@@ -10,21 +10,25 @@
 // "refresh now" button calling into this from the app server) both go
 // through syncEventSource() so the upsert logic lives in one place.
 //
-// Pipeline per organizations row (formerly event_sources):
-//   1. Fetch the source URL
-//   2. Strip <script>/<style>/<svg>/comments and collapse whitespace
-//   3. SHA-256 the cleaned HTML; compare to the row's last_hash
-//      - match -> skip AI call, write status='unchanged', return
-//      - mismatch (or force=true) -> proceed
-//   4. Call Claude Haiku with the season prompt; parse JSON
-//   5. For shows missing schedule + explicit_performances, follow
-//      detail_url and call Haiku with the detail prompt; merge results
-//   6. Code-side expand schedule x run_range -> per-performance list
-//   7. Upsert into productions + performances tables (replace
-//      performances atomically per show)
-//   8. Write organizations cache + status fields back
+// Pipeline per organizations row, dispatched by `adapter`:
+//   1. extract(source) - adapter-specific. Returns { shows, hash, cost }.
+//      Each adapter handles its own fetching strategy (plain HTTP, JSON
+//      API, headless browser) and produces a normalized shows[] array.
+//   2. Cache short-circuit: hash matches last_hash + not forced => unchanged.
+//   3. Code-side expand schedule x run_range -> per-performance list.
+//   4. Upsert into productions + performances tables (replace
+//      performances atomically per show).
+//   5. Write organizations cache + status fields back.
+//
+// Adapters live in scripts/_lib/adapters/ and each export an
+// `extract(source, opts)` function. The dispatch table is at the
+// bottom of this file.
 
 import { createHash } from "node:crypto";
+import { extractSquarespaceJson } from "./adapters/squarespace.mjs";
+import { extractOvationTix } from "./adapters/ovationtix.mjs";
+import { extractLudus } from "./adapters/ludus.mjs";
+import { extractEventbrite } from "./adapters/eventbrite.mjs";
 
 const MODEL = "claude-haiku-4-5";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -437,6 +441,32 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
   return productionId;
 }
 
+// ---------- Adapter dispatch -----------------------------------------
+
+// Each adapter takes (source, opts, today) and returns a Promise of:
+//   { shows, hash, cost }
+// where shows[] is normalized to the season-prompt schema (title, run
+// dates, schedule/special/explicit_performances) and hash is whatever
+// fingerprint the adapter uses to detect "nothing changed since last
+// run." Adapters throw on hard failure; the orchestrator catches and
+// records the error on the org row.
+const ADAPTERS = {
+  "ai-generic": extractAiGeneric,
+  "squarespace-json": extractSquarespaceJson,
+  "ovationtix": extractOvationTix,
+  "ludus": extractLudus,
+  "eventbrite": extractEventbrite,
+};
+
+// Re-exported for adapter modules so they share the same Claude wiring,
+// HTTP helpers, and prompt format. Avoids a separate "adapter helpers"
+// file when these are the same primitives the AI-generic path needs.
+// (fetchHtml, cleanHtml, hashContent, callClaude, expandPerformances
+// are already exported at their declarations above; only the
+// internal-use helpers need re-export here.)
+export { costFor, buildSeasonPrompt, buildDetailPrompt, parseJson, absoluteUrl };
+export { DETAIL_FETCH_DELAY_MS };
+
 // ---------- Per-source pipeline --------------------------------------
 
 /**
@@ -444,29 +474,47 @@ async function upsertProductionWithPerformances(db, source, show, defaultCategor
  *
  * @param {pg.Client} db
  * @param {object} source - row from organizations (must have id, org_name (alias for name),
- *                          source_url, last_hash, etc.)
+ *                          source_url, adapter, last_hash, etc.)
  * @param {object} opts
- * @param {boolean} [opts.force=false] - ignore the hash cache and force AI re-run
+ * @param {boolean} [opts.force=false] - ignore the hash cache and force re-extract
  * @param {string}  [opts.today] - "YYYY-MM-DD" override for prompt context
  * @returns {Promise<{status, showCount, performanceCount, cost, error?, durationMs, htmlChanged}>}
  */
 export async function syncEventSource(db, source, opts = {}) {
   const start = Date.now();
   const today = opts.today ?? new Date().toISOString().slice(0, 10);
-  let cost = 0;
 
-  // Fetch + clean
-  let html;
-  try {
-    html = await fetchHtml(source.source_url);
-  } catch (err) {
-    await markSourceError(db, source.id, `fetch: ${err.message}`);
-    return { status: "error", error: `fetch: ${err.message}`, cost, durationMs: Date.now() - start };
+  const adapterFn = ADAPTERS[source.adapter];
+  if (!adapterFn) {
+    await markSourceError(db, source.id, `unknown adapter: ${source.adapter}`);
+    return {
+      status: "error",
+      error: `unknown adapter: ${source.adapter}`,
+      cost: 0,
+      durationMs: Date.now() - start,
+    };
   }
-  const cleaned = cleanHtml(html);
-  const newHash = hashContent(cleaned);
 
-  // Cache short-circuit
+  // Run the adapter. It owns fetching + Claude calls + hash computation
+  // for its strategy. We catch its errors centrally so every adapter
+  // gets the same error-recording behaviour without re-implementing.
+  let result;
+  try {
+    result = await adapterFn(source, opts, today);
+  } catch (err) {
+    await markSourceError(db, source.id, `${source.adapter}: ${err.message}`);
+    return {
+      status: "error",
+      error: `${source.adapter}: ${err.message}`,
+      cost: 0,
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const { shows: rawShows, hash: newHash, cost } = result;
+
+  // Cache short-circuit - identical hash since last successful run and
+  // not forced => no DB write, just bump last_checked_at + status.
   if (!opts.force && source.last_hash && source.last_hash === newHash) {
     await db.query(
       `update public.organizations
@@ -480,76 +528,10 @@ export async function syncEventSource(db, source, opts = {}) {
       status: "unchanged",
       showCount: source.last_show_count ?? 0,
       performanceCount: 0,
-      cost: 0,
+      cost,
       htmlChanged: false,
       durationMs: Date.now() - start,
     };
-  }
-
-  // Season-page extraction
-  let seasonResult;
-  try {
-    seasonResult = await callClaude(buildSeasonPrompt(cleaned, today));
-    cost += costFor(seasonResult.usage);
-  } catch (err) {
-    await markSourceError(db, source.id, `llm-season: ${err.message}`);
-    return { status: "error", error: `llm-season: ${err.message}`, cost, durationMs: Date.now() - start };
-  }
-
-  let rawShows;
-  try {
-    rawShows = parseJson(seasonResult.text, true);
-    if (!Array.isArray(rawShows)) throw new Error("season response was not an array");
-  } catch (err) {
-    await markSourceError(db, source.id, `parse-season: ${err.message}`);
-    return { status: "error", error: `parse-season: ${err.message}`, cost, durationMs: Date.now() - start };
-  }
-
-  // Normalise detail URLs to absolute
-  for (const show of rawShows) {
-    show.detail_url = absoluteUrl(show.detail_url, source.source_url);
-  }
-
-  // Detail-page crawl for shows that need deepening
-  for (let i = 0; i < rawShows.length; i++) {
-    const show = rawShows[i];
-    const haveSchedule = Array.isArray(show.schedule) && show.schedule.length > 0;
-    const haveExplicit =
-      Array.isArray(show.explicit_performances) && show.explicit_performances.length > 0;
-    if (haveSchedule || haveExplicit) continue;
-    if (!show.detail_url) continue;
-
-    // Polite delay between detail-page Claude calls (rate-limit aware)
-    if (i > 0) await new Promise((r) => setTimeout(r, DETAIL_FETCH_DELAY_MS));
-
-    let detailHtml;
-    try {
-      detailHtml = await fetchHtml(show.detail_url);
-    } catch {
-      continue; // best effort; show stays without schedule
-    }
-    const detailClean = cleanHtml(detailHtml);
-
-    let detailResult;
-    try {
-      detailResult = await callClaude(buildDetailPrompt(detailClean, show.title, today));
-      cost += costFor(detailResult.usage);
-    } catch {
-      continue;
-    }
-
-    let detailData;
-    try {
-      detailData = parseJson(detailResult.text, false);
-    } catch {
-      continue;
-    }
-    if (detailData.run_start) show.run_start = detailData.run_start;
-    if (detailData.run_end) show.run_end = detailData.run_end;
-    if (Array.isArray(detailData.schedule)) show.schedule = detailData.schedule;
-    if (Array.isArray(detailData.special)) show.special = detailData.special;
-    if (Array.isArray(detailData.explicit_performances))
-      show.explicit_performances = detailData.explicit_performances;
   }
 
   // Expand performances per show
@@ -612,4 +594,88 @@ async function markSourceError(db, sourceId, errMsg) {
       where id = $1`,
     [sourceId, errMsg.slice(0, 1000)],
   );
+}
+
+// ---------- Adapter: ai-generic (the original path) ------------------
+//
+// Fetches the season URL as plain HTML, strips chrome, hashes the
+// cleaned text, asks Claude Haiku to extract every production it sees,
+// and (for shows whose listing didn't include a schedule) follows each
+// detail_url and asks Claude again with the per-show prompt. This is
+// the fallback for any org where there isn't a structured platform
+// adapter (Squarespace JSON, OvationTix, Ludus, Eventbrite).
+async function extractAiGeneric(source, opts, today) {
+  let cost = 0;
+
+  const html = await fetchHtml(source.source_url);
+  const cleaned = cleanHtml(html);
+  const newHash = hashContent(cleaned);
+
+  // Cache short-circuit happens in the orchestrator. Here we still
+  // honour it implicitly by short-circuiting the Claude call when the
+  // hash hasn't changed, because the season prompt is the expensive
+  // part and a repeat call would burn tokens for no new data.
+  if (!opts.force && source.last_hash && source.last_hash === newHash) {
+    return { shows: [], hash: newHash, cost: 0 };
+  }
+
+  // Season-page extraction
+  const seasonResult = await callClaude(buildSeasonPrompt(cleaned, today));
+  cost += costFor(seasonResult.usage);
+
+  let rawShows;
+  try {
+    rawShows = parseJson(seasonResult.text, true);
+    if (!Array.isArray(rawShows)) throw new Error("season response was not an array");
+  } catch (err) {
+    throw new Error(`parse-season: ${err.message}`);
+  }
+
+  // Normalise detail URLs to absolute
+  for (const show of rawShows) {
+    show.detail_url = absoluteUrl(show.detail_url, source.source_url);
+  }
+
+  // Detail-page crawl for shows that need deepening
+  for (let i = 0; i < rawShows.length; i++) {
+    const show = rawShows[i];
+    const haveSchedule = Array.isArray(show.schedule) && show.schedule.length > 0;
+    const haveExplicit =
+      Array.isArray(show.explicit_performances) && show.explicit_performances.length > 0;
+    if (haveSchedule || haveExplicit) continue;
+    if (!show.detail_url) continue;
+
+    if (i > 0) await new Promise((r) => setTimeout(r, DETAIL_FETCH_DELAY_MS));
+
+    let detailHtml;
+    try {
+      detailHtml = await fetchHtml(show.detail_url);
+    } catch {
+      continue;
+    }
+    const detailClean = cleanHtml(detailHtml);
+
+    let detailResult;
+    try {
+      detailResult = await callClaude(buildDetailPrompt(detailClean, show.title, today));
+      cost += costFor(detailResult.usage);
+    } catch {
+      continue;
+    }
+
+    let detailData;
+    try {
+      detailData = parseJson(detailResult.text, false);
+    } catch {
+      continue;
+    }
+    if (detailData.run_start) show.run_start = detailData.run_start;
+    if (detailData.run_end) show.run_end = detailData.run_end;
+    if (Array.isArray(detailData.schedule)) show.schedule = detailData.schedule;
+    if (Array.isArray(detailData.special)) show.special = detailData.special;
+    if (Array.isArray(detailData.explicit_performances))
+      show.explicit_performances = detailData.explicit_performances;
+  }
+
+  return { shows: rawShows, hash: newHash, cost };
 }

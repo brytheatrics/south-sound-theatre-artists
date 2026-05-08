@@ -18,17 +18,37 @@ loadDotenv({ override: true });
 
 const { Client } = pg;
 
-// Each source is tagged with the area name from the `areas` table; the
-// seed resolves area_id at insert time so this file stays human-readable.
+// Each source is tagged with an `adapter` (default 'ai-generic' below)
+// plus the area name from the `areas` table; the seed resolves area_id
+// at insert time so this file stays human-readable.
 // Notes are written for Lexi (operator-facing, not developer-facing).
 // Plain English; no code references, no implementation jargon. Dev
-// context (e.g. why Centerstage needs Playwright) lives in commit
-// messages + BUILD_PLAN, not on the row.
+// context (e.g. how the Ludus / OvationTix / Squarespace-JSON / Eventbrite
+// adapters work) lives in commit messages + the adapter source files,
+// not on the row.
+//
+// Adapters:
+//   - ai-generic: fetch HTML + Claude extraction. Default for orgs that
+//     publish their season as readable text on a single page.
+//   - squarespace-json: fetch /events?format=json. Faster + more
+//     reliable than scraping Squarespace HTML when the org's site
+//     uses Squarespace's events collection.
+//   - ovationtix: render ci.ovationtix.com/{accountId} via headless
+//     Chromium then Claude-extract. Needed because OvationTix is a
+//     JS-rendered SPA.
+//   - ludus: render {org}.ludus.com via headless Chromium then
+//     Claude-extract. Ludus puts its pages behind a Cloudflare JS
+//     challenge that direct fetches can't pass.
+//   - eventbrite: render eventbrite.com/o/{organizerId} via headless
+//     Chromium then Claude-extract. Mostly for orgs that ticket
+//     exclusively via Eventbrite.
+//   - manual: skipped by the cron. Listed for admin visibility only.
 const SOURCES = [
   // Tacoma / Pierce County
   { slug: "tlt", name: "Tacoma Little Theatre", area: "Tacoma / Pierce County",
-    url: "https://www.tacomalittletheatre.com/blog/tag/2025-2026",
-    notes: "Tacoma. Pulls automatically. Once a year (around late summer when their new season is announced), the URL above stops working — update the year range (e.g. from '2025-2026' to '2026-2027')." },
+    adapter: "ludus",
+    url: "https://tlt.ludus.com/",
+    notes: "Tacoma. Pulls automatically through their Ludus ticketing page. Should stay stable as long as they keep using Ludus." },
   { slug: "lakewood", name: "Lakewood Playhouse", area: "Tacoma / Pierce County",
     url: "https://www.lakewoodplayhouse.org/season-87.html",
     notes: "Lakewood. Pulls automatically. Once a year (around when their new season is announced), the URL above stops working — update the season number in the URL (e.g. from 'season-87.html' to 'season-88.html')." },
@@ -38,11 +58,16 @@ const SOURCES = [
   { slug: "mustardseed", name: "Mustard Seed Theater Company", area: "Tacoma / Pierce County",
     url: "https://mustardseedtheater.csstix.com/",
     notes: "Tacoma. Pulls automatically. They produce one show a year (their summer musical)." },
+  { slug: "dukesbay", name: "Dukesbay Productions", area: "Tacoma / Pierce County",
+    adapter: "eventbrite",
+    url: "https://www.eventbrite.com/o/41082285963",
+    notes: "Tacoma. Pulls automatically through their Eventbrite organizer page. They produce 1-3 shows a year and list each on Eventbrite." },
 
   // South Pierce (Puyallup / Sumner)
   { slug: "manestage", name: "ManeStage Theatre Company", area: "South Pierce",
-    url: "https://www.manestagetheatre.com/buy-tickets",
-    notes: "Puyallup. Pulls automatically from their 'Buy Tickets' page (not their general season page - that one doesn't list specific performance dates)." },
+    adapter: "ludus",
+    url: "https://manestagetickets.ludus.com/",
+    notes: "Puyallup. Pulls automatically through their Ludus ticketing page. Should stay stable as long as they keep using Ludus." },
 
   // Olympia / Thurston County
   { slug: "harlequin", name: "Harlequin Productions", area: "Olympia / Thurston County",
@@ -84,6 +109,24 @@ const SOURCES = [
     notes: "Bremerton. Pulls automatically through their ticketing system." },
 ];
 
+// Promoted-from-manual orgs: now auto-pulled via dedicated adapters.
+// Listed separately from SOURCES only for readability \u2014 they merge in
+// at insert time with the main list.
+const STRUCTURED_SOURCES = [
+  { slug: "centerstage", name: "Centerstage Theatre", area: "South King County",
+    adapter: "ovationtix",
+    url: "https://ci.ovationtix.com/36978",
+    notes: "Federal Way. Pulls automatically through their OvationTix ticketing page (account 36978). Should stay stable as long as they keep using OvationTix." },
+  { slug: "rentoncivic", name: "Renton Civic Theatre", area: "South King County",
+    adapter: "ai-generic",
+    url: "https://www.rentoncivictheatre.org/season-2026",
+    notes: "Renton. Pulls automatically. The URL has the year in it \u2014 once a year (around when their new season is announced), update the year (e.g. from 'season-2026' to 'season-2027'). Some shows may need their performance schedule filled in manually since the season page only lists run-date ranges." },
+  { slug: "bpa", name: "Bainbridge Performing Arts", area: "Gig Harbor / Kitsap",
+    adapter: "squarespace-json",
+    url: "https://www.bainbridgeperformingarts.org/events",
+    notes: "Bainbridge Island. Pulls automatically through their Squarespace events feed. Includes mainstage productions plus concerts and rentals \u2014 the parser filters down to theatre productions." },
+];
+
 // Manual-entry orgs: not auto-pulled by the cron. Lexi maintains them
 // from /admin/calendar/new. Notes here are the operator-facing
 // instructions (where to look for current shows + how to enter them).
@@ -107,18 +150,6 @@ const MANUAL_SOURCES = [
   { slug: "stringshadow", name: "String & Shadow Puppet Theater", area: "Olympia / Thurston County",
     url: "https://www.stringandshadow.com/",
     notes: "Olympia. Touring company. Their performances happen at partner venues (Finn River, state parks, libraries) rather than a home theatre, so the schedule is scattered. Check stringandshadow.com for current productions, then each partner venue for performance dates." },
-  { slug: "centerstage", name: "Centerstage Theatre", area: "South King County",
-    url: "https://centerstagetheatre.com/current-season/",
-    notes: "Federal Way. Manually entered. To add a show, visit centerstagetheatre.com/current-season for the show titles, then click each show's 'Tickets' link to find the performance dates." },
-  { slug: "rentoncivic", name: "Renton Civic Theatre", area: "South King County",
-    url: "https://www.rentoncivictheatre.org/season-2026",
-    notes: "Renton. Manually entered. To add a show, visit rentoncivictheatre.org for the show list, then go to events.rentoncivictheatre.org for performance dates." },
-  { slug: "dukesbay", name: "Dukesbay Productions", area: "Tacoma / Pierce County",
-    url: "https://dukesbay.org/shows/",
-    notes: "Tacoma. Manually entered. They produce 1\u20133 shows a year. To add a show, check dukesbay.org/shows for the list, then click into each show's Eventbrite page for performance dates." },
-  { slug: "bpa", name: "Bainbridge Performing Arts", area: "Gig Harbor / Kitsap",
-    url: "https://www.bainbridgeperformingarts.org/events",
-    notes: "Bainbridge Island. Manually entered. To add a show, check bainbridgeperformingarts.org/events for the schedule, then their ThunderTix per-show pages for performance dates." },
 ];
 
 function parseArgs() {
@@ -140,13 +171,16 @@ async function main() {
   const areasRes = await db.query(`select id, name from public.areas`);
   const areaIdByName = new Map(areasRes.rows.map((r) => [r.name, r.id]));
 
+  // Per-row adapter: explicit `adapter` on the row wins; otherwise
+  // SOURCES default to ai-generic and MANUAL_SOURCES default to manual.
   const all = [
-    ...SOURCES.map((s) => ({ ...s, adapter: "ai-generic" })),
+    ...SOURCES.map((s) => ({ ...s, adapter: s.adapter ?? "ai-generic" })),
+    ...STRUCTURED_SOURCES,
     ...MANUAL_SOURCES.map((s) => ({ ...s, adapter: "manual" })),
   ];
 
   console.log(
-    `Seeding ${all.length} organizations rows (${SOURCES.length} auto, ${MANUAL_SOURCES.length} manual)${args.dryRun ? " (DRY RUN)" : ""}`,
+    `Seeding ${all.length} organizations rows (${SOURCES.length + STRUCTURED_SOURCES.length} auto, ${MANUAL_SOURCES.length} manual)${args.dryRun ? " (DRY RUN)" : ""}`,
   );
 
   let inserted = 0;
