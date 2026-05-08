@@ -33,7 +33,7 @@ export const actions: Actions = {
     const slugInput = ((fd.get("slug") as string) ?? "").trim();
     const body = ((fd.get("body") as string) ?? "").trim();
     const coverUrl = ((fd.get("cover_url") as string) ?? "").trim();
-    const authorName = ((fd.get("author") as string) ?? "").trim() || "Lexi Barnett";
+    const authorName = ((fd.get("author") as string) ?? "").trim() || "SSTA";
     const publish = fd.get("publish") === "on";
     // Optional scheduled-publish datetime in the admin's local time
     // ("YYYY-MM-DDTHH:MM"). If provided AND in the future, the post

@@ -161,7 +161,7 @@
 
   <fieldset>
     <legend>Bio</legend>
-    <textarea name="bio" rows="5" bind:value={bio} placeholder="What Lexi has on file."></textarea>
+    <textarea name="bio" rows="5" bind:value={bio} placeholder="What we have on file."></textarea>
   </fieldset>
 
   <fieldset>

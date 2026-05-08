@@ -19,6 +19,22 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {};
 };
 
+// Look up the logged-in admin's display name to use as the post's
+// default author byline. Falls back to email local-part, then to a
+// generic "SSTA" if nothing's set.
+async function defaultAuthorName(adminUserId: string | null): Promise<string> {
+  if (!adminUserId) return "SSTA";
+  const { data } = await supabaseAdmin
+    .from("admin_users")
+    .select("name, email")
+    .eq("id", adminUserId)
+    .maybeSingle();
+  if (!data) return "SSTA";
+  if (data.name && data.name.trim()) return data.name.trim();
+  if (data.email) return data.email.split("@")[0];
+  return "SSTA";
+}
+
 export const actions: Actions = {
   default: async ({ request, locals }) => {
     if (!locals.admin) error(401, "Admin only.");
@@ -43,13 +59,16 @@ export const actions: Actions = {
       candidate = `${slug}-${n}`;
     }
 
+    const authorName = await defaultAuthorName(locals.admin?.admin_user_id ?? null);
+
     const { data: created, error: insertErr } = await supabaseAdmin
       .from("blog_posts")
       .insert({
         slug: candidate,
         title,
         body_markdown: "",
-        author_display_name: "Lexi Barnett",
+        author_admin_user_id: locals.admin?.admin_user_id ?? null,
+        author_display_name: authorName,
       })
       .select("id")
       .single();

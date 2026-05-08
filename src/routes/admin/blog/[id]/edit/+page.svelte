@@ -11,7 +11,7 @@
   let slug = $state(p.slug);
   let body = $state(p.body_markdown ?? "");
   let coverUrl = $state(p.cover_url ?? "");
-  let author = $state(p.author_display_name ?? "Lexi Barnett");
+  let author = $state(p.author_display_name ?? "SSTA");
   let publish = $state(p.published);
   // Datetime-local string ("YYYY-MM-DDTHH:MM") in the admin's local
   // time. Empty means "publish immediately"; a future value means
