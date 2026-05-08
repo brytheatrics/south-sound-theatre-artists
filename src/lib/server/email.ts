@@ -45,6 +45,11 @@ type SendArgs = {
    * address instead of RESEND_FROM_EMAIL. Used by the contact-routing flow
    * so artists reply directly to the sender. */
   replyTo?: string;
+  /** When true, skip the EMAIL_PAUSE_COMMUNITY kill switch. Used by the
+   * /admin/email-test panel so admins can validate template rendering
+   * regardless of whether community-audience email is paused for the
+   * launch quiet period. Do not use in production code paths. */
+  bypassPause?: boolean;
 };
 
 type SendResult = { ok: true } | { ok: false; reason: string };
@@ -54,6 +59,7 @@ export async function sendEmail({
   templateSlug,
   vars,
   replyTo,
+  bypassPause,
 }: SendArgs): Promise<SendResult> {
   const recipient = to.trim().toLowerCase();
 
@@ -98,7 +104,8 @@ export async function sendEmail({
   if (
     privateEnv.EMAIL_PAUSE_COMMUNITY === "true" &&
     tmpl.audience === "community" &&
-    !recipientAllowed
+    !recipientAllowed &&
+    !bypassPause
   ) {
     const recipientHash = createHash("sha256").update(recipient).digest("hex");
     await supabaseAdmin.from("email_log").insert({
