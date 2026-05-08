@@ -127,15 +127,17 @@
   {/if}
 </section>
 
-<form
-  method="POST"
-  action="?/remove"
-  use:enhance={() => { busy = "remove"; return async ({ update }) => { await update(); busy = null; }; }}
-  id="remove-form"
-  style="display:none"
->
-  <input type="hidden" name="id" bind:value={pendingRemove!.id} />
-</form>
+{#if pendingRemove}
+  <form
+    method="POST"
+    action="?/remove"
+    use:enhance={() => { busy = "remove"; return async ({ update }) => { await update(); busy = null; }; }}
+    id="remove-form"
+    style="display:none"
+  >
+    <input type="hidden" name="id" value={pendingRemove.id} />
+  </form>
+{/if}
 
 <ConfirmModal
   open={pendingRemove !== null}
