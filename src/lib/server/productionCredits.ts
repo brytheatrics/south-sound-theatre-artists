@@ -85,7 +85,14 @@ export async function findProfileMatches(
  *  linked resume_entries row on the artist's first resume (or unassigned
  *  inbox row if they have no resumes yet). Idempotency: if a credit
  *  already exists for (production_id, profile_id, position), the
- *  existing row is returned unchanged. */
+ *  existing row is returned unchanged.
+ *
+ *  Auto-link: when profile_id is null, look up an exact name match
+ *  among published profiles. If exactly one match, link to it. This
+ *  way submitters who type a full name without clicking the
+ *  autocomplete suggestion still get linked credits. Skipped when the
+ *  name is ambiguous (multiple matches) so we don't link to the wrong
+ *  artist. */
 export async function createProductionCredit(input: {
   production_id: string;
   profile_id: string | null;
@@ -101,14 +108,25 @@ export async function createProductionCredit(input: {
   if (!position) throw new Error("Position is required.");
   if (!isCategory(input.category)) throw new Error("Invalid category.");
 
+  let profile_id = input.profile_id;
+  if (!profile_id) {
+    const matches = await findProfileMatches(display_name, 5);
+    const exact = matches.filter(
+      (m) => m.full_name.trim().toLowerCase() === display_name.toLowerCase(),
+    );
+    if (exact.length === 1) {
+      profile_id = exact[0].id;
+    }
+  }
+
   // Idempotency check: same profile + production + position = same
   // credit. (Pasting a cast list twice should not double up.)
-  if (input.profile_id) {
+  if (profile_id) {
     const { data: dup } = await supabaseAdmin
       .from("production_credits")
       .select("*")
       .eq("production_id", input.production_id)
-      .eq("profile_id", input.profile_id)
+      .eq("profile_id", profile_id)
       .ilike("position", position)
       .is("deleted_at", null)
       .maybeSingle();
@@ -130,7 +148,7 @@ export async function createProductionCredit(input: {
     .from("production_credits")
     .insert({
       production_id: input.production_id,
-      profile_id: input.profile_id,
+      profile_id,
       display_name,
       position,
       category: input.category,
