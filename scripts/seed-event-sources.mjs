@@ -115,7 +115,7 @@ const SOURCES = [
 const STRUCTURED_SOURCES = [
   { slug: "centerstage", name: "Centerstage Theatre", area: "South King County",
     adapter: "ovationtix",
-    url: "https://ci.ovationtix.com/36978",
+    url: "https://web.ovationtix.com/trs/cal/36978",
     notes: "Federal Way. Pulls automatically through their OvationTix ticketing page (account 36978). Should stay stable as long as they keep using OvationTix." },
   { slug: "rentoncivic", name: "Renton Civic Theatre", area: "South King County",
     adapter: "ai-generic",

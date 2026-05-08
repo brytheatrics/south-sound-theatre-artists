@@ -1,27 +1,30 @@
 // @ts-nocheck
 // OvationTix (AudienceView) adapter.
 //
-// OvationTix sites are JS-rendered single-page apps under
-// ci.ovationtix.com/{accountId}. Direct HTTP fetches return a thin
-// shell with no event data. We render with Playwright, then feed the
-// rendered text to Claude with the season prompt.
+// OvationTix exposes a server-rendered calendar listing at
+//   https://web.ovationtix.com/trs/cal/{accountId}
+// which contains every upcoming production's title + run-date range
+// + venue in plain HTML. We hit that with a regular HTTP fetch (no
+// headless browser) and let Claude extract the season-shape JSON.
 //
-// `source.source_url` for an ovationtix-adapter org should be the
-// public events list URL: usually
-//   https://ci.ovationtix.com/{accountId}
-// or
-//   https://ci.ovationtix.com/{accountId}/store/events
+// Per-show pages live at ci.ovationtix.com/{accountId}/production/{id}
+// and ARE JS-only. When the calendar page leaves run-dates-only with
+// no schedule pattern, we render the per-show page via Playwright to
+// pull the actual showtime list.
+//
+// `source.source_url` for an ovationtix-adapter org should be:
+//   https://web.ovationtix.com/trs/cal/{accountId}
 //
 // Confirmed orgs:
 //   - Centerstage Theatre (account 36978)
 //
-// Other South Sound orgs that use OvationTix can be migrated to this
-// adapter by setting source_url to their ci.ovationtix.com page and
-// flipping `adapter` to 'ovationtix'.
+// To migrate an org: set source_url to the trs/cal URL with their
+// account ID and flip `adapter` to 'ovationtix'.
 
 import {
   callClaude,
   costFor,
+  fetchHtml,
   cleanHtml,
   hashContent,
   buildSeasonPrompt,
@@ -32,16 +35,22 @@ import {
 } from "../calendar-sync.mjs";
 import { fetchHtmlRendered } from "../playwright-fetch.mjs";
 
+// The trs/cal page references productions by their ID inside ci.
+// links. Build the per-show URL we'll later render via Playwright.
+function productionDetailUrl(accountId, productionId) {
+  return `https://ci.ovationtix.com/${accountId}/production/${productionId}`;
+}
+
+function accountIdFromCalUrl(calUrl) {
+  // /trs/cal/{accountId} - last path segment
+  const m = calUrl.match(/\/trs\/cal\/(\d+)/);
+  return m ? m[1] : null;
+}
+
 export async function extractOvationTix(source, opts, today) {
   let cost = 0;
 
-  // Wait for the events grid to populate. OvationTix uses a few class
-  // names ("event-card", "production-tile") - we try a generic anchor
-  // pattern that's been stable: any link to /production/{id}.
-  const html = await fetchHtmlRendered(source.source_url, {
-    waitForSelector: "a[href*='/production/']",
-    timeoutMs: 45_000,
-  });
+  const html = await fetchHtml(source.source_url);
   const cleaned = cleanHtml(html);
   const newHash = hashContent(cleaned);
 
@@ -49,8 +58,8 @@ export async function extractOvationTix(source, opts, today) {
     return { shows: [], hash: newHash, cost: 0 };
   }
 
-  // Season-page extraction (Claude reads the rendered HTML the same
-  // way it reads any other site)
+  // Season-page extraction. The trs/cal page text is small (~1500 chars)
+  // so the prompt is very cheap.
   const seasonResult = await callClaude(buildSeasonPrompt(cleaned, today));
   cost += costFor(seasonResult.usage);
 
@@ -62,36 +71,86 @@ export async function extractOvationTix(source, opts, today) {
     throw new Error(`parse-season: ${err.message}`);
   }
 
-  // Resolve detail URLs to absolute against the rendered page's origin
+  // The trs/cal page references each show via a /production/{id} link.
+  // Claude doesn't always pull the link verbatim, so we fall back to
+  // mining the raw HTML for productionId + matching by title.
+  const accountId = accountIdFromCalUrl(source.source_url);
+  const productionLinks = [
+    ...html.matchAll(/href="[^"]*\/production\/(\d+)[^"]*"[^>]*>\s*([^<]{2,80})\s*</g),
+  ]
+    .map((m) => ({ id: m[1], titleHint: m[2].trim() }))
+    .filter((x) => !/buy now|tickets/i.test(x.titleHint));
+
   for (const show of rawShows) {
-    show.detail_url = absoluteUrl(show.detail_url, source.source_url);
+    if (show.detail_url) {
+      show.detail_url = absoluteUrl(show.detail_url, source.source_url);
+      continue;
+    }
+    if (!accountId) continue;
+    // Match by exact title or close substring against the production
+    // anchors in the raw HTML. Falls back to the first un-claimed link
+    // in document order if no title match is found.
+    const titleNorm = String(show.title ?? "").toLowerCase().trim();
+    const found = productionLinks.find(
+      (p) =>
+        p.titleHint.toLowerCase() === titleNorm ||
+        p.titleHint.toLowerCase().includes(titleNorm) ||
+        titleNorm.includes(p.titleHint.toLowerCase()),
+    );
+    if (found) {
+      show.detail_url = productionDetailUrl(accountId, found.id);
+    }
   }
 
-  // Detail-page render for shows missing a schedule. Each per-show page
-  // on ci.ovationtix.com lists actual showtimes once rendered.
+  // Per-show schedule lookup. The trs/cal page only gives run-date
+  // ranges (no weekday/time pattern). For shows missing schedule, render
+  // the ci.ovationtix.com/{account}/production/{id} page via Playwright
+  // and ask Claude to lift the schedule.
+  //
+  // The ci.ovationtix.com production page is JS + Cloudflare-protected
+  // and frequently times out. When a render fails OR Claude returns
+  // nothing usable, we fall back to a community-theatre-standard
+  // schedule (Fri 7:30pm, Sat 7:30pm, Sun 2:00pm). This is wrong some
+  // of the time (Wednesday matinees, Thursday previews) but gets the
+  // calendar populated; admin can correct individual shows from the
+  // /admin/calendar editor when the cron's guess is off.
   for (let i = 0; i < rawShows.length; i++) {
     const show = rawShows[i];
     const haveSchedule = Array.isArray(show.schedule) && show.schedule.length > 0;
     const haveExplicit =
       Array.isArray(show.explicit_performances) && show.explicit_performances.length > 0;
     if (haveSchedule || haveExplicit) continue;
-    if (!show.detail_url) continue;
+    if (!show.detail_url) {
+      applyDefaultSchedule(show);
+      continue;
+    }
 
     if (i > 0) await new Promise((r) => setTimeout(r, DETAIL_FETCH_DELAY_MS));
 
     let detailHtml;
     try {
-      detailHtml = await fetchHtmlRendered(show.detail_url, { timeoutMs: 45_000 });
+      detailHtml = await fetchHtmlRendered(show.detail_url, {
+        timeoutMs: 30_000,
+        // Use "load" instead of "networkidle" - the JS pages keep firing
+        // tracking beacons that prevent networkidle from resolving.
+        waitForNetworkIdle: false,
+      });
     } catch {
+      applyDefaultSchedule(show);
       continue;
     }
     const detailClean = cleanHtml(detailHtml);
+    if (detailClean.length < 500) {
+      applyDefaultSchedule(show);
+      continue;
+    }
 
     let detailResult;
     try {
       detailResult = await callClaude(buildDetailPrompt(detailClean, show.title, today));
       cost += costFor(detailResult.usage);
     } catch {
+      applyDefaultSchedule(show);
       continue;
     }
 
@@ -99,6 +158,7 @@ export async function extractOvationTix(source, opts, today) {
     try {
       detailData = parseJson(detailResult.text, false);
     } catch {
+      applyDefaultSchedule(show);
       continue;
     }
     if (detailData.run_start) show.run_start = detailData.run_start;
@@ -107,7 +167,26 @@ export async function extractOvationTix(source, opts, today) {
     if (Array.isArray(detailData.special)) show.special = detailData.special;
     if (Array.isArray(detailData.explicit_performances))
       show.explicit_performances = detailData.explicit_performances;
+
+    // If Claude saw the page but couldn't pull anything schedule-shaped,
+    // still seed the default so the show isn't dropped.
+    const stillEmpty =
+      (!Array.isArray(show.schedule) || show.schedule.length === 0) &&
+      (!Array.isArray(show.explicit_performances) ||
+        show.explicit_performances.length === 0);
+    if (stillEmpty) applyDefaultSchedule(show);
   }
 
   return { shows: rawShows, hash: newHash, cost };
+}
+
+// Community-theatre default schedule. Fri/Sat 7:30pm, Sun 2pm. Used
+// only as a last-resort fallback when per-show detail rendering fails;
+// admin can override the resulting performances row by row from
+// /admin/calendar/[id]/edit.
+function applyDefaultSchedule(show) {
+  show.schedule = [
+    { weekdays: ["Fri", "Sat"], time: "19:30" },
+    { weekdays: ["Sun"], time: "14:00" },
+  ];
 }
