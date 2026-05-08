@@ -1,6 +1,23 @@
 <script lang="ts">
   import { renderMarkdownInline } from "$lib/util/markdown";
   let { data } = $props();
+
+  // Build the URL for toggling a single chip on/off. Mirrors the
+  // /directory pattern: filter state lives in URL search params so
+  // views are shareable.
+  function chipUrl(catId: string): string {
+    const active = new Set(data.activeCatIds);
+    if (active.has(catId)) active.delete(catId);
+    else active.add(catId);
+    const params = new URLSearchParams();
+    for (const id of active) params.append("cat", id);
+    const s = params.toString();
+    return "/resources" + (s ? "?" + s : "");
+  }
+
+  function clearUrl(): string {
+    return "/resources";
+  }
 </script>
 
 <svelte:head>
@@ -18,7 +35,7 @@
 </header>
 
 <!-- Featured: theatres directory. Sits above the regular resource
-     groups since it's a high-value internal link rather than an
+     list since it's a high-value internal link rather than an
      external resource. -->
 <section class="featured">
   <a href="/theatres" class="feature-card">
@@ -34,34 +51,58 @@
   </a>
 </section>
 
-{#if data.groups.length === 0}
+{#if data.categories.length > 0}
+  <nav class="filter-bar" aria-label="Filter resources by category">
+    <a
+      class="chip"
+      class:on={data.activeCatIds.length === 0}
+      href={clearUrl()}
+      data-sveltekit-noscroll
+    >
+      All
+    </a>
+    {#each data.categories as c (c.id)}
+      <a
+        class="chip"
+        class:on={data.activeCatIds.includes(c.id)}
+        href={chipUrl(c.id)}
+        data-sveltekit-noscroll
+      >
+        {c.name}
+      </a>
+    {/each}
+  </nav>
+{/if}
+
+{#if data.resources.length === 0}
   <p class="empty">
-    Nothing curated yet. Check back soon.
+    {#if data.activeCatIds.length > 0}
+      Nothing matches those filters. <a href={clearUrl()}>Show all →</a>
+    {:else}
+      Nothing curated yet. Check back soon.
+    {/if}
   </p>
 {:else}
-  {#each data.groups as g (g.id)}
-    <section class="group">
-      <header class="group-head">
-        <h2 class="group-title">{g.name}</h2>
-        {#if g.description}
-          <p class="group-desc">{g.description}</p>
+  <ul class="links">
+    {#each data.resources as r (r.id)}
+      <li class="row">
+        <a class="row-link" href={r.url} target="_blank" rel="noopener">
+          <span class="row-title">{r.title}</span>
+          <span class="row-arrow" aria-hidden="true">↗</span>
+        </a>
+        {#if r.category_names.length > 0}
+          <div class="row-tags">
+            {#each r.category_names as name}
+              <span class="tag-pill">{name}</span>
+            {/each}
+          </div>
         {/if}
-      </header>
-      <ul class="links">
-        {#each g.resources as r (r.id)}
-          <li class="row">
-            <a class="row-link" href={r.url} target="_blank" rel="noopener">
-              <span class="row-title">{r.title}</span>
-              <span class="row-arrow" aria-hidden="true">↗</span>
-            </a>
-            {#if r.description}
-              <p class="row-desc">{@html renderMarkdownInline(r.description)}</p>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/each}
+        {#if r.description}
+          <p class="row-desc">{@html renderMarkdownInline(r.description)}</p>
+        {/if}
+      </li>
+    {/each}
+  </ul>
 {/if}
 
 <style>
@@ -86,6 +127,7 @@
     font-style: italic;
     text-align: center;
   }
+  .empty a { color: var(--accent); font-style: normal; }
   /* Featured: hero card linking to /theatres */
   .featured {
     padding: 0 var(--page-pad-x);
@@ -137,37 +179,53 @@
     color: var(--accent);
   }
   .feature-card:hover .feature-arrow { transform: translateX(2px); }
-  .group {
-    padding: 1.5rem var(--page-pad-x);
-    border-top: 1px solid var(--rule);
+
+  /* Filter chips: pick one or more categories to narrow. "All" chip
+     clears the filter. Mirrors /directory's URL-state pattern. */
+  .filter-bar {
+    padding: 0.5rem var(--page-pad-x) 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     max-width: 900px;
   }
-  .group-head { margin-bottom: 1rem; }
-  .group-title {
-    font-family: var(--font-display);
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    margin: 0;
-  }
-  .group-desc {
-    font-size: 14.5px;
+  .chip {
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: var(--bg-raised);
     color: var(--ink-soft);
-    margin: 0.5rem 0 0;
-    line-height: 1.55;
-    max-width: 640px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease;
   }
+  .chip:hover {
+    border-color: var(--ink-soft);
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .chip.on {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--bg);
+  }
+
   .links {
     list-style: none;
-    padding: 0;
-    margin: 0;
+    padding: 0 var(--page-pad-x);
+    margin: 0 auto;
+    max-width: 900px;
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
+    gap: 1.25rem;
   }
   .row {
     border-bottom: 1px solid var(--rule-soft);
-    padding-bottom: 0.875rem;
+    padding-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .row:last-child { border-bottom: 0; }
   .row-link {
@@ -184,6 +242,22 @@
   .row-arrow {
     color: var(--muted);
     font-size: 13px;
+  }
+  .row-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.1rem;
+  }
+  .tag-pill {
+    display: inline-block;
+    padding: 1px 0.5rem;
+    border-radius: 999px;
+    background: var(--paper-2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
   }
   .row-desc {
     font-size: 14px;
