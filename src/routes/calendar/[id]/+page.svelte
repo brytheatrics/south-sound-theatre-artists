@@ -5,7 +5,7 @@
   // Supabase types the FK join `organizations` as an array even though
   // we set it up as a single org. Coerce here so the template can read
   // .name / .slug directly.
-  type Org = { id: string; name: string; slug: string; homepage_url: string | null; logo_url: string | null };
+  type Org = { id: string; name: string; slug: string; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null };
   type Production = {
     id: string; title: string; description: string | null;
     run_start: string; run_end: string | null; show_dates: string | null;
@@ -90,16 +90,16 @@
     {#if p.show_dates}
       <p class="dates-detail">{p.show_dates}</p>
     {/if}
-    {#if p.detail_url || p.organizations?.homepage_url}
+    {#if p.detail_url || p.organizations?.ticketing_url || p.organizations?.homepage_url}
+      {@const ctaHref = p.detail_url ?? p.organizations?.ticketing_url ?? p.organizations?.homepage_url}
+      {@const ctaLabel = p.detail_url
+        ? "Tickets & details"
+        : p.organizations?.ticketing_url
+        ? `Tickets at ${p.organizations.name}`
+        : `Visit ${p.organizations?.name ?? "site"}`}
       <p class="cta">
-        <a
-          class="bt-pri"
-          href={p.detail_url ?? p.organizations!.homepage_url!}
-          target="_blank"
-          rel="noopener"
-        >
-          {p.detail_url ? "Tickets & details" : `Visit ${p.organizations!.name}`}
-          <span aria-hidden="true">↗</span>
+        <a class="bt-pri" href={ctaHref} target="_blank" rel="noopener">
+          {ctaLabel} <span aria-hidden="true">↗</span>
         </a>
       </p>
     {/if}

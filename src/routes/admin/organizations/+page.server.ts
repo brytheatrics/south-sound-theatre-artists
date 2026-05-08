@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ url }) => {
       `id, slug, name, source_url, adapter, cadence_days, active,
        last_status, last_show_count, last_checked_at, last_successful_at,
        last_error, cooldown_until, notes, updated_at, area_id,
-       description, homepage_url, public_email, logo_url, logo_bg,
+       description, homepage_url, ticketing_url, public_email, logo_url, logo_bg,
        contact_email, verified, created_at`,
     )
     .is("deleted_at", null)
@@ -70,12 +70,16 @@ export const actions: Actions = {
 
     const description = String(fd.get("description") ?? "").trim();
     const homepageUrl = String(fd.get("homepage_url") ?? "").trim();
+    const ticketingUrl = String(fd.get("ticketing_url") ?? "").trim();
     const logoUrl = String(fd.get("logo_url") ?? "").trim();
     const logoBg = String(fd.get("logo_bg") ?? "paper").trim();
 
     const looksLikeUrl = (s: string) => /^https?:\/\//i.test(s);
     if (homepageUrl && !looksLikeUrl(homepageUrl)) {
       return fail(400, { error: "Homepage URL must start with http:// or https://" });
+    }
+    if (ticketingUrl && !looksLikeUrl(ticketingUrl)) {
+      return fail(400, { error: "Ticketing URL must start with http:// or https://" });
     }
     if (logoUrl && !looksLikeUrl(logoUrl)) {
       return fail(400, { error: "Logo URL must start with http:// or https://" });
@@ -93,6 +97,7 @@ export const actions: Actions = {
       .update({
         description: description || null,
         homepage_url: homepageUrl || null,
+        ticketing_url: ticketingUrl || null,
         logo_url: logoUrl || null,
         logo_bg: logoBg,
       })

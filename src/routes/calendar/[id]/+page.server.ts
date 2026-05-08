@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .select(
       `id, title, description, run_start, run_end, show_dates, detail_url, cover_url, status,
        category_id,
-       organizations:organization_id ( id, name, slug, homepage_url, logo_url )`,
+       organizations:organization_id ( id, name, slug, homepage_url, ticketing_url, logo_url )`,
     )
     .eq("id", params.id)
     .is("deleted_at", null);

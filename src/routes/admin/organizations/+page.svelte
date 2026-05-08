@@ -134,9 +134,9 @@
   }
 </script>
 
-{#snippet publicEdit(s: { id: string; slug: string; description: string | null; homepage_url: string | null; logo_url: string | null; logo_bg: string })}
+{#snippet publicEdit(s: { id: string; slug: string; description: string | null; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null; logo_bg: string })}
   <details class="public-edit">
-    <summary>Edit public details — description, homepage, logo</summary>
+    <summary>Edit public details — description, homepage, tickets, logo</summary>
     <form
       method="POST"
       action="?/updatePublic"
@@ -167,6 +167,15 @@
           type="url"
           placeholder="https://..."
           value={s.homepage_url ?? ""}
+        />
+      </label>
+      <label class="pe-field">
+        <span class="pe-label">Ticketing URL <span class="pe-hint">(optional - Ludus, OvationTix, etc.)</span></span>
+        <input
+          name="ticketing_url"
+          type="url"
+          placeholder="https://..."
+          value={s.ticketing_url ?? ""}
         />
       </label>
       <label class="pe-field">
