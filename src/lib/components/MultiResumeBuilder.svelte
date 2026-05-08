@@ -440,7 +440,9 @@
             </div>
             {#if resumes.length > 0}
               <div class="assign-bar">
-                <span class="assign-label">On resumes:</span>
+                <span class="assign-label">
+                  {c.resume_ids.length === 0 ? "Click a resume to add this credit:" : "On resumes:"}
+                </span>
                 {#each resumes as r (r.id)}
                   <button
                     type="button"
@@ -449,7 +451,7 @@
                     onclick={() => toggleAssignment(c.id, r.id)}
                     disabled={busy}
                   >
-                    {c.resume_ids.includes(r.id) ? "✓ " : ""}{r.name}
+                    {c.resume_ids.includes(r.id) ? "✓ " : "+ "}{r.name}
                   </button>
                 {/each}
               </div>
@@ -523,7 +525,9 @@
             </div>
             {#if resumes.length > 0}
               <div class="assign-bar">
-                <span class="assign-label">On resumes:</span>
+                <span class="assign-label">
+                  {t.resume_ids.length === 0 ? "Click a resume to add this entry:" : "On resumes:"}
+                </span>
                 {#each resumes as r (r.id)}
                   <button
                     type="button"
@@ -532,7 +536,7 @@
                     onclick={() => toggleAssignment(t.id, r.id)}
                     disabled={busy}
                   >
-                    {t.resume_ids.includes(r.id) ? "✓ " : ""}{r.name}
+                    {t.resume_ids.includes(r.id) ? "✓ " : "+ "}{r.name}
                   </button>
                 {/each}
               </div>
@@ -589,7 +593,9 @@
             </div>
             {#if resumes.length > 0}
               <div class="assign-bar">
-                <span class="assign-label">On resumes:</span>
+                <span class="assign-label">
+                  {s.resume_ids.length === 0 ? "Click a resume to add this skill:" : "On resumes:"}
+                </span>
                 {#each resumes as r (r.id)}
                   <button
                     type="button"
@@ -598,7 +604,7 @@
                     onclick={() => toggleAssignment(s.id, r.id)}
                     disabled={busy}
                   >
-                    {s.resume_ids.includes(r.id) ? "✓ " : ""}{r.name}
+                    {s.resume_ids.includes(r.id) ? "✓ " : "+ "}{r.name}
                   </button>
                 {/each}
               </div>
