@@ -1,6 +1,6 @@
 // GET /api/calendar/submit/match-artist?q=<query>
 //
-// Public artist-name autocomplete for the cast/creative section of
+// Public artist-name autocomplete for the cast/production section of
 // the calendar submit form. Returns up to 5 matching published
 // profiles. Same fuzzy-match scoring as the admin "Find profile"
 // button (production credits editor).

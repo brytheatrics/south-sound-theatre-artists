@@ -161,8 +161,8 @@
   <h2 class="block-title">Poster (optional)</h2>
   <PosterUpload />
 
-  <!-- Cast & creative -->
-  <h2 class="block-title">Cast &amp; creative (optional)</h2>
+  <!-- Cast & production -->
+  <h2 class="block-title">Cast &amp; production (optional)</h2>
   <CreditsSubmitForm />
 
   <!-- Submitter -->

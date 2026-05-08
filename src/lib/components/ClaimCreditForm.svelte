@@ -19,7 +19,7 @@
   let matches = $state<Match[]>([]);
   let pickedId = $state<string | null>(null);
   let position = $state("");
-  let category = $state<"cast" | "creative" | "crew">("cast");
+  let category = $state<"cast" | "production">("cast");
   let busy = $state(false);
   let msg = $state<string | null>(null);
   let isError = $state(false);
@@ -126,8 +126,7 @@
           <span>Section</span>
           <select bind:value={category}>
             <option value="cast">Cast</option>
-            <option value="creative">Creative team</option>
-            <option value="crew">Crew</option>
+            <option value="production">Production team</option>
           </select>
         </label>
         <label class="f wide">

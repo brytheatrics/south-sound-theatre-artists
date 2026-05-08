@@ -2,7 +2,7 @@
   // Production credits editor (mig 079). Used on
   // /admin/calendar/[id]/credits and reused by the org self-serve
   // flow (different apiBase). Lets the admin/org rep:
-  //   - Add cast / creative / crew rows individually.
+  //   - Add cast / production rows individually.
   //   - Paste a cast list and parse into rows in one go.
   //   - Link/unlink each row to an artist profile via fuzzy search.
   //   - Reorder + delete rows.
@@ -11,7 +11,7 @@
 
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
 
-  type Category = "cast" | "creative" | "crew";
+  type Category = "cast" | "production";
   type Source = "org" | "artist" | "admin";
 
   type Credit = {
@@ -29,7 +29,7 @@
     deleted_at: string | null;
   };
 
-  type Snapshot = { cast: Credit[]; creative: Credit[]; crew: Credit[] };
+  type Snapshot = { cast: Credit[]; production: Credit[] };
 
   type Props = {
     initial: Snapshot;
@@ -81,7 +81,7 @@
         }
       }
       const data = await res.json();
-      // Snapshots have cast/creative/crew; match results have matches[].
+      // Snapshots have cast/production; match results have matches[].
       if (data && typeof data === "object" && "cast" in data) {
         credits = data as Snapshot;
       }
@@ -175,7 +175,7 @@
   }
 
   function categoryLabel(c: Category) {
-    return c === "cast" ? "Cast" : c === "creative" ? "Creative team" : "Crew";
+    return c === "cast" ? "Cast" : "Production";
   }
 </script>
 
@@ -187,8 +187,7 @@
     <div class="qa-row">
       <select bind:value={newCategory}>
         <option value="cast">Cast</option>
-        <option value="creative">Creative</option>
-        <option value="crew">Crew</option>
+        <option value="production">Production</option>
       </select>
       <div class="qa-name">
         <input
@@ -234,8 +233,7 @@
         </p>
         <select bind:value={pasteCategory}>
           <option value="cast">Cast section</option>
-          <option value="creative">Creative team</option>
-          <option value="crew">Crew</option>
+          <option value="production">Production team</option>
         </select>
         <textarea rows="8" bind:value={pasteText} placeholder={`Sarah Jones as Cordelia\nJamie Lee - Lear\n...`}></textarea>
         <button type="button" class="bt" onclick={pasteApply} disabled={!pasteText.trim() || busy}>
@@ -245,7 +243,7 @@
     {/if}
   </section>
 
-  {#each ["cast", "creative", "crew"] as cat (cat)}
+  {#each ["cast", "production"] as cat (cat)}
     {@const list = credits[cat as Category]}
     <section class="cat">
       <h3 class="cat-h">{categoryLabel(cat as Category)} <span class="count">({list.length})</span></h3>

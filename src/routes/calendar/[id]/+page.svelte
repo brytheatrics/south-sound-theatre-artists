@@ -48,8 +48,7 @@
 
   const hasCredits =
     credits.cast.length > 0 ||
-    credits.creative.length > 0 ||
-    credits.crew.length > 0;
+    credits.production.length > 0;
 </script>
 
 <svelte:head>
@@ -111,7 +110,7 @@
   {#if hasCredits}
     <hr class="rule" />
     <section class="block">
-      <span class="eyebrow"><span class="num">02</span>Cast & creative</span>
+      <span class="eyebrow"><span class="num">02</span>Cast & production</span>
 
       {#if credits.cast.length > 0}
         <h3 class="sub-h">Cast</h3>
@@ -145,10 +144,10 @@
         </ul>
       {/if}
 
-      {#if credits.creative.length > 0}
-        <h3 class="sub-h">Creative team</h3>
+      {#if credits.production.length > 0}
+        <h3 class="sub-h">Production team</h3>
         <ul class="credits">
-          {#each credits.creative as c (c.id)}
+          {#each credits.production as c (c.id)}
             {@const linked = c.profile_id ? profileMap[c.profile_id] : null}
             <li class="cred">
               <div class="ava">
@@ -172,23 +171,6 @@
                 </strong>
                 {#if c.position}<span class="cred-position">{c.position}</span>{/if}
               </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      {#if credits.crew.length > 0}
-        <h3 class="sub-h">Crew</h3>
-        <ul class="credits compact">
-          {#each credits.crew as c (c.id)}
-            {@const linked = c.profile_id ? profileMap[c.profile_id] : null}
-            <li class="cred row">
-              <span class="cred-text">
-                <strong>{c.position}:</strong>
-                {#if linked}
-                  <a class="cred-link" href={`/artists/${linked.slug}`}>{c.display_name}</a>
-                {:else}{c.display_name}{/if}
-              </span>
             </li>
           {/each}
         </ul>
@@ -323,20 +305,10 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
   }
-  .credits.compact {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
   .cred {
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-  .cred.row {
-    flex-direction: row;
-    gap: 6px;
-    align-items: baseline;
   }
   .ava {
     width: 100%;
@@ -362,11 +334,6 @@
     font-family: var(--font-body);
     font-size: 14px;
     color: var(--ink);
-  }
-  .cred.row .cred-text {
-    flex-direction: row;
-    gap: 6px;
-    flex-wrap: wrap;
   }
   .cred-position {
     font-size: 12px;

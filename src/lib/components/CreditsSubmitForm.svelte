@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Cast / creative / crew capture for the public /calendar/submit form.
+  // Cast / production capture for the public /calendar/submit form.
   // Differs from the admin/org ProductionCreditsEditor:
   //   - No live API. Credits are serialised to a hidden JSON input and
   //     processed by the submit form action when the show is created.
@@ -7,7 +7,7 @@
   //     so the submitter can link cast members who already have profiles.
   //   - Optional paste-a-cast-list mode for fast entry.
 
-  type Category = "cast" | "creative" | "crew";
+  type Category = "cast" | "production";
 
   type Credit = {
     profile_id: string | null;
@@ -154,13 +154,13 @@
   }
 
   function categoryLabel(c: Category) {
-    return c === "cast" ? "Cast" : c === "creative" ? "Creative team" : "Crew";
+    return c === "cast" ? "Cast" : "Production";
   }
 </script>
 
 <div class="cs">
   <p class="hint">
-    Optional. Tag the cast and creative team. As you type a name we'll
+    Optional. Tag the cast and production team. As you type a name we'll
     suggest a match if they're already in the directory - linking lets
     the credit show up on their profile automatically.
   </p>
@@ -195,8 +195,7 @@
         <span>Section</span>
         <select bind:value={qaCategory}>
           <option value="cast">Cast</option>
-          <option value="creative">Creative</option>
-          <option value="crew">Crew</option>
+          <option value="production">Production</option>
         </select>
       </label>
       <label class="f">
@@ -232,8 +231,7 @@
         </p>
         <select bind:value={pasteCategory}>
           <option value="cast">Cast section</option>
-          <option value="creative">Creative team</option>
-          <option value="crew">Crew</option>
+          <option value="production">Production team</option>
         </select>
         <textarea rows="8" bind:value={pasteText} placeholder={"Sarah Jones as Cordelia\nJamie Lee - Lear\nDirector: Lexi Barnett"}></textarea>
         <button type="button" class="bt" onclick={applyPaste} disabled={!pasteText.trim()}>

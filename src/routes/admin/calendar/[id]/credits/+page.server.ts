@@ -1,5 +1,5 @@
 // /admin/calendar/[id]/credits: dedicated admin page for tagging the
-// cast / creative / crew on a production. Uses the live API endpoints
+// cast / production on a production. Uses the live API endpoints
 // at /api/admin/productions/[id]/credits/* via ProductionCreditsEditor.
 
 import { error } from "@sveltejs/kit";

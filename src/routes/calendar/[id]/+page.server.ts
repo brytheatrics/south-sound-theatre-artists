@@ -1,5 +1,5 @@
 // /calendar/[id]: public production detail page. Shows the production
-// metadata + cast / creative / crew credits, with each linked artist
+// metadata + cast / production credits, with each linked artist
 // hyperlinked to their /artists/[slug] profile.
 //
 // Public read: anyone can view if the production is approved + not
@@ -43,8 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // hyperlinking + a small avatar.
   const linkedProfileIds = [
     ...credits.cast,
-    ...credits.creative,
-    ...credits.crew,
+    ...credits.production,
   ]
     .map((c) => c.profile_id)
     .filter((id): id is string => !!id);

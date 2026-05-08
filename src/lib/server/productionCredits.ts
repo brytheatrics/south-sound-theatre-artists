@@ -7,7 +7,12 @@
 import { supabaseAdmin } from "$lib/server/supabase";
 import { syncLegacyResumeData } from "$lib/server/resumes";
 
-export type ProductionCreditCategory = "cast" | "creative" | "crew";
+// v1.1 originally had cast / creative / crew. Simplified to cast /
+// production after early feedback that the creative-vs-crew split was
+// fuzzy. The 'creative' and 'crew' enum values still exist in
+// production_credit_category for backwards compat (mig 084 + 085) but
+// the application only writes / reads cast | production.
+export type ProductionCreditCategory = "cast" | "production";
 export type ProductionCreditSource = "org" | "artist" | "admin";
 
 export type ProductionCreditRow = {
@@ -37,9 +42,18 @@ export function trimPosition(v: unknown): string {
   return v.trim().slice(0, POSITION_MAX);
 }
 
-const CATEGORIES: ProductionCreditCategory[] = ["cast", "creative", "crew"];
+const CATEGORIES: ProductionCreditCategory[] = ["cast", "production"];
 export function isCategory(v: unknown): v is ProductionCreditCategory {
-  return CATEGORIES.includes(v as ProductionCreditCategory);
+  // Accept legacy 'creative' / 'crew' from any older clients still
+  // in flight; coerce them up at the call site via coerceCategory().
+  return CATEGORIES.includes(v as ProductionCreditCategory) || v === "creative" || v === "crew";
+}
+
+/** Map any category value (including legacy creative/crew) to one of
+ *  the two current values. */
+export function coerceCategory(v: unknown): ProductionCreditCategory {
+  if (v === "cast") return "cast";
+  return "production";
 }
 
 /** Fuzzy name matching: returns up to N profile candidates ordered by
@@ -439,11 +453,12 @@ export function parseCastList(raw: string): Array<{ name: string; position: stri
 }
 
 /** Load the credits for one production, grouped by category and ordered
- *  by sort_order. Used by the public detail page and the admin editor. */
+ *  by sort_order. Used by the public detail page and the admin editor.
+ *  Legacy 'creative' / 'crew' rows are normalized into 'production' for
+ *  the consumer. */
 export async function loadProductionCredits(productionId: string): Promise<{
   cast: ProductionCreditRow[];
-  creative: ProductionCreditRow[];
-  crew: ProductionCreditRow[];
+  production: ProductionCreditRow[];
 }> {
   const { data } = await supabaseAdmin
     .from("production_credits")
@@ -452,11 +467,13 @@ export async function loadProductionCredits(productionId: string): Promise<{
     .is("deleted_at", null)
     .order("category")
     .order("sort_order");
-  const all = (data ?? []) as ProductionCreditRow[];
+  const all = ((data ?? []) as ProductionCreditRow[]).map((c) => ({
+    ...c,
+    category: coerceCategory(c.category) as ProductionCreditCategory,
+  }));
   return {
     cast: all.filter((c) => c.category === "cast"),
-    creative: all.filter((c) => c.category === "creative"),
-    crew: all.filter((c) => c.category === "crew"),
+    production: all.filter((c) => c.category === "production"),
   };
 }
 
