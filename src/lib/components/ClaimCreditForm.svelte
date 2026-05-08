@@ -4,8 +4,11 @@
   // submit. The new credit is auto-linked to the artist's profile and
   // a corresponding resume_entries row lands in their inbox.
 
-  type Props = { token: string };
-  let { token }: Props = $props();
+  type Props = {
+    token: string;
+    onClaimed?: () => void | Promise<void>;
+  };
+  let { token, onClaimed }: Props = $props();
 
   type Match = {
     id: string;
@@ -76,6 +79,10 @@
       position = "";
       q = "";
       matches = [];
+      // Tell the parent so it can refresh the resume builder above with
+      // the newly-inboxed credit. Without this the artist sees the
+      // success message but the inbox count stays stale until they reload.
+      await onClaimed?.();
     } catch (err) {
       msg = err instanceof Error ? err.message : String(err);
       isError = true;

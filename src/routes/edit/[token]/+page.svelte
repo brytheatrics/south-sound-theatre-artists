@@ -9,6 +9,7 @@
   import ClaimCreditForm from "$lib/components/ClaimCreditForm.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import { page as pageStore } from "$app/state";
+  import { invalidateAll } from "$app/navigation";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -340,15 +341,20 @@
         each entry to whichever ones it belongs on. Changes save as you go -
         no need to hit Save below for resume edits.
       </p>
-      <MultiResumeBuilder
-        initial={data.resumeSnapshot}
-        apiBase={`/api/edit/${pageStore.params.token}`}
-      />
+      {#key data.resumeSnapshot}
+        <MultiResumeBuilder
+          initial={data.resumeSnapshot}
+          apiBase={`/api/edit/${pageStore.params.token}`}
+        />
+      {/key}
     </details>
 
     <fieldset>
       <legend>Claim a production credit</legend>
-      <ClaimCreditForm token={pageStore.params.token ?? ""} />
+      <ClaimCreditForm
+        token={pageStore.params.token ?? ""}
+        onClaimed={() => invalidateAll()}
+      />
     </fieldset>
 
     <fieldset>
