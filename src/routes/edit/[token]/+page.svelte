@@ -327,14 +327,8 @@
       {#if errors.bio}<span class="error">{errors.bio}</span>{/if}
     </fieldset>
 
-    <details class="collapsible-fieldset">
-      <summary>
-        <span class="summary-label">Resume builder</span>
-        <span class="summary-meta">
-          {data.resumeSnapshot?.entries?.length ?? 0} entr{(data.resumeSnapshot?.entries?.length ?? 0) === 1 ? "y" : "ies"}
-        </span>
-        <span class="summary-state"></span>
-      </summary>
+    <fieldset>
+      <legend>Resume builder</legend>
       <p class="hint">
         Optional. Add credits, training, and skills. You can keep multiple
         named resumes (e.g. an actor resume + a designer resume) and assign
@@ -347,7 +341,7 @@
           apiBase={`/api/edit/${pageStore.params.token}`}
         />
       {/key}
-    </details>
+    </fieldset>
 
     <fieldset>
       <legend>Claim a production credit</legend>
@@ -567,7 +561,7 @@
   form {
     counter-reset: section;
   }
-  fieldset, .collapsible-fieldset {
+  fieldset {
     border: 0;
     border-top: 1px solid var(--rule);
     padding: 2rem 0;
@@ -592,71 +586,6 @@
     color: var(--accent);
     margin-right: 0.6em;
   }
-  /* Collapsible <details> styled to mirror the numbered fieldset
-     legends, so it slots into the form visually. Default-closed; the
-     summary doubles as the click target. */
-  .collapsible-fieldset > summary {
-    list-style: none;
-    cursor: pointer;
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    padding: 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink);
-    font-weight: 500;
-    margin-bottom: 0;
-  }
-  .collapsible-fieldset > summary::-webkit-details-marker { display: none; }
-  .collapsible-fieldset > summary::before {
-    content: counter(section, decimal-leading-zero) " ";
-    color: var(--accent);
-    margin-right: 0.6em;
-  }
-  .collapsible-fieldset > summary::after {
-    content: "▼";
-    margin-left: auto;
-    color: var(--accent);
-    font-size: 1.05em;
-    transition: transform 120ms;
-  }
-  .collapsible-fieldset[open] > summary::after { transform: rotate(180deg); }
-  .collapsible-fieldset[open] > summary { margin-bottom: 1.5rem; }
-  .summary-meta {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.08em;
-    text-transform: none;
-    color: var(--muted);
-    font-weight: 400;
-  }
-  /* State label sits right before the chevron; "collapsed" in moss
-     when closed (draws the eye) and "open" in muted grey when expanded. */
-  .summary-state {
-    margin-left: auto;
-    margin-right: 0.6em;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .collapsible-fieldset:not([open]) > summary .summary-state::before {
-    content: "collapsed";
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .collapsible-fieldset[open] > summary .summary-state::before {
-    content: "open";
-    color: var(--muted);
-    font-weight: 400;
-  }
-  /* When the state label takes margin-left:auto, the chevron no longer
-     needs it — it just sits right after. */
-  .collapsible-fieldset > summary::after { margin-left: 0; }
   .field {
     display: flex;
     flex-direction: column;

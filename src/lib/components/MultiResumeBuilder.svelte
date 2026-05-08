@@ -342,13 +342,18 @@
   {/if}
 
   <!-- ===== Credits ===== -->
-  <section class="section">
-    <header class="sec-head">
-      <h3 class="sec-title">Theatre credits</h3>
-      <button type="button" class="add" onclick={() => addEntry("credit")} disabled={busy}>
+  <details class="section collapsible-section" open>
+    <summary class="sec-head">
+      <h3 class="sec-title">Theatre credits <span class="sec-count">({credits.length})</span></h3>
+      <button
+        type="button"
+        class="add"
+        onclick={(e) => { e.preventDefault(); e.stopPropagation(); addEntry("credit"); }}
+        disabled={busy}
+      >
         + Add credit
       </button>
-    </header>
+    </summary>
     {#if credits.length === 0}
       <p class="empty">
         {#if view === "all"}No credits yet.
@@ -460,16 +465,21 @@
         {/each}
       </ul>
     {/if}
-  </section>
+  </details>
 
   <!-- ===== Training ===== -->
-  <section class="section">
-    <header class="sec-head">
-      <h3 class="sec-title">Training</h3>
-      <button type="button" class="add" onclick={() => addEntry("training")} disabled={busy}>
+  <details class="section collapsible-section" open>
+    <summary class="sec-head">
+      <h3 class="sec-title">Training <span class="sec-count">({training.length})</span></h3>
+      <button
+        type="button"
+        class="add"
+        onclick={(e) => { e.preventDefault(); e.stopPropagation(); addEntry("training"); }}
+        disabled={busy}
+      >
         + Add training
       </button>
-    </header>
+    </summary>
     {#if training.length === 0}
       <p class="empty">No training in this view.</p>
     {:else}
@@ -545,16 +555,21 @@
         {/each}
       </ul>
     {/if}
-  </section>
+  </details>
 
   <!-- ===== Skills ===== -->
-  <section class="section">
-    <header class="sec-head">
-      <h3 class="sec-title">Skills</h3>
-      <button type="button" class="add" onclick={() => addEntry("skill")} disabled={busy}>
+  <details class="section collapsible-section" open>
+    <summary class="sec-head">
+      <h3 class="sec-title">Skills <span class="sec-count">({skills.length})</span></h3>
+      <button
+        type="button"
+        class="add"
+        onclick={(e) => { e.preventDefault(); e.stopPropagation(); addEntry("skill"); }}
+        disabled={busy}
+      >
         + Add group
       </button>
-    </header>
+    </summary>
     {#if skills.length === 0}
       <p class="empty">No skills in this view. Group by category - dialects, instruments, certifications, etc.</p>
     {:else}
@@ -613,7 +628,7 @@
         {/each}
       </ul>
     {/if}
-  </section>
+  </details>
 </div>
 
 <ConfirmModal
@@ -846,6 +861,28 @@
     letter-spacing: 0.12em;
     color: var(--muted);
     font-weight: 500;
+  }
+  /* Each kind-section (Theatre credits / Training / Skills) is its
+     own collapsible. Default-open. The summary doubles as the section
+     heading; clicking anywhere except the + Add button toggles it. */
+  .collapsible-section > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .collapsible-section > summary::-webkit-details-marker { display: none; }
+  .collapsible-section > summary .sec-title::after {
+    content: "▼";
+    margin-left: 0.5em;
+    color: var(--accent);
+    font-size: 0.85em;
+    display: inline-block;
+    transition: transform 120ms;
+  }
+  .collapsible-section[open] > summary .sec-title::after { transform: rotate(180deg); }
+  .sec-count {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 0.3em;
   }
   .add {
     background: transparent;
