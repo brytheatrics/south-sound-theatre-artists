@@ -21,6 +21,7 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { buildDigestVars } from "$lib/server/digest-build";
 
 export const TEST_RECIPIENT = "ssta.admin@gmail.com";
 
@@ -241,7 +242,14 @@ async function getOrCreateTestProduction(orgId: string): Promise<{
   return { ...created, email_verification_token: verificationToken };
 }
 
-async function getOrCreateTestSubscription(): Promise<{
+// Idempotent. The first call creates the row pre-confirmed (confirmed_at
+// stamped, include_blog=true) so the digest preview works without
+// stepping through the double-opt-in. The subscription_confirm test
+// case re-mints the confirmation token + clears confirmed_at to make
+// that flow testable on demand.
+async function getOrCreateTestSubscription(opts?: {
+  resetConfirmation?: boolean;
+}): Promise<{
   id: string;
   confirmation_token: string;
   unsubscribe_token: string;
@@ -253,14 +261,17 @@ async function getOrCreateTestSubscription(): Promise<{
     .eq("subscriber_email", TEST_RECIPIENT)
     .maybeSingle();
   if (existing) {
+    const update: Record<string, unknown> = {
+      preferences_updated_at: new Date().toISOString(),
+    };
+    if (opts?.resetConfirmation) {
+      update.confirmation_token = confirmationToken;
+      update.confirmed_at = null;
+      update.unsubscribed_at = null;
+    }
     await supabaseAdmin
       .from("callboard_subscriptions")
-      .update({
-        confirmation_token: confirmationToken,
-        confirmed_at: null,
-        unsubscribed_at: null,
-        preferences_updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq("id", existing.id);
     return {
       id: existing.id,
@@ -275,6 +286,10 @@ async function getOrCreateTestSubscription(): Promise<{
       subscriber_email: TEST_RECIPIENT,
       confirmation_token: confirmationToken,
       unsubscribe_token: unsubscribeToken,
+      // Pre-confirmed so the digest preview works immediately; the
+      // subscription_confirm test case reverses this when needed.
+      confirmed_at: opts?.resetConfirmation ? null : new Date().toISOString(),
+      include_blog: true,
       preferences_updated_at: new Date().toISOString(),
     })
     .select("id, unsubscribe_token")
@@ -518,7 +533,10 @@ async function buildVars(
     }
 
     case "subscription_confirm": {
-      const sub = await getOrCreateTestSubscription();
+      // This test specifically validates the confirm flow. Reset the
+      // subscription's confirmed_at so the link actually changes state
+      // when clicked.
+      const sub = await getOrCreateTestSubscription({ resetConfirmation: true });
       return {
         vars: {
           confirm_url: `${PUBLIC_SITE_URL}/callboard/subscribe/confirm/${sub.confirmation_token}`,
@@ -527,49 +545,18 @@ async function buildVars(
     }
 
     case "callboard_weekly_digest": {
+      // Real preview: pull live DB data through the actual digest
+      // builder so the test send shows what subscribers will receive
+      // on Sunday. The test subscription is pre-confirmed with
+      // include_blog=true and empty filter arrays (= firehose), so
+      // every callboard post + production + blog post that matches
+      // the section windows shows up. sinceOverride covers the past
+      // 7 days so we get a realistic week of content even on a
+      // freshly-created test subscription.
       const sub = await getOrCreateTestSubscription();
-      // Stub blocks so the rendering is realistic. Real digests build
-      // these from live data via the cron; the test here just shows
-      // that the template + sub-section structure render correctly.
-      const callboardBlock = `## Callboard
-
-### New this week
-
-- Audition: Test Organization - TEST CALLBOARD POST (Posted today)
-  ${PUBLIC_SITE_URL}/callboard
-
-### Closing this week
-
-- Designer call: Test Organization - Test Designer Call (closes Friday)
-  ${PUBLIC_SITE_URL}/callboard
-`;
-      const calendarBlock = `## What's playing
-
-### Opening this week
-
-- Test Organization - TEST PRODUCTION (Jan 1-Jan 31, 2099)
-
-### Currently running
-
-- Another Test Org - SAMPLE SHOW (Dec 15-Feb 5)
-
-### Closing this week
-
-- Closing Test Org - LAST WEEKEND (Jan 28-Feb 8)
-`;
-      return {
-        vars: {
-          name: "Test Subscriber",
-          callboard: callboardBlock,
-          calendar: calendarBlock,
-          blog: "## New on the blog\n\n- [Sample blog post title](" + `${PUBLIC_SITE_URL}/blog/sample` + ")",
-          callboard_url: `${PUBLIC_SITE_URL}/callboard`,
-          calendar_url: `${PUBLIC_SITE_URL}/calendar`,
-          manage_url: `${PUBLIC_SITE_URL}/callboard/subscribe/manage/${sub.unsubscribe_token}`,
-          unsubscribe_url: `${PUBLIC_SITE_URL}/callboard/unsubscribe/${sub.unsubscribe_token}`,
-          new_options_notice: "",
-        },
-      };
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const { vars } = await buildDigestVars(sub.id, { sinceOverride: sevenDaysAgo });
+      return { vars };
     }
 
     case "org_approved": {
