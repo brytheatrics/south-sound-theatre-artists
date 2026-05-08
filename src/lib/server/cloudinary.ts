@@ -152,21 +152,27 @@ export function buildOgCardUrl(input: {
   const discipline = encodeOverlayText(input.primaryDiscipline ?? "");
 
   const parts: string[] = [
-    // Base canvas: face-detected fill 1200x630.
-    "w_1200,h_630,c_fill,g_face,q_auto,f_auto",
-    // Name (Playfair Display, large, white-on-black-stroke for
-    // legibility against any headshot).
-    `l_text:Playfair Display_72_bold:${name},co_white,bo_3px_solid_black,g_south_west,x_50,y_${discipline ? 120 : 50}`,
+    // Base canvas: face-detected thumb at z_0.55 so we see shoulders +
+    // a bit of context, not just a tight face fill.
+    "w_1200,h_630,c_thumb,g_face,z_0.55,q_auto,f_auto",
+    // Name: Playfair Display. Render twice for a soft drop-shadow
+    // effect: first a slightly offset semi-transparent black copy
+    // (the shadow), then the white foreground.
+    `l_text:Playfair Display_72_bold:${name},co_rgb:000000,o_55/fl_layer_apply,g_south_west,x_53,y_${discipline ? 117 : 47}`,
+    `l_text:Playfair Display_72_bold:${name},co_white/fl_layer_apply,g_south_west,x_50,y_${discipline ? 120 : 50}`,
   ];
   if (discipline) {
     parts.push(
-      `l_text:Work Sans_32_bold:${discipline},co_white,bo_2px_solid_black,g_south_west,x_50,y_60`,
+      `l_text:Work Sans_30:${discipline},co_rgb:000000,o_55/fl_layer_apply,g_south_west,x_52,y_68`,
+      `l_text:Work Sans_30:${discipline},co_white/fl_layer_apply,g_south_west,x_50,y_70`,
     );
   }
-  // Logo overlay: bottom-right. Tinted white so it reads regardless
-  // of headshot tone. Width capped so it stays subtle.
+  // SSTA wordmark bottom-right, tinted white. Each layer needs its
+  // own fl_layer_apply transformation block (separated by `/`) for
+  // gravity to take effect - mashing them into one segment was the
+  // bug in v2.
   parts.push(
-    "l_brand:og-logo,w_240,e_colorize:100,co_white,fl_layer_apply,g_south_east,x_40,y_40",
+    "l_brand:og-logo,w_220,e_colorize:100,co_white/fl_layer_apply,g_south_east,x_40,y_60",
   );
   return `https://res.cloudinary.com/${PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${parts.join("/")}/${publicId}.jpg`;
 }
