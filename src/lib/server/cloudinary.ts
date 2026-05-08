@@ -128,10 +128,18 @@ function encodeOverlayText(s: string): string {
 }
 
 /** Build the Cloudinary delivery URL for a per-artist OG card.
- *  Renders headshot left, name + discipline + "South Sound Theatre
- *  Artists" wordmark on a darker overlay. Returns null when the
- *  headshot isn't Cloudinary-hosted (caller falls back to the
- *  generic site card). */
+ *  Renders headshot face-detected fill, with the artist's name +
+ *  primary discipline overlaid bottom-left and the SSTA logo
+ *  bottom-right. Falls back to null when the headshot isn't
+ *  Cloudinary-hosted (caller falls back to the generic site card).
+ *
+ *  Fonts: Playfair Display (display serif) for the name, closest
+ *  Cloudinary-supported analogue to the brand's DM Serif Display.
+ *  Work Sans for the discipline, analogue to Inter Tight.
+ *
+ *  Logo: uploaded once to public_id 'brand/og-logo' via
+ *  scripts/upload_og_logo.mjs. Tinted white via e_colorize so it
+ *  reads on the dark-stroke text band area. */
 export function buildOgCardUrl(input: {
   headshotUrl: string | null;
   name: string;
@@ -142,25 +150,23 @@ export function buildOgCardUrl(input: {
   if (!publicId) return null;
   const name = encodeOverlayText(input.name);
   const discipline = encodeOverlayText(input.primaryDiscipline ?? "");
-  const wordmark = encodeOverlayText("South Sound Theatre Artists");
 
-  // Conservative single-pass transformation:
-  //   1. Crop the headshot to a face-detected 1200x630 fill.
-  //   2. Overlay name + discipline + wordmark using white text with a
-  //      black stroke for legibility (works against any headshot
-  //      without needing a background-color layer, which has plan-
-  //      dependent quirks on Cloudinary).
   const parts: string[] = [
+    // Base canvas: face-detected fill 1200x630.
     "w_1200,h_630,c_fill,g_face,q_auto,f_auto",
-    `l_text:Arial_64_bold_stroke:${name},co_white,bo_3px_solid_black,g_south_west,x_50,y_${discipline ? 120 : 50}`,
+    // Name (Playfair Display, large, white-on-black-stroke for
+    // legibility against any headshot).
+    `l_text:Playfair Display_72_bold:${name},co_white,bo_3px_solid_black,g_south_west,x_50,y_${discipline ? 120 : 50}`,
   ];
   if (discipline) {
     parts.push(
-      `l_text:Arial_32_stroke:${discipline},co_white,bo_2px_solid_black,g_south_west,x_50,y_50`,
+      `l_text:Work Sans_32_bold:${discipline},co_white,bo_2px_solid_black,g_south_west,x_50,y_60`,
     );
   }
+  // Logo overlay: bottom-right. Tinted white so it reads regardless
+  // of headshot tone. Width capped so it stays subtle.
   parts.push(
-    `l_text:Arial_22_stroke:${wordmark},co_white,bo_2px_solid_black,g_south_east,x_30,y_30`,
+    "l_brand:og-logo,w_240,e_colorize:100,co_white,fl_layer_apply,g_south_east,x_40,y_40",
   );
   return `https://res.cloudinary.com/${PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${parts.join("/")}/${publicId}.jpg`;
 }
