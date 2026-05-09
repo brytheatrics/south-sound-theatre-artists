@@ -8,11 +8,15 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 const EDIT_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const actions: Actions = {
-  default: async ({ request }) => {
+  default: async ({ request, getClientAddress }) => {
+    const rl = await checkSubmitRateLimit(getClientAddress(), "edit_link");
+    if (!rl.ok) return fail(429, { error: RATE_LIMIT_MESSAGE });
+
     const data = await request.formData();
     const email = ((data.get("email") as string) ?? "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

@@ -5,6 +5,7 @@ import { fail, redirect } from "@sveltejs/kit";
 import type { Actions } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -20,12 +21,20 @@ function isValidUrl(s: string): boolean {
 }
 
 export const actions: Actions = {
-  default: async ({ request }) => {
+  default: async ({ request, getClientAddress }) => {
     const data = await request.formData();
 
     // Honeypot
     if ((data.get("website_url_extra") as string)?.trim()) {
       throw redirect(303, "/callboard/apply-verified/thanks");
+    }
+
+    const rl = await checkSubmitRateLimit(getClientAddress(), "apply_verified");
+    if (!rl.ok) {
+      return fail(429, {
+        errors: { _form: RATE_LIMIT_MESSAGE } as Record<string, string>,
+        values: { name: "", contactName: "", contactEmail: "", websiteUrl: "", description: "" },
+      });
     }
 
     const name = ((data.get("name") as string) ?? "").trim();
