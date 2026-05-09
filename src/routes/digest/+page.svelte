@@ -41,7 +41,9 @@
   }
 
   const hasCallboard = $derived(
-    data.postsNew.length > 0 || data.postsClosing.length > 0,
+    data.postsNew.length > 0 ||
+      data.postsStillOpen.length > 0 ||
+      data.postsClosing.length > 0,
   );
   const hasCalendar = $derived(
     data.prodsOpeningThisWeek.length > 0 ||
@@ -101,6 +103,27 @@
       <h3 class="sub-h">New this week</h3>
       <ul class="post-list">
         {#each data.postsNew as p (p.id)}
+          <li class="post-row">
+            <a class="post-link" href={`/callboard/${p.id}`}>
+              <span class="post-type">{labelFor(p.post_type)}</span>
+              <span class="post-title">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              {#if p.deadline_text}
+                <span class="post-tail">{p.deadline_text}</span>
+              {:else if p.location}
+                <span class="post-tail">{p.location}</span>
+              {/if}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.postsStillOpen.length > 0}
+      <h3 class="sub-h">Still open</h3>
+      <ul class="post-list">
+        {#each data.postsStillOpen as p (p.id)}
           <li class="post-row">
             <a class="post-link" href={`/callboard/${p.id}`}>
               <span class="post-type">{labelFor(p.post_type)}</span>

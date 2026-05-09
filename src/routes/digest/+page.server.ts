@@ -41,8 +41,13 @@ export const load: PageServerLoad = async () => {
     .slice(0, 10);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
-  const [newPostsRes, closingPostsRes, productionsRes, postTypeLabelsRes] =
-    await Promise.all([
+  const [
+    newPostsRes,
+    closingPostsRes,
+    stillOpenPostsRes,
+    productionsRes,
+    postTypeLabelsRes,
+  ] = await Promise.all([
       // Callboard "new this week" - posts created in the last 7 days.
       supabaseAdmin
         .from("callboard_posts")
@@ -74,6 +79,23 @@ export const load: PageServerLoad = async () => {
         .order("is_ssta_event", { ascending: false })
         .order("expires_at", { ascending: true })
         .limit(40),
+      // Callboard "still open" - dated posts not new and not closing
+      // this week. Plugs the dead-zone middle weeks of a 4-week-out
+      // audition.
+      supabaseAdmin
+        .from("callboard_posts")
+        .select(
+          "id, post_type, title, organization_name, deadline_text, location, expires_at, created_at",
+        )
+        .eq("status", "approved")
+        .eq("published", true)
+        .is("deleted_at", null)
+        .not("expires_at", "is", null)
+        .gt("expires_at", weekHorizon)
+        .lt("created_at", sevenDaysAgo)
+        .order("is_ssta_event", { ascending: false })
+        .order("expires_at", { ascending: true })
+        .limit(20),
       // Calendar - pull everything that could conceivably surface in any
       // bucket: starts within 14 days OR is currently running. The JS
       // filter below trims to non-closed + buckets each row.
@@ -92,6 +114,7 @@ export const load: PageServerLoad = async () => {
 
   if (newPostsRes.error) throw newPostsRes.error;
   if (closingPostsRes.error) throw closingPostsRes.error;
+  if (stillOpenPostsRes.error) throw stillOpenPostsRes.error;
   if (productionsRes.error) throw productionsRes.error;
   if (postTypeLabelsRes.error) throw postTypeLabelsRes.error;
 
@@ -100,6 +123,13 @@ export const load: PageServerLoad = async () => {
     (p) => !closingIds.has(p.id),
   ) as CallboardPost[];
   const postsClosing = (closingPostsRes.data ?? []) as CallboardPost[];
+  const seenIds = new Set([
+    ...postsClosing.map((p) => p.id),
+    ...postsNew.map((p) => p.id),
+  ]);
+  const postsStillOpen = (stillOpenPostsRes.data ?? []).filter(
+    (p) => !seenIds.has(p.id),
+  ) as CallboardPost[];
 
   // Bucket productions exactly the way digest-build.ts does. Keep the
   // logic tight - this is the spot most likely to drift from the email
@@ -141,6 +171,7 @@ export const load: PageServerLoad = async () => {
 
   return {
     postsNew,
+    postsStillOpen,
     postsClosing,
     prodsOpeningThisWeek,
     prodsOpeningNextWeek,

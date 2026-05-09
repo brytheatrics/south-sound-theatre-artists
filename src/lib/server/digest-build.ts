@@ -168,6 +168,50 @@ export async function buildDigestVars(
   const { data: closingPostsData } = await closingPostsQuery;
   const closingPosts = closingPostsData ?? [];
 
+  // 3b. Callboard - "still open" (the dead-zone bucket).
+  // Posts that aren't new this week and aren't closing this week, but
+  // still have a future deadline. Keeps a 4-week-out audition visible
+  // in every digest between when it was posted and when it starts to
+  // close, so a subscriber who skips a week (or joined mid-run) doesn't
+  // miss it. Requires expires_at - undated perpetual listings would
+  // otherwise repeat in every digest forever.
+  let stillOpenPostsQuery = supabaseAdmin
+    .from("callboard_posts")
+    .select(
+      "id, post_type, title, organization_name, deadline_text, location, is_ssta_event, expires_at",
+    )
+    .eq("status", "approved")
+    .eq("published", true)
+    .is("deleted_at", null)
+    .not("expires_at", "is", null)
+    .gt("expires_at", closingSoonCutoff)
+    .lte("created_at", callboardSinceCutoff);
+
+  if (s.post_types && s.post_types.length > 0) {
+    stillOpenPostsQuery = stillOpenPostsQuery.in("post_type", s.post_types);
+  }
+  if (s.callboard_area_ids && s.callboard_area_ids.length > 0) {
+    stillOpenPostsQuery = stillOpenPostsQuery.or(
+      `area_id.is.null,area_id.in.(${s.callboard_area_ids.join(",")})`,
+    );
+  }
+  if (s.disciplines && s.disciplines.length > 0) {
+    const disciplineList = s.disciplines
+      .map((d) => `"${d.replace(/"/g, '\\"')}"`)
+      .join(",");
+    stillOpenPostsQuery = stillOpenPostsQuery.or(
+      `roles.ov.{${disciplineList}},post_type.in.(${s.disciplines.map((d) => d.toLowerCase()).join(",")})`,
+    );
+  }
+  stillOpenPostsQuery = stillOpenPostsQuery
+    .order("is_ssta_event", { ascending: false })
+    .order("expires_at", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const { data: stillOpenData } = await stillOpenPostsQuery;
+  const stillOpenPosts = stillOpenData ?? [];
+
   // 4. Load post type labels.
   const { data: typeRows } = await supabaseAdmin
     .from("callboard_post_types")
@@ -194,10 +238,25 @@ export async function buildDigestVars(
   const closingIds = new Set(closingPosts.map((p) => p.id));
   const newOnly = newPosts.filter((p) => !closingIds.has(p.id));
 
+  // Defensive dedup: any "still open" row that overlaps with closing
+  // (would happen at the boundary day, when expires_at = today + 7) or
+  // with new (when SQL's created_at <= since boundary stamps tie) gets
+  // dropped here so it appears in only one section.
+  const seenIds = new Set([
+    ...closingPosts.map((p) => p.id),
+    ...newOnly.map((p) => p.id),
+  ]);
+  const stillOpenOnly = stillOpenPosts.filter((p) => !seenIds.has(p.id));
+
   const callboardSections: string[] = [];
   if (newOnly.length > 0) {
     callboardSections.push(
       `### New this week\n\n${newOnly.map(renderCallboardLine).join("\n\n")}`,
+    );
+  }
+  if (stillOpenOnly.length > 0) {
+    callboardSections.push(
+      `### Still open\n\n${stillOpenOnly.map(renderCallboardLine).join("\n\n")}`,
     );
   }
   if (closingPosts.length > 0) {

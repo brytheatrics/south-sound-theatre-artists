@@ -382,13 +382,45 @@ async function main() {
         closingFilter.params,
       );
 
+      // Callboard "still open": posts that aren't new this week and
+      // aren't closing this week, but still have a future deadline.
+      // Plugs the dead-zone where a 4-week-out audition would otherwise
+      // disappear from the digest after week 1 and not reappear until
+      // it crosses into "Closing this week." Requires expires_at -
+      // undated perpetual posts would otherwise repeat forever.
+      const stillOpenFilter = callboardFilterClause(sub, [since, closingSoonCutoff]);
+      const stillOpenPosts = await db.query(
+        `select id, post_type, title, organization_name, deadline_text,
+                location, is_ssta_event, expires_at
+           from callboard_posts
+          where status = 'approved'
+            and published = true
+            and deleted_at is null
+            and expires_at is not null
+            and expires_at > $2::date
+            and created_at <= $1${stillOpenFilter.clause}
+          order by is_ssta_event desc, expires_at asc, created_at desc
+          limit 20`,
+        stillOpenFilter.params,
+      );
+
       const closingIds = new Set(closingPosts.rows.map((p) => p.id));
       const newOnly = newPosts.rows.filter((p) => !closingIds.has(p.id));
+      const seenIds = new Set([
+        ...closingPosts.rows.map((p) => p.id),
+        ...newOnly.map((p) => p.id),
+      ]);
+      const stillOpenOnly = stillOpenPosts.rows.filter((p) => !seenIds.has(p.id));
 
       const callboardSections = [];
       if (newOnly.length > 0) {
         callboardSections.push(
           `### New this week\n\n${newOnly.map(renderCallboardLine).join("\n\n")}`,
+        );
+      }
+      if (stillOpenOnly.length > 0) {
+        callboardSections.push(
+          `### Still open\n\n${stillOpenOnly.map(renderCallboardLine).join("\n\n")}`,
         );
       }
       if (closingPosts.rowCount > 0) {
