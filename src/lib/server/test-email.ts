@@ -108,7 +108,11 @@ async function getOrCreateTestPendingSubmission(): Promise<{
   email_verification_token: string;
 }> {
   // Reset the verification token every call so the verify URL works.
+  // Raw token goes in the URL; only its SHA-256 hash is stored - matches
+  // the convention enforced by /submit/+page.server.ts so the verify
+  // route's hash-lookup actually finds the row.
   const verificationToken = randomBytes(24).toString("base64url");
+  const tokenHash = hashToken(verificationToken);
   const { data: existing } = await supabaseAdmin
     .from("pending_submissions")
     .select("id")
@@ -120,7 +124,7 @@ async function getOrCreateTestPendingSubmission(): Promise<{
     await supabaseAdmin
       .from("pending_submissions")
       .update({
-        email_verification_token: verificationToken,
+        email_verification_token_hash: tokenHash,
         email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
       })
       .eq("id", existing.id);
@@ -142,7 +146,7 @@ async function getOrCreateTestPendingSubmission(): Promise<{
       desired_slug: "test-profile-pending",
       status: "pending_email",
       email_verified: false,
-      email_verification_token: verificationToken,
+      email_verification_token_hash: tokenHash,
       email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
     })
     .select("id, email, full_name")
@@ -160,6 +164,7 @@ async function getOrCreateTestCallboardPost(): Promise<{
   email_verification_token: string;
 }> {
   const verificationToken = randomBytes(24).toString("base64url");
+  const tokenHash = hashToken(verificationToken);
   const { data: existing } = await supabaseAdmin
     .from("callboard_posts")
     .select("id, title, organization_name")
@@ -170,7 +175,7 @@ async function getOrCreateTestCallboardPost(): Promise<{
     await supabaseAdmin
       .from("callboard_posts")
       .update({
-        email_verification_token: verificationToken,
+        email_verification_token_hash: tokenHash,
         email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
       })
       .eq("id", existing.id);
@@ -187,7 +192,7 @@ async function getOrCreateTestCallboardPost(): Promise<{
       description: "Internal test post for /admin/email-test.",
       status: "pending_email",
       published: false,
-      email_verification_token: verificationToken,
+      email_verification_token_hash: tokenHash,
       email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
     })
     .select("id, title, organization_name")
@@ -204,6 +209,7 @@ async function getOrCreateTestProduction(orgId: string): Promise<{
   email_verification_token: string;
 }> {
   const verificationToken = randomBytes(24).toString("base64url");
+  const tokenHash = hashToken(verificationToken);
   const { data: existing } = await supabaseAdmin
     .from("productions")
     .select("id, title")
@@ -214,7 +220,7 @@ async function getOrCreateTestProduction(orgId: string): Promise<{
     await supabaseAdmin
       .from("productions")
       .update({
-        email_verification_token: verificationToken,
+        email_verification_token_hash: tokenHash,
         email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
       })
       .eq("id", existing.id);
@@ -231,7 +237,7 @@ async function getOrCreateTestProduction(orgId: string): Promise<{
       run_start: "2099-01-01",
       run_end: "2099-01-31",
       status: "pending_email",
-      email_verification_token: verificationToken,
+      email_verification_token_hash: tokenHash,
       email_verification_expires_at: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
     })
     .select("id, title")
