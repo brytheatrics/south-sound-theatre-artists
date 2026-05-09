@@ -93,7 +93,7 @@ All under `.github/workflows/`. Shared infrastructure in `scripts/_lib/cron.mjs`
 | `admin-daily-digest.yml` | 15:00 UTC daily | only when queue is non-empty |
 | `email-volume-alert.yml` | 16:00 UTC daily | once at 70%, again at 90% |
 | `stale-profile-cleanup.yml` | 17:00 UTC Mondays | one ping per stale profile |
-| `callboard-weekly-digest.yml` | 01:00 UTC Mondays (Sun PT) | per-subscriber, skips empty weeks |
+| `callboard-weekly-digest.yml` | 06:59 UTC Mondays (11:59 PM PT Sun PDT / 10:59 PM PST) | per-subscriber, skips empty weeks |
 | `calendar-sync.yml` | 16:00 UTC monthly (1st) | no (writes pending productions) |
 | `backup.yml` | 18:00 UTC Sundays | no email; pushes JSON to a private repo |
 
