@@ -564,7 +564,10 @@
     align-items: center;
     flex-wrap: wrap;
     margin: 0 0 1rem;
-    max-width: 540px;
+    padding: 0 var(--page-pad-x);
+    /* Cap at 540px + page padding so the box sits like a search box,
+       not a banner, on wide viewports. */
+    max-width: calc(540px + 2 * var(--page-pad-x));
   }
   .search-bar input[type="search"] {
     flex: 1 1 220px;
@@ -610,6 +613,7 @@
     letter-spacing: 0.04em;
     color: var(--muted);
     margin: 0 0 0.75rem;
+    padding: 0 var(--page-pad-x);
   }
   .search-meta strong { color: var(--accent); font-weight: 500; }
 
