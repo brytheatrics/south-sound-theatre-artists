@@ -177,7 +177,15 @@ async function main() {
         p.run_end && p.run_end !== p.run_start
           ? `-${formatRunDate(p.run_end)}`
           : "";
-      const window = start ? ` (${start}${end})` : "";
+      // Glue spaces and the inner hyphen with NBSP + non-breaking
+      // hyphen so email clients can't wrap a date range mid-chunk
+      // ("(May 1-" / "May 17)" on different lines). Unicode chars
+      // rather than &nbsp;/&#8209; entities because the plain-text
+      // alternate uses raw markdown - entities would render literally.
+      const range = `${start}${end}`
+        .replace(/ /g, " ")
+        .replace(/-/g, "‑");
+      const window = start ? ` (${range})` : "";
       const tag = p.is_ssta_event ? " [SSTA]" : "";
       return `-${tag} ${p.organization_name} - ${p.title}${window}`;
     }
