@@ -355,16 +355,21 @@
       <legend class="legend"><span class="num">06</span> How to apply / contact</legend>
       <div class="field">
         <label for="contact_info" class="label">
-          Contact or submission info
-          <span class="label-hint">Email, form URL, in-person details, etc.</span>
+          Contact or submission info <span class="req">*</span>
+          <span class="label-hint">Email, Casting Manager / form URL, in-person details - whatever an interested artist should do next.</span>
         </label>
         <textarea
           id="contact_info"
           name="contact_info"
           class="textarea"
+          class:error={!!form?.errors?.contact_info}
           rows="3"
-          placeholder="Email your resume and headshot to casting@example.org"
+          placeholder="Email casting@example.org, or apply at https://app.castingmanager.com/..."
+          required
         >{form?.values?.contactInfo ?? ""}</textarea>
+        {#if form?.errors?.contact_info}
+          <p class="field-error">{form.errors.contact_info}</p>
+        {/if}
       </div>
     </fieldset>
 

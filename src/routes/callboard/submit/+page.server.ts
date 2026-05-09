@@ -145,6 +145,7 @@ export const actions: Actions = {
     if (!values.submitterName) errors.submitter_name = "Required.";
     if (!isValidEmail(values.submitterEmail)) errors.submitter_email = "Enter a valid email address.";
     if (!values.description) errors.description = "Required.";
+    if (!values.contactInfo) errors.contact_info = "Required - tell artists how to reach you or apply.";
 
     // Area is required at submit time going forward (mig 071). Validate
     // the FK against the live areas table so we don't write a dangling
