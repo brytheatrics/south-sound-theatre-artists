@@ -77,8 +77,8 @@
     <div class="subscribe-copy">
       <h2 class="subscribe-h">Get this in your inbox.</h2>
       <p class="subscribe-body">
-        Every Sunday evening, just the new stuff from the week, with the
-        option to filter by post type, area, or category.
+        Every Sunday night, a roundup of what's new, what's still open,
+        and what's playing - filterable by post type, area, or category.
       </p>
     </div>
     <a class="bt subscribe-btn" href="/callboard/subscribe">
