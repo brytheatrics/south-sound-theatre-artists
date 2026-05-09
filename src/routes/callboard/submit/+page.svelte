@@ -354,9 +354,9 @@
       <input type="hidden" name="key_dates" bind:value={keyDatesRaw} />
     </fieldset>
 
-    <!-- 05. DEADLINE & EXPIRY -->
+    <!-- 05. POST & EXPIRATION DATES -->
     <fieldset class="fieldset">
-      <legend class="legend"><span class="num">05</span> Deadline &amp; expiry</legend>
+      <legend class="legend"><span class="num">05</span> Post and expiration dates</legend>
       <div class="field-row">
         <div class="field">
           <label for="publish_at" class="label">
@@ -379,7 +379,7 @@
         </div>
         <div class="field">
           <label for="expires_at" class="label">
-            Auto-remove date <span class="req">*</span>
+            Expiration date <span class="req">*</span>
             <span class="label-hint">Post hides automatically on this date. Up to 90 days after the post date.</span>
           </label>
           <input
@@ -397,20 +397,6 @@
             <p class="field-error">{form.errors.expires_at}</p>
           {/if}
         </div>
-      </div>
-      <div class="field">
-        <label for="deadline_text" class="label">
-          Deadline display text
-          <span class="label-hint">Shown on the card. e.g. "Apply by May 5" or "Open until filled"</span>
-        </label>
-        <input
-          id="deadline_text"
-          name="deadline_text"
-          type="text"
-          class="input"
-          value={form?.values?.deadlineText ?? ""}
-          placeholder="Apply by May 5"
-        />
       </div>
     </fieldset>
 

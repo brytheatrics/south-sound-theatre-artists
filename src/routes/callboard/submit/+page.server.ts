@@ -52,7 +52,6 @@ type Values = {
   compensation: string;
   contactInfo: string;
   keyDates: KeyDate[];
-  deadlineText: string;
   publishAt: string;
   expiresAt: string;
   ticketUrl: string;
@@ -126,7 +125,6 @@ export const actions: Actions = {
       compensation: ((data.get("compensation") as string) ?? "").trim(),
       contactInfo: ((data.get("contact_info") as string) ?? "").trim(),
       keyDates: parseKeyDates(data.get("key_dates")),
-      deadlineText: ((data.get("deadline_text") as string) ?? "").trim(),
       publishAt: ((data.get("publish_at") as string) ?? "").trim(),
       expiresAt: ((data.get("expires_at") as string) ?? "").trim(),
       ticketUrl: ((data.get("ticket_url") as string) ?? "").trim(),
@@ -272,7 +270,6 @@ export const actions: Actions = {
             : null,
         contact_info: values.contactInfo || null,
         key_dates: values.keyDates,
-        deadline_text: values.deadlineText || null,
         publish_at: publishAtIso,
         expires_at: expiresAtIso,
         ticket_url: values.ticketUrl || null,
