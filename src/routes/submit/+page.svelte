@@ -20,6 +20,7 @@
   type FormValues = {
     fullName?: string;
     email?: string;
+    phone?: string;
     slug?: string;
     bio?: string;
     pronouns?: string;
@@ -56,6 +57,7 @@
 
   let fullName = $state(v.fullName ?? "");
   let email = $state(v.email ?? "");
+  let phone = $state(v.phone ?? "");
   let slug = $state(v.slug ?? "");
   let slugTouched = $state(!!v.slug);
   let bio = $state(v.bio ?? "");
@@ -248,6 +250,20 @@
         />
         <span class="hint">Never shown publicly. Used for your edit link and contact routing.</span>
         {#if errors.email}<span class="error">{errors.email}</span>{/if}
+      </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input
+          name="phone"
+          type="tel"
+          autocomplete="tel"
+          bind:value={phone}
+          aria-invalid={!!errors.phone}
+          placeholder="253-555-0142"
+        />
+        <span class="hint">Optional. Used by theatres during casting to contact you about callbacks and offers. Never shown on your public profile.</span>
+        {#if errors.phone}<span class="error">{errors.phone}</span>{/if}
       </label>
 
       <!-- Under-18 toggle. When checked, parent / guardian fields appear

@@ -17,6 +17,7 @@
 
   let fullName = $state(p.full_name);
   let pronouns = $state(p.pronouns ?? "");
+  let phone = $state(p.phone ?? "");
   let bio = $state(p.bio ?? "");
   let headshotUrl = $state(p.headshot_url ?? "");
   let headshotConsent = $state(p.headshot_consent ?? false);
@@ -297,6 +298,18 @@
       <label class="field">
         <span>Pronouns</span>
         <input name="pronouns" type="text" bind:value={pronouns} placeholder="she/her, they/them, etc." />
+      </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input
+          name="phone"
+          type="tel"
+          autocomplete="tel"
+          bind:value={phone}
+          placeholder="253-555-0142"
+        />
+        <span class="hint">Optional. Used by theatres during casting to contact you about callbacks and offers. Never shown on your public profile.</span>
       </label>
     </fieldset>
 

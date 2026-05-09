@@ -16,6 +16,7 @@ import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
+import { isValidPhone, normalizePhone } from "$lib/util/phone";
 
 const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -114,6 +115,7 @@ export const actions: Actions = {
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const slug = ((data.get("slug") as string) ?? "").trim().toLowerCase();
     const email = ((data.get("email") as string) ?? "").trim().toLowerCase();
+    const phone = normalizePhone(data.get("phone") as string);
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
     const bio = ((data.get("bio") as string) ?? "").trim();
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
@@ -156,6 +158,9 @@ export const actions: Actions = {
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Valid email required.";
+    }
+    if (phone && !isValidPhone(phone)) {
+      errors.phone = "Phone must have at least 7 digits or be left blank.";
     }
     // Admin save: only the slug + email are truly required (those gate
     // routing + magic-link delivery). Disciplines and area are required
@@ -232,6 +237,7 @@ export const actions: Actions = {
         full_name: fullName,
         slug,
         email,
+        phone: phone || null,
         pronouns: pronouns || null,
         bio: bio || null,
         headshot_url: headshotUrl || null,

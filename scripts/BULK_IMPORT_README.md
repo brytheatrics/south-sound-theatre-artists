@@ -61,6 +61,7 @@ in `# like this` or leave blank lines for readability.
 
 ```
 email: jane@example.com
+phone: 253-555-0142
 disciplines: Actor, Director, Playwright
 area: Tacoma
 city: Tacoma
@@ -77,6 +78,8 @@ linkedin: https://linkedin.com/in/janesmith
 twitter: @janesmith
 youtube: https://youtube.com/@janesmith
 ```
+
+**`phone` is optional and never rendered publicly.** Stored on the profile so artists who already shared a number don't have to re-enter via /edit/[token]. Use any format (`(253) 555-0142`, `253.555.0142`, `+1 253 555 0142`) - we don't enforce a specific shape, just need at least 7 digits.
 
 **`disciplines` in meta.txt overrides** the auto-detection from bio. Use
 exact names from the canonical disciplines list (the script silently

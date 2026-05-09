@@ -15,6 +15,7 @@ import { generateToken, hashToken } from "$lib/server/tokens";
 import { parseResumeData, type ResumeData } from "$lib/server/resume";
 import { suggestAlternatives, validateSlug } from "$lib/util/slug";
 import { normalizeUrl } from "$lib/util/url";
+import { isValidPhone, normalizePhone } from "$lib/util/phone";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -67,6 +68,7 @@ export const load: PageServerLoad = async () => {
 type Values = {
   fullName: string;
   email: string;
+  phone: string;
   slug: string;
   bio: string;
   pronouns: string;
@@ -145,6 +147,7 @@ export const actions: Actions = {
     const values: Values = {
       fullName: ((data.get("full_name") as string) ?? "").trim(),
       email: ((data.get("email") as string) ?? "").trim().toLowerCase(),
+      phone: normalizePhone(data.get("phone") as string),
       slug: ((data.get("slug") as string) ?? "").trim().toLowerCase(),
       bio: ((data.get("bio") as string) ?? "").trim(),
       pronouns: ((data.get("pronouns") as string) ?? "").trim(),
@@ -187,6 +190,9 @@ export const actions: Actions = {
 
     if (!values.fullName) errors.full_name = "Required.";
     if (!isValidEmail(values.email)) errors.email = "Enter a valid email address.";
+    if (values.phone && !isValidPhone(values.phone)) {
+      errors.phone = "Enter a valid phone number (7+ digits) or leave blank.";
+    }
 
     // Minor profiles: parent / guardian email is required and is the
     // address everything else routes through (verification, magic links,
@@ -323,6 +329,9 @@ export const actions: Actions = {
         email_verification_token_hash: tokenHash,
         email_verification_expires_at: expiresAt,
         full_name: values.fullName,
+        // Optional. Never rendered publicly; copied to profiles.phone
+        // on admin approve. See mig 104 for the privacy boundary rules.
+        phone: values.phone || null,
         bio: values.bio || null,
         disciplines,
         // Minors don't show a headshot publicly. Stash whatever was

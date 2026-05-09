@@ -5,6 +5,7 @@
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
+  import { telHref } from "$lib/util/phone";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -13,6 +14,7 @@
   let fullName = $state(p.full_name);
   let slug = $state(p.slug);
   let email = $state(p.email);
+  let phone = $state(p.phone ?? "");
   let pronouns = $state(p.pronouns ?? "");
   let bio = $state(p.bio ?? "");
   let headshotUrl = $state(p.headshot_url ?? "");
@@ -233,9 +235,22 @@
     </div>
     <div class="grid-2">
       <label class="field">
+        <span>
+          Phone (private)
+          {#if phone && telHref(phone)}
+            <a class="tel-link" href={telHref(phone)}>tap to call</a>
+          {/if}
+        </span>
+        <input name="phone" type="tel" autocomplete="tel" bind:value={phone} placeholder="253-555-0142" aria-invalid={!!errors.phone} />
+        <span class="hint">Never rendered publicly. Used by theatres in casting / callback workflows.</span>
+        {#if errors.phone}<span class="error">{errors.phone}</span>{/if}
+      </label>
+      <label class="field">
         <span>Pronouns</span>
         <input name="pronouns" type="text" bind:value={pronouns} placeholder="she/her" />
       </label>
+    </div>
+    <div class="grid-2">
       <label class="field">
         <span>Languages (comma-separated)</span>
         <input name="languages" type="text" bind:value={languages} placeholder="English, Spanish" />
@@ -699,6 +714,22 @@
     color: var(--error);
     font-size: 13px;
     font-family: var(--font-body);
+    margin-top: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .tel-link {
+    margin-left: 8px;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .hint {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
     margin-top: 4px;
     text-transform: none;
     letter-spacing: 0;

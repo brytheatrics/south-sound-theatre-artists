@@ -21,6 +21,7 @@ import {
 } from "$lib/server/resumes";
 import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
+import { isValidPhone, normalizePhone } from "$lib/util/phone";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -162,6 +163,10 @@ export const actions: Actions = {
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
     const bio = ((data.get("bio") as string) ?? "").trim();
+    const phone = normalizePhone(data.get("phone") as string);
+    if (phone && !isValidPhone(phone)) {
+      return fail(400, { error: "Phone must have at least 7 digits or be left blank." });
+    }
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
     const headshotConsent = data.get("headshot_consent") === "on";
     const area = ((data.get("area") as string) ?? "").trim();
@@ -302,6 +307,13 @@ export const actions: Actions = {
 
     const minorUpdate: Record<string, unknown> = {
       pronouns: pronouns || null,
+      // Phone: never rendered publicly; treated as a minor field today.
+      // CASTING-TOOL-DAY: revisit. When phone routes callbacks, an
+      // attacker who hijacks an account could rewrite it to impersonate
+      // the artist to theatres - at that point phone may need to gate
+      // through flagged_edits for untrusted profiles like other
+      // load-bearing fields do.
+      phone: phone || null,
       headshot_consent: headshotConsent,
       geographic_area: finalArea,
       city: city || null,
