@@ -57,3 +57,34 @@ export function telHref(input: string | null | undefined): string {
   if (!digits) return "";
   return v.startsWith("+") ? `tel:+${digits}` : `tel:${digits}`;
 }
+
+/**
+ * Display-time formatter. Standardises the look of phones rendered to
+ * admin so a list of back-filled numbers doesn't read as a parade of
+ * mixed punctuation - "(253) 555-0142" / "253.555.0142" / "2535550142"
+ * all render as "(253) 555-0142".
+ *
+ * Scope-limited to clearly US numbers (10 digits, or 11 digits with a
+ * leading 1). Anything else - international with a "+", weird digit
+ * counts, malformed - is returned as-typed so we don't mangle a
+ * legitimate non-US number with a US-centric mask.
+ *
+ * Stored value is never rewritten by this function. Pure display.
+ */
+export function formatPhoneDisplay(input: string | null | undefined): string {
+  const v = (input ?? "").trim();
+  if (!v) return "";
+  // Anything starting with "+" is international - leave as-is.
+  if (v.startsWith("+")) return v;
+  const digits = phoneDigits(v);
+  // 10-digit US: NNN-NNN-NNNN structure.
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  // 11-digit US with a leading 1.
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  // Anything else - too short, too long, mixed text - render literally.
+  return v;
+}

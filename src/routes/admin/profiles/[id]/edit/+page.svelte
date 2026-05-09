@@ -5,7 +5,7 @@
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
-  import { telHref } from "$lib/util/phone";
+  import { telHref, formatPhoneDisplay } from "$lib/util/phone";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -238,11 +238,11 @@
         <span>
           Phone (private)
           {#if phone && telHref(phone)}
-            <a class="tel-link" href={telHref(phone)}>tap to call</a>
+            <a class="tel-link" href={telHref(phone)}>{formatPhoneDisplay(phone)} ↗</a>
           {/if}
         </span>
         <input name="phone" type="tel" autocomplete="tel" bind:value={phone} placeholder="253-555-0142" aria-invalid={!!errors.phone} />
-        <span class="hint">Never rendered publicly. Used by theatres in casting / callback workflows.</span>
+        <span class="hint">Never rendered publicly. Used by theatres in casting / callback workflows. Tap link to call.</span>
         {#if errors.phone}<span class="error">{errors.phone}</span>{/if}
       </label>
       <label class="field">
