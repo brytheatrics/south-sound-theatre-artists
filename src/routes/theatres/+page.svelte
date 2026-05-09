@@ -40,6 +40,32 @@
   </div>
 </header>
 
+<!-- CATEGORY FILTER STRIP -->
+{#if data.categoryOptions.length > 1}
+  <div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
+    <span class="filter-label eyebrow">Type</span>
+    <a
+      class="chip"
+      class:on={!data.activeCategory}
+      href={data.activeArea ? `/theatres?area=${encodeURIComponent(data.activeArea)}` : "/theatres"}
+    >
+      All
+    </a>
+    {#each data.categoryOptions as cat (cat.slug)}
+      {@const params = new URLSearchParams()}
+      {@const _ = (data.activeArea ? params.set("area", data.activeArea) : null, params.set("category", cat.slug))}
+      <a
+        class="chip"
+        class:on={data.activeCategory === cat.slug}
+        href={`/theatres?${params.toString()}`}
+      >
+        {cat.label}
+        <span class="chip-count">{cat.count}</span>
+      </a>
+    {/each}
+  </div>
+{/if}
+
 <!-- AREA FILTER STRIP -->
 {#if data.areaOptions.length > 0}
   <div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
@@ -47,15 +73,17 @@
     <a
       class="chip"
       class:on={!data.activeArea}
-      href="/theatres"
+      href={data.activeCategory ? `/theatres?category=${encodeURIComponent(data.activeCategory)}` : "/theatres"}
     >
       All
     </a>
     {#each data.areaOptions as area (area)}
+      {@const params = new URLSearchParams()}
+      {@const _ = (params.set("area", area), data.activeCategory ? params.set("category", data.activeCategory) : null)}
       <a
         class="chip"
         class:on={data.activeArea === area}
-        href={`/theatres?area=${encodeURIComponent(area)}`}
+        href={`/theatres?${params.toString()}`}
       >
         {area}
       </a>
@@ -107,6 +135,13 @@
                 {/if}
               </h3>
               <p class="card-area">{t.area_name ?? "South Sound"}</p>
+              {#if t.categories.length > 0}
+                <div class="card-badges" aria-label="Categories">
+                  {#each t.categories as cat (cat)}
+                    <span class="badge">{data.categoryLabels[cat] ?? cat}</span>
+                  {/each}
+                </div>
+              {/if}
               {#if t.description}
                 <p class="card-desc">{t.description}</p>
               {/if}
@@ -293,6 +328,33 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid color-mix(in oklch, var(--accent), var(--bg) 65%);
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent), var(--bg) 90%);
+    border-radius: 999px;
+    line-height: 1.4;
+  }
+  .chip-count {
+    margin-left: 5px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .chip.on .chip-count {
+    color: inherit;
+    opacity: 0.7;
   }
   .card-desc {
     margin: 0.4rem 0 0;

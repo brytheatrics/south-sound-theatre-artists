@@ -4,9 +4,14 @@
 // (description / homepage / email / logo) at /admin/organizations; the
 // scrape-shaped fields (source_url, adapter, last_status) stay hidden
 // from the public page.
+//
+// Category badges (post mig 105) let one org carry multiple programming
+// chips - Theatre + Educational Theatre, etc. /theatres?category=<slug>
+// filters the page to orgs whose categories array contains that slug.
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { CATEGORY_LABELS, KNOWN_CATEGORY_SLUGS } from "$lib/server/orgCategories";
 
 export type TheatreRow = {
   slug: string;
@@ -17,17 +22,19 @@ export type TheatreRow = {
   homepage_url: string | null;
   logo_url: string | null;
   logo_bg: string;
+  categories: string[];
 };
 
 export const load: PageServerLoad = async ({ url }) => {
   const areaFilter = url.searchParams.get("area") ?? "";
+  const categoryFilter = url.searchParams.get("category") ?? "";
 
   const [{ data: sources, error }, { data: areas }, { data: contentRow }] = await Promise.all([
     supabaseAdmin
       .from("organizations")
       .select(
         `slug, name, area_id, active,
-         description, homepage_url, logo_url, logo_bg`,
+         description, homepage_url, logo_url, logo_bg, categories`,
       )
       .eq("active", true)
       .is("deleted_at", null)
@@ -56,13 +63,34 @@ export const load: PageServerLoad = async ({ url }) => {
     homepage_url: s.homepage_url,
     logo_url: s.logo_url,
     logo_bg: s.logo_bg ?? "paper",
+    categories: Array.isArray(s.categories) ? s.categories : [],
   }));
 
-  // Area filter — by name (URL-friendly) for shareability. Falls through
-  // gracefully on bad input rather than 404'ing.
+  // Build category chip options dynamically: only show chips for
+  // categories that actually have at least one org. Avoids "Opera (0)"
+  // chips before any opera companies exist. Sort: known canonical slugs
+  // first in their canonical order, then any unrecognised slug at the
+  // end alphabetically.
+  const counts = new Map<string, number>();
+  for (const r of rows) for (const c of r.categories) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const knownSet = new Set<string>(KNOWN_CATEGORY_SLUGS as readonly string[]);
+  const known = (KNOWN_CATEGORY_SLUGS as readonly string[]).filter((s) => counts.has(s));
+  const extra = [...counts.keys()].filter((s) => !knownSet.has(s)).sort();
+  const categoryOptions = [...known, ...extra].map((slug) => ({
+    slug,
+    label: CATEGORY_LABELS[slug] ?? slug,
+    count: counts.get(slug) ?? 0,
+  }));
+
+  // Area filter — by name (URL-friendly) for shareability.
   if (areaFilter) {
     const wantId = areaIdByName.get(areaFilter);
     if (wantId) rows = rows.filter((r) => r.area_id === wantId);
+  }
+  // Category filter — by slug. Multi-badge orgs match if ANY of their
+  // categories matches the requested slug.
+  if (categoryFilter) {
+    rows = rows.filter((r) => r.categories.includes(categoryFilter));
   }
 
   // Group by area for the cards, preserving the canonical sort_order so
@@ -83,6 +111,9 @@ export const load: PageServerLoad = async ({ url }) => {
     total: rows.length,
     areaOptions: (areas ?? []).map((a) => a.name),
     activeArea: areaFilter,
+    categoryOptions,
+    activeCategory: categoryFilter,
+    categoryLabels: CATEGORY_LABELS,
     lede: contentRow?.body_markdown ?? "",
   };
 };

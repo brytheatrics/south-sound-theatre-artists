@@ -134,7 +134,7 @@
   }
 </script>
 
-{#snippet publicEdit(s: { id: string; slug: string; name: string; area_id: string | null; description: string | null; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null; logo_bg: string })}
+{#snippet publicEdit(s: { id: string; slug: string; name: string; area_id: string | null; description: string | null; homepage_url: string | null; ticketing_url: string | null; logo_url: string | null; logo_bg: string; categories?: string[] | null })}
   <details class="public-edit">
     <summary>Edit public details — name, slug, area, description, homepage, tickets, logo</summary>
     <form
@@ -179,6 +179,23 @@
           {/each}
         </select>
       </label>
+      <fieldset class="pe-field cat-fieldset">
+        <legend class="pe-label">Categories</legend>
+        <div class="cat-grid">
+          {#each data.categoryOptions as opt (opt.slug)}
+            <label class="cat-opt">
+              <input
+                type="checkbox"
+                name="categories"
+                value={opt.slug}
+                checked={(s.categories ?? []).includes(opt.slug)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          {/each}
+        </div>
+        <span class="cat-hint">Drives the chip filter + badges on /theatres. An org doing both mainstage and educational programming should pick both.</span>
+      </fieldset>
       <label class="pe-field">
         <span class="pe-label">Description</span>
         <textarea
@@ -854,6 +871,35 @@
   }
   .pe-logo-row { display: flex; gap: 0.6rem; align-items: center; }
   .pe-logo-row input { flex: 1; }
+  .cat-fieldset {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.75rem 0.6rem;
+  }
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 4px 12px;
+    margin-top: 0.25rem;
+  }
+  .cat-opt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .cat-opt input[type="checkbox"] { width: auto; margin: 0; }
+  .cat-hint {
+    display: block;
+    margin-top: 0.4rem;
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
   .pe-logo-preview-tile {
     width: 44px;
     height: 44px;
