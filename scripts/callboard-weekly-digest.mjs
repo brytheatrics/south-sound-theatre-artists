@@ -445,6 +445,7 @@ async function main() {
           manage_url: manageUrl,
           unsubscribe_url: unsubscribeUrl,
           new_options_notice: newOptionsNotice,
+          digest_date: formatRunDate(today),
         },
       });
 

@@ -61,6 +61,7 @@ export type DigestVars = {
   manage_url: string;
   unsubscribe_url: string;
   new_options_notice: string;
+  digest_date: string;
 };
 
 export type DigestResult = {
@@ -352,6 +353,7 @@ export async function buildDigestVars(
       manage_url: manageUrl,
       unsubscribe_url: unsubscribeUrl,
       new_options_notice: "",
+      digest_date: formatRunDate(today),
     },
     hasContent,
   };
