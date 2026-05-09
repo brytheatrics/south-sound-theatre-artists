@@ -100,8 +100,13 @@ export async function buildDigestVars(
 
   const callboardSinceCutoff = opts?.sinceOverride ?? since;
   const closingSoonCutoff = weekHorizon;
+  const nowIso = new Date().toISOString();
 
   // 2. Callboard - new this week.
+  // Filter on publish_at (when the post went live), not created_at,
+  // so a post drafted weeks ago but scheduled to go live this week
+  // surfaces in the right week's digest. The publish_at <= now() gate
+  // also keeps not-yet-live scheduled posts out of every section.
   let newPostsQuery = supabaseAdmin
     .from("callboard_posts")
     .select(
@@ -110,7 +115,8 @@ export async function buildDigestVars(
     .eq("status", "approved")
     .eq("published", true)
     .is("deleted_at", null)
-    .gt("created_at", callboardSinceCutoff);
+    .lte("publish_at", nowIso)
+    .gt("publish_at", callboardSinceCutoff);
 
   if (s.post_types && s.post_types.length > 0) {
     newPostsQuery = newPostsQuery.in("post_type", s.post_types);
@@ -148,6 +154,7 @@ export async function buildDigestVars(
     .eq("status", "approved")
     .eq("published", true)
     .is("deleted_at", null)
+    .lte("publish_at", nowIso)
     .not("expires_at", "is", null)
     .gte("expires_at", today)
     .lte("expires_at", closingSoonCutoff);
@@ -183,9 +190,10 @@ export async function buildDigestVars(
     .eq("status", "approved")
     .eq("published", true)
     .is("deleted_at", null)
+    .lte("publish_at", nowIso)
     .not("expires_at", "is", null)
     .gt("expires_at", closingSoonCutoff)
-    .lte("created_at", callboardSinceCutoff);
+    .lte("publish_at", callboardSinceCutoff);
 
   if (s.post_types && s.post_types.length > 0) {
     stillOpenPostsQuery = stillOpenPostsQuery.in("post_type", s.post_types);

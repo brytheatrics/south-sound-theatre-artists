@@ -49,6 +49,37 @@
   // field.
   const showRoles = $derived(postType !== "production");
   const showTicketUrl = $derived(postType === "production");
+
+  // Today as a YYYY-MM-DD string for the date pickers' `min` attribute.
+  // Computed once at script init - not reactive to wall-clock changes.
+  // Server re-validates so a stale browser tab can't backdate posts.
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  /* svelte-ignore state_referenced_locally */
+  let publishAt = $state<string>(
+    (form?.values?.publishAt as string) ?? todayIso,
+  );
+  /* svelte-ignore state_referenced_locally */
+  let expiresAt = $state<string>((form?.values?.expiresAt as string) ?? "");
+
+  // Auto-remove cap = publish_at + 90 days. Date math via Date object so
+  // we don't have to think about month-end / year boundaries.
+  const expiresMax = $derived.by(() => {
+    if (!publishAt) return "";
+    const d = new Date(`${publishAt}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 90);
+    return d.toISOString().slice(0, 10);
+  });
+
+  /* svelte-ignore state_referenced_locally */
+  let compensationType = $state<string>(
+    (form?.values?.compensationType as string) ?? "",
+  );
+  // Compensation Details only makes sense for paid / stipend - "None /
+  // unpaid" has nothing to detail. Hide so submitters don't second-guess.
+  const showCompensationDetails = $derived(
+    compensationType === "paid" || compensationType === "stipend",
+  );
 </script>
 
 <svelte:head>
@@ -251,28 +282,39 @@
       <legend class="legend"><span class="num">03</span> Compensation</legend>
       <div class="field-row">
         <div class="field">
-          <label for="compensation_type" class="label">Type</label>
-          <select id="compensation_type" name="compensation_type" class="select" value={form?.values?.compensationType ?? ""}>
+          <label for="compensation_type" class="label">Type <span class="req">*</span></label>
+          <select
+            id="compensation_type"
+            name="compensation_type"
+            class="select"
+            class:error={!!form?.errors?.compensation_type}
+            bind:value={compensationType}
+            required
+          >
             <option value="">-- Select --</option>
             <option value="paid">Paid</option>
             <option value="stipend">Stipend</option>
-            <option value="volunteer">Volunteer</option>
             <option value="none">None / unpaid</option>
           </select>
+          {#if form?.errors?.compensation_type}
+            <p class="field-error">{form.errors.compensation_type}</p>
+          {/if}
         </div>
-        <div class="field">
-          <label for="compensation" class="label">
-            Details
-            <span class="label-hint">e.g. "Stipend &middot; $400-650" or "$22/hr"</span>
-          </label>
-          <input
-            id="compensation"
-            name="compensation"
-            type="text"
-            class="input"
-            value={form?.values?.compensation ?? ""}
-          />
-        </div>
+        {#if showCompensationDetails}
+          <div class="field">
+            <label for="compensation" class="label">
+              Details
+              <span class="label-hint">e.g. "Stipend &middot; $400-650" or "$22/hr"</span>
+            </label>
+            <input
+              id="compensation"
+              name="compensation"
+              type="text"
+              class="input"
+              value={form?.values?.compensation ?? ""}
+            />
+          </div>
+        {/if}
       </div>
     </fieldset>
 
@@ -317,23 +359,28 @@
       <legend class="legend"><span class="num">05</span> Deadline &amp; expiry</legend>
       <div class="field-row">
         <div class="field">
-          <label for="deadline_text" class="label">
-            Deadline display text
-            <span class="label-hint">Shown on the card. e.g. "Apply by May 5" or "Open until filled"</span>
+          <label for="publish_at" class="label">
+            Post date <span class="req">*</span>
+            <span class="label-hint">When the listing goes live. Defaults to today; pick a future date to schedule.</span>
           </label>
           <input
-            id="deadline_text"
-            name="deadline_text"
-            type="text"
+            id="publish_at"
+            name="publish_at"
+            type="date"
             class="input"
-            value={form?.values?.deadlineText ?? ""}
-            placeholder="Apply by May 5"
+            class:error={!!form?.errors?.publish_at}
+            bind:value={publishAt}
+            min={todayIso}
+            required
           />
+          {#if form?.errors?.publish_at}
+            <p class="field-error">{form.errors.publish_at}</p>
+          {/if}
         </div>
         <div class="field">
           <label for="expires_at" class="label">
-            Auto-remove date
-            <span class="label-hint">Post hides automatically on this date.</span>
+            Auto-remove date <span class="req">*</span>
+            <span class="label-hint">Post hides automatically on this date. Up to 90 days after the post date.</span>
           </label>
           <input
             id="expires_at"
@@ -341,12 +388,29 @@
             type="date"
             class="input"
             class:error={!!form?.errors?.expires_at}
-            value={form?.values?.expiresAt ?? ""}
+            bind:value={expiresAt}
+            min={publishAt || todayIso}
+            max={expiresMax}
+            required
           />
           {#if form?.errors?.expires_at}
             <p class="field-error">{form.errors.expires_at}</p>
           {/if}
         </div>
+      </div>
+      <div class="field">
+        <label for="deadline_text" class="label">
+          Deadline display text
+          <span class="label-hint">Shown on the card. e.g. "Apply by May 5" or "Open until filled"</span>
+        </label>
+        <input
+          id="deadline_text"
+          name="deadline_text"
+          type="text"
+          class="input"
+          value={form?.values?.deadlineText ?? ""}
+          placeholder="Apply by May 5"
+        />
       </div>
     </fieldset>
 

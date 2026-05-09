@@ -73,7 +73,8 @@ export const load: PageServerLoad = async ({ url }) => {
     )
     .eq("published", true)
     .eq("status", "approved")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .lte("publish_at", now);
 
   // Filter to only the requested types that actually exist + are active.
   // Empty list = no filter, show all.
@@ -107,6 +108,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .eq("published", true)
     .eq("status", "approved")
     .is("deleted_at", null)
+    .lte("publish_at", now)
     .not("expires_at", "is", null)
     .gte("expires_at", now)
     .lte("expires_at", soonCutoff)
@@ -119,7 +121,8 @@ export const load: PageServerLoad = async ({ url }) => {
     .select("*", { count: "exact", head: true })
     .eq("published", true)
     .eq("status", "approved")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .lte("publish_at", now);
 
   // Masthead lede - editable from /admin/content row 'callboard'.
   const { data: contentRow } = await supabaseAdmin

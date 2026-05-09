@@ -100,7 +100,8 @@ export const load: PageServerLoad = async () => {
       .select("*", { count: "exact", head: true })
       .eq("status", "approved")
       .eq("published", true)
-      .is("deleted_at", null),
+      .is("deleted_at", null)
+      .lte("publish_at", new Date().toISOString()),
     supabaseAdmin
       .from("productions")
       .select("*", { count: "exact", head: true })
@@ -137,6 +138,7 @@ export const load: PageServerLoad = async () => {
         .eq("status", "approved")
         .eq("published", true)
         .is("deleted_at", null)
+        .lte("publish_at", new Date().toISOString())
         .order("expires_at", { ascending: true, nullsFirst: false });
       if (!wantAllCallboard) q = q.in("id", callboardIds);
       const { data: posts } = await q.limit(30);

@@ -40,6 +40,7 @@ export const load: PageServerLoad = async () => {
     .toISOString()
     .slice(0, 10);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const nowIso = new Date().toISOString();
 
   const [
     newPostsRes,
@@ -48,7 +49,10 @@ export const load: PageServerLoad = async () => {
     productionsRes,
     postTypeLabelsRes,
   ] = await Promise.all([
-      // Callboard "new this week" - posts created in the last 7 days.
+      // Callboard "new this week" - posts that went live in the last 7
+      // days. publish_at, not created_at, so scheduled-publish posts
+      // surface in the right week. publish_at <= now() also keeps
+      // not-yet-live posts out of every section.
       supabaseAdmin
         .from("callboard_posts")
         .select(
@@ -57,9 +61,10 @@ export const load: PageServerLoad = async () => {
         .eq("status", "approved")
         .eq("published", true)
         .is("deleted_at", null)
-        .gte("created_at", sevenDaysAgo)
+        .lte("publish_at", nowIso)
+        .gte("publish_at", sevenDaysAgo)
         .order("is_ssta_event", { ascending: false })
-        .order("created_at", { ascending: false })
+        .order("publish_at", { ascending: false })
         .limit(60),
       // Callboard "closing this week" - posts whose expires_at is within
       // the next 7 days, regardless of when they were posted. Dedup
@@ -73,6 +78,7 @@ export const load: PageServerLoad = async () => {
         .eq("status", "approved")
         .eq("published", true)
         .is("deleted_at", null)
+        .lte("publish_at", nowIso)
         .not("expires_at", "is", null)
         .gte("expires_at", today)
         .lte("expires_at", weekHorizon)
@@ -90,9 +96,10 @@ export const load: PageServerLoad = async () => {
         .eq("status", "approved")
         .eq("published", true)
         .is("deleted_at", null)
+        .lte("publish_at", nowIso)
         .not("expires_at", "is", null)
         .gt("expires_at", weekHorizon)
-        .lt("created_at", sevenDaysAgo)
+        .lt("publish_at", sevenDaysAgo)
         .order("is_ssta_event", { ascending: false })
         .order("expires_at", { ascending: true })
         .limit(20),

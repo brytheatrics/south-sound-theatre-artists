@@ -344,10 +344,13 @@ async function main() {
     for (const sub of subsRes.rows) {
       const since = sub.last_digest_at ?? sub.confirmed_at ?? sub.created_at;
       const closingSoonCutoff = new Date(Date.now() + 7 * 86_400_000).toISOString();
+      const nowIso = new Date().toISOString();
 
-      // Callboard "new this week": posts created since last digest,
-      // matching the subscriber's filters.
-      const newFilter = callboardFilterClause(sub, [since]);
+      // Callboard "new this week": posts that went LIVE since last digest
+      // (publish_at, not created_at), so a post drafted weeks ago but
+      // scheduled to go live this week surfaces correctly. publish_at <=
+      // now() also gates out not-yet-live scheduled posts everywhere.
+      const newFilter = callboardFilterClause(sub, [since, nowIso]);
       const newPosts = await db.query(
         `select id, post_type, title, organization_name, deadline_text,
                 location, is_ssta_event, expires_at
@@ -355,8 +358,9 @@ async function main() {
           where status = 'approved'
             and published = true
             and deleted_at is null
-            and created_at > $1${newFilter.clause}
-          order by is_ssta_event desc, created_at desc
+            and publish_at > $1
+            and publish_at <= $2${newFilter.clause}
+          order by is_ssta_event desc, publish_at desc
           limit 30`,
         newFilter.params,
       );
@@ -366,7 +370,7 @@ async function main() {
       // the same filters. We dedup against the New list at render time
       // so a job posted yesterday and closing Friday lives only in
       // Closing (more actionable framing).
-      const closingFilter = callboardFilterClause(sub, [today, closingSoonCutoff]);
+      const closingFilter = callboardFilterClause(sub, [today, closingSoonCutoff, nowIso]);
       const closingPosts = await db.query(
         `select id, post_type, title, organization_name, deadline_text,
                 location, is_ssta_event, expires_at
@@ -374,6 +378,7 @@ async function main() {
           where status = 'approved'
             and published = true
             and deleted_at is null
+            and publish_at <= $3
             and expires_at is not null
             and expires_at >= $1::date
             and expires_at <= $2::date${closingFilter.clause}
@@ -388,7 +393,7 @@ async function main() {
       // disappear from the digest after week 1 and not reappear until
       // it crosses into "Closing this week." Requires expires_at -
       // undated perpetual posts would otherwise repeat forever.
-      const stillOpenFilter = callboardFilterClause(sub, [since, closingSoonCutoff]);
+      const stillOpenFilter = callboardFilterClause(sub, [since, closingSoonCutoff, nowIso]);
       const stillOpenPosts = await db.query(
         `select id, post_type, title, organization_name, deadline_text,
                 location, is_ssta_event, expires_at
@@ -396,10 +401,11 @@ async function main() {
           where status = 'approved'
             and published = true
             and deleted_at is null
+            and publish_at <= $3
             and expires_at is not null
             and expires_at > $2::date
-            and created_at <= $1${stillOpenFilter.clause}
-          order by is_ssta_event desc, expires_at asc, created_at desc
+            and publish_at <= $1${stillOpenFilter.clause}
+          order by is_ssta_event desc, expires_at asc, publish_at desc
           limit 20`,
         stillOpenFilter.params,
       );

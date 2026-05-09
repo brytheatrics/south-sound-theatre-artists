@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ params }) => {
     .eq("published", true)
     .eq("status", "approved")
     .is("deleted_at", null)
+    .lte("publish_at", new Date().toISOString())
     .maybeSingle();
 
   if (err) throw error(500, "Something went wrong.");
