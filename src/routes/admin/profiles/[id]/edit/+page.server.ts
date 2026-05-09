@@ -14,6 +14,7 @@ import {
 } from "$lib/server/resumes";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
 
 const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -217,6 +218,14 @@ export const actions: Actions = {
       ),
     );
 
+    // Snapshot the row BEFORE the update so we can spot the
+    // "auto-hidden -> now complete" transition and re-publish.
+    const { data: priorRow } = await supabaseAdmin
+      .from("profiles")
+      .select("auto_hidden_incomplete, published")
+      .eq("id", params.id)
+      .maybeSingle();
+
     const { error: updateErr } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -258,6 +267,27 @@ export const actions: Actions = {
       return fail(500, {
         errors: { _form: "Could not save changes. Please try again." },
       });
+    }
+
+    // Auto-republish: if the row was auto-hidden by the launch-grace
+    // cron and the admin's edit just brought it up to complete, flip
+    // published back on. Mirrors the artist-side /edit/[token] handler.
+    // Admin manual unpublishes (auto_hidden_incomplete=false) are not
+    // affected.
+    if (priorRow?.auto_hidden_incomplete && !priorRow?.published) {
+      const { data: updated } = await supabaseAdmin
+        .from("profiles")
+        .select(
+          "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent",
+        )
+        .eq("id", params.id)
+        .maybeSingle();
+      if (updated && !isProfileIncomplete(updated)) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ published: true, auto_hidden_incomplete: false })
+          .eq("id", params.id);
+      }
     }
 
     return { saved: true };

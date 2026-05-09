@@ -499,6 +499,26 @@ async function buildVars(
       };
     }
 
+    case "launch_completion_warning": {
+      const profile = await getOrCreateTestProfile();
+      const raw = await mintEditProfileToken(profile.id, profile.email);
+      const hideDate = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString(
+        "en-US",
+        { month: "long", day: "numeric", year: "numeric" },
+      );
+      return {
+        vars: {
+          name: profile.full_name,
+          // Sample missing fields list. The real cron formats from
+          // missingRequiredFields() per profile.
+          missing_fields:
+            "- Bio\n- Headshot photo + rights confirmation\n- At least one discipline",
+          hide_date: hideDate,
+          edit_url: `${PUBLIC_SITE_URL}/edit/${raw}`,
+        },
+      };
+    }
+
     // Verification-token templates
     case "email_verification": {
       const sub = await getOrCreateTestPendingSubmission();

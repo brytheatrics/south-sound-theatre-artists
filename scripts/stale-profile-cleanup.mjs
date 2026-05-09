@@ -1,14 +1,27 @@
 // scripts/stale-profile-cleanup.mjs
 //
-// Three-stage stale-profile pipeline + a trash purge:
+// Multi-stage profile lifecycle cron:
 //
+//   STALE PIPELINE (long-quiet artists)
 //   1. Profiles whose updated_at is > 18 months old and have never been
 //      pinged get the "still in the area?" email + a fresh 30-day edit
 //      token. stale_pinged_at is stamped to now().
 //   2. Profiles pinged more than 30 days ago whose updated_at hasn't
 //      moved since the ping get soft-deleted (deleted_at = now()).
+//
+//   LAUNCH-GRACE PIPELINE (bulk-imported artists invited at launch)
+//   A. Profiles where invited_at + 27 days has elapsed AND required
+//      fields are still missing AND no warning has gone out yet:
+//      send the "your profile will be hidden in 3 days" warning.
+//   B. Profiles where invited_at + 30 days has elapsed AND required
+//      fields are STILL missing: auto-hide (published=false +
+//      auto_hidden_incomplete=true). Stays in the DB; the artist can
+//      fill in fields later and the save handlers auto-republish.
+//
+//   TRASH PURGE
 //   3. Anything in soft-delete state for more than 30 days gets
-//      hard-deleted - the same 30-day retention policy used elsewhere.
+//      hard-deleted (excluding archived_stale=true rows from the stale
+//      pipeline, which we keep indefinitely).
 //
 // Runs weekly. Logs counts at the end for the GitHub Actions log.
 
@@ -19,6 +32,38 @@ const PING_AFTER_MS = 18 * 30 * 24 * 60 * 60 * 1000; // ~18 months
 const ARCHIVE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days post-ping
 const TRASH_PURGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days post soft-delete
 const PING_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const LAUNCH_GRACE_DAYS = 30; // hide cliff
+const LAUNCH_WARNING_DAYS = 27; // warning email goes out at T-3
+
+// Required-field check mirrors src/lib/server/profile-completeness.ts.
+// Inlined here because the cron is a Node-side script and importing
+// from src/ would pull SvelteKit context. Keep both copies in sync
+// when the required-field bar changes.
+const REQUIRED_FIELD_LABELS = {
+  full_name: "Full name",
+  bio: "Bio",
+  headshot: "Headshot photo + rights confirmation",
+  disciplines: "At least one discipline",
+  geographic_area: "Geographic area",
+};
+function missingRequiredFields(p) {
+  const missing = [];
+  if (!p.full_name || !String(p.full_name).trim()) missing.push("full_name");
+  if (!p.bio || !String(p.bio).trim()) missing.push("bio");
+  if (!p.headshot_url || !String(p.headshot_url).trim() || !p.headshot_consent) {
+    missing.push("headshot");
+  }
+  if (!Array.isArray(p.disciplines) || p.disciplines.length === 0) {
+    missing.push("disciplines");
+  }
+  if (!p.geographic_area || !String(p.geographic_area).trim()) {
+    missing.push("geographic_area");
+  }
+  return missing;
+}
+function formatMissingForEmail(missing) {
+  return missing.map((k) => `- ${REQUIRED_FIELD_LABELS[k] ?? k}`).join("\n");
+}
 
 function generateToken() {
   return randomBytes(32).toString("base64url");
@@ -36,6 +81,8 @@ async function main() {
     let pinged = 0;
     let archived = 0;
     let purged = 0;
+    let launchWarned = 0;
+    let launchHidden = 0;
 
     // === Stage 1: ping the long-quiet ===
     const pingCutoff = new Date(Date.now() - PING_AFTER_MS).toISOString();
@@ -113,6 +160,97 @@ async function main() {
     );
     archived = archiveRes.rowCount ?? 0;
 
+    // === Launch-grace A: warn 3 days before auto-hide ===
+    // Profiles invited > 27 days ago that are still incomplete and
+    // haven't been warned yet get the "fill these in or you'll be
+    // hidden" email. Soft-cap at PUBLIC_SITE_URL so the link works
+    // regardless of env.
+    const warnCutoff = new Date(Date.now() - LAUNCH_WARNING_DAYS * 86_400_000).toISOString();
+    const hideCutoff = new Date(Date.now() - LAUNCH_GRACE_DAYS * 86_400_000).toISOString();
+    const hideDateLabel = new Date(Date.now() + (LAUNCH_GRACE_DAYS - LAUNCH_WARNING_DAYS) * 86_400_000)
+      .toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const launchCandidatesRes = await db.query(
+      `select id, slug, email, full_name, bio, headshot_url, headshot_consent,
+              disciplines, geographic_area, invited_at,
+              completion_warning_sent_at
+         from profiles
+        where invited_at is not null
+          and invited_at <= $1
+          and deleted_at is null
+          and published = true`,
+      [warnCutoff],
+    );
+
+    for (const p of launchCandidatesRes.rows) {
+      const missing = missingRequiredFields(p);
+      if (missing.length === 0) continue; // complete; nothing to do
+      if (p.completion_warning_sent_at) continue; // already warned
+      if (!p.email) continue;
+
+      const token = generateToken();
+      const tokenHash = hashToken(token);
+      const expires = new Date(Date.now() + PING_TOKEN_TTL_MS).toISOString();
+      await db.query(
+        `insert into magic_link_tokens
+           (token_hash, email, purpose, target_id, expires_at)
+         values ($1, $2, 'edit_profile', $3, $4)`,
+        [tokenHash, p.email.toLowerCase(), p.id, expires],
+      );
+
+      const sendResult = await sendCronEmail(db, {
+        to: p.email,
+        templateSlug: "launch_completion_warning",
+        vars: {
+          name: p.full_name ?? "",
+          missing_fields: formatMissingForEmail(missing),
+          hide_date: hideDateLabel,
+          edit_url: `${siteUrl}/edit/${token}`,
+        },
+      });
+      if (sendResult.ok) {
+        await db.query(
+          `update profiles set completion_warning_sent_at = now() where id = $1`,
+          [p.id],
+        );
+        launchWarned++;
+      } else {
+        console.warn(`launch warning skipped for ${p.slug}: ${sendResult.reason}`);
+      }
+    }
+
+    // === Launch-grace B: auto-hide profiles past the 30-day cliff ===
+    // Same query shape but a different cutoff. Sets published=false +
+    // auto_hidden_incomplete=true + admin_note describing why. The
+    // save handlers on /edit/[token] and /admin/profiles/[id]/edit
+    // auto-republish if the artist later completes the missing fields.
+    const launchHideRes = await db.query(
+      `select id, slug, full_name, bio, headshot_url, headshot_consent,
+              disciplines, geographic_area
+         from profiles
+        where invited_at is not null
+          and invited_at <= $1
+          and deleted_at is null
+          and published = true
+          and auto_hidden_incomplete = false`,
+      [hideCutoff],
+    );
+    const todayIso = new Date().toISOString().slice(0, 10);
+    for (const p of launchHideRes.rows) {
+      const missing = missingRequiredFields(p);
+      if (missing.length === 0) continue; // complete; leave published
+      const note = `Auto-hidden ${todayIso} because the profile was still missing required fields 30+ days after the launch invitation went out: ${missing.map((k) => REQUIRED_FIELD_LABELS[k] ?? k).join(", ")}. Will auto-republish when the artist fills these in.`;
+      await db.query(
+        `update profiles
+            set published = false,
+                auto_hidden_incomplete = true,
+                admin_note = coalesce(nullif(admin_note, ''), $2)
+          where id = $1`,
+        [p.id, note],
+      );
+      launchHidden++;
+    }
+
     // === Stage 3: hard-purge the long-soft-deleted ===
     // archived_stale=true rows are excluded - those are auto-archived
     // stale profiles that admin should keep recoverable indefinitely
@@ -153,6 +291,7 @@ async function main() {
 
     exitOk(
       `stale-cleanup done: pinged=${pinged}, archived=${archived}, ` +
+        `launch_warned=${launchWarned}, launch_hidden=${launchHidden}, ` +
         `purged_profiles=${purged}, purged_callboard=${cbPurge.rowCount ?? 0}, ` +
         `purged_orgs=${orgPurge.rowCount ?? 0}`,
     );

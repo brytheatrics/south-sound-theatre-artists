@@ -158,17 +158,30 @@
   </header>
 
   <!-- Complete-to-publish gate. Bulk-imported profiles ship unpublished
-       when they're missing required info; this banner spells out exactly
-       what the artist needs to fill in. Once they save with everything
-       complete, the action flips published=true automatically. -->
+       when they're missing required info; the launch-grace cron also
+       auto-hides incomplete invited profiles after 30 days. Either way,
+       this banner spells out what the artist needs to fill in. The save
+       action flips published=true automatically once everything's in. -->
   {#if data.missingFields.length > 0}
     <div class="incomplete-banner" role="status">
       <p class="incomplete-title">
-        <strong>Your profile isn't visible to the public yet.</strong>
+        <strong>
+          {#if p.auto_hidden_incomplete}
+            Your profile is currently hidden from the public directory.
+          {:else}
+            Your profile isn't visible to the public yet.
+          {/if}
+        </strong>
       </p>
       <p class="incomplete-body">
-        Please fill in the following before saving and your profile will
-        be published immediately:
+        {#if p.auto_hidden_incomplete}
+          We hid it because it's missing required info. Fill in the
+          following and save - your profile will be visible again
+          immediately:
+        {:else}
+          Please fill in the following before saving and your profile
+          will be published immediately:
+        {/if}
       </p>
       <ul class="incomplete-list">
         {#each data.missingFields as f (f)}

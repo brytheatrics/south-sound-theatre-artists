@@ -19,6 +19,7 @@ import {
   ensureDefaultResume,
   loadProfileResumes,
 } from "$lib/server/resumes";
+import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
@@ -118,6 +119,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const p = profileRes.data;
   const missingFields: string[] = [];
   if (!p.full_name) missingFields.push("Name");
+  if (!p.bio || !p.bio.trim()) missingFields.push("Bio");
   // Headshot is suppressed for minor profiles (we never display it
   // publicly), so it isn't required for them. The same exception
   // applies to the headshot_consent check below.
@@ -345,31 +347,27 @@ export const actions: Actions = {
     }
 
     // Auto-publish gate: bulk-imported profiles ship unpublished when
-    // they're missing required info. After this save, refetch the row
-    // and check the publishable bar against actual DB state (untrusted
-    // users' major-field edits go to flagged_edits, not the row, so we
-    // can't trust the form submission alone). Flip published only when
-    // every required field is genuinely present.
+    // they're missing required info, AND launch-grace auto-hide flips
+    // published=false on incomplete invited profiles after T+30. After
+    // this save, refetch the row and check the publishable bar against
+    // actual DB state (untrusted users' major-field edits go to
+    // flagged_edits, not the row, so we can't trust the form submission
+    // alone). Flip published only when every required field is
+    // genuinely present.
     const { data: updated } = await supabaseAdmin
       .from("profiles")
       .select(
-        "full_name, geographic_area, disciplines, headshot_url, headshot_consent, published",
+        "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent, published, auto_hidden_incomplete",
       )
       .eq("id", token.target_id)
       .maybeSingle();
-    if (updated && !updated.published) {
-      const isComplete =
-        !!updated.full_name &&
-        !!updated.headshot_url &&
-        !!updated.geographic_area &&
-        (updated.disciplines ?? []).length > 0 &&
-        updated.headshot_consent;
-      if (isComplete) {
-        await supabaseAdmin
-          .from("profiles")
-          .update({ published: true })
-          .eq("id", token.target_id);
-      }
+    if (updated && !updated.published && !isProfileIncomplete(updated)) {
+      // Clear auto_hidden_incomplete when re-publishing so the next
+      // hide cycle (if it ever fires again) treats it as a fresh case.
+      await supabaseAdmin
+        .from("profiles")
+        .update({ published: true, auto_hidden_incomplete: false })
+        .eq("id", token.target_id);
     }
 
     let queued = false;
