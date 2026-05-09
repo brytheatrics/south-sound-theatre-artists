@@ -235,7 +235,6 @@ async function main() {
           and auto_hidden_incomplete = false`,
       [hideCutoff],
     );
-    const todayIso = new Date().toISOString().slice(0, 10);
     for (const p of launchHideRes.rows) {
       const missing = missingRequiredFields(p);
       if (missing.length === 0) continue; // complete; leave published
