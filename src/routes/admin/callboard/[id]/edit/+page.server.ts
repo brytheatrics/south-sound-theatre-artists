@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ params }) => {
     .select(
       `id, post_type, title, organization_name, area_id, location,
        description, roles, compensation_type, compensation, contact_info,
-       key_dates, deadline_text, expires_at, ticket_url, submitter_email,
+       key_dates, expires_at, ticket_url, submitter_email,
        organization_id, status, published, is_ssta_event, created_at, updated_at,
        reviewed_at, deleted_at`,
     )
@@ -81,7 +81,6 @@ export const actions: Actions = {
     const compensation_type = String(fd.get("compensation_type") ?? "").trim();
     const compensation = String(fd.get("compensation") ?? "").trim();
     const contact_info = String(fd.get("contact_info") ?? "").trim();
-    const deadline_text = String(fd.get("deadline_text") ?? "").trim();
     const expires_at_raw = String(fd.get("expires_at") ?? "").trim();
     const ticket_url = String(fd.get("ticket_url") ?? "").trim();
     const status = String(fd.get("status") ?? "").trim();
@@ -157,7 +156,6 @@ export const actions: Actions = {
         compensation_type: compensation_type || null,
         compensation: compensation || null,
         contact_info: contact_info || null,
-        deadline_text: deadline_text || null,
         expires_at,
         ticket_url: ticket_url || null,
         status,

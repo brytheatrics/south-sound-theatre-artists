@@ -16,7 +16,6 @@
     compensation_type?: string | null;
     compensation?: string | null;
     contact_info?: string | null;
-    deadline_text?: string | null;
     expires_at?: string | null;
     ticket_url?: string | null;
     status?: string;
@@ -179,28 +178,16 @@
     </span>
   </label>
 
-  <div class="row-2">
-    <label class="field">
-      <span>Deadline (display text)</span>
-      <input
-        name="deadline_text"
-        type="text"
-        value={initial.deadline_text ?? ""}
-        placeholder="Sign up by May 5"
-      />
-      <span class="hint">Free text shown on the card.</span>
-    </label>
-    <label class="field">
-      <span>Auto-unpublish at</span>
-      <input
-        name="expires_at"
-        type="datetime-local"
-        value={toLocalInput(initial.expires_at)}
-      />
-      {#if formErrors.expires_at}<p class="field-error">{formErrors.expires_at}</p>{/if}
-      <span class="hint">When this passes, the post drops off the public callboard.</span>
-    </label>
-  </div>
+  <label class="field">
+    <span>Auto-unpublish at</span>
+    <input
+      name="expires_at"
+      type="datetime-local"
+      value={toLocalInput(initial.expires_at)}
+    />
+    {#if formErrors.expires_at}<p class="field-error">{formErrors.expires_at}</p>{/if}
+    <span class="hint">When this passes, the post drops off the public callboard.</span>
+  </label>
 
   <label class="field">
     <span>Ticket / sign-up URL</span>

@@ -54,7 +54,6 @@ export const actions: Actions = {
     const compensation_type = String(fd.get("compensation_type") ?? "").trim();
     const compensation = String(fd.get("compensation") ?? "").trim();
     const contact_info = String(fd.get("contact_info") ?? "").trim();
-    const deadline_text = String(fd.get("deadline_text") ?? "").trim();
     const expires_at_raw = String(fd.get("expires_at") ?? "").trim();
     const ticket_url = String(fd.get("ticket_url") ?? "").trim();
     const published = fd.get("published") === "on";
@@ -125,7 +124,6 @@ export const actions: Actions = {
         compensation_type: compensation_type || null,
         compensation: compensation || null,
         contact_info: contact_info || null,
-        deadline_text: deadline_text || null,
         expires_at,
         ticket_url: ticket_url || null,
         // Admin-authored: stamp the admin email + auto-approve. The
