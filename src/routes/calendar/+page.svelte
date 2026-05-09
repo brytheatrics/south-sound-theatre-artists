@@ -564,10 +564,11 @@
     align-items: center;
     flex-wrap: wrap;
     margin: 0 0 1rem;
+    max-width: 540px;
   }
   .search-bar input[type="search"] {
-    flex: 1 1 280px;
-    min-width: 200px;
+    flex: 1 1 220px;
+    min-width: 180px;
     padding: 0.55rem 0.85rem;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
