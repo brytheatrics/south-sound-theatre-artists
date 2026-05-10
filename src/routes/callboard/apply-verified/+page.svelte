@@ -1,7 +1,18 @@
 <script lang="ts">
   import { enhance } from "$app/forms";
-  import type { ActionData } from "./$types";
-  let { form }: { form: ActionData } = $props();
+  import type { ActionData, PageData } from "./$types";
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  // svelte-ignore state_referenced_locally
+  let pickedAreaId = $state<string>(form?.values?.areaId ?? "");
+  // svelte-ignore state_referenced_locally
+  let pickedCategories = $state<string[]>(form?.values?.categories ?? []);
+
+  function toggleCategory(slug: string) {
+    pickedCategories = pickedCategories.includes(slug)
+      ? pickedCategories.filter((s) => s !== slug)
+      : [...pickedCategories, slug];
+  }
 </script>
 
 <svelte:head>
@@ -108,8 +119,56 @@
         id="description"
         name="description"
         class="textarea"
-        rows="4"
       >{form?.values?.description ?? ""}</textarea>
+    </div>
+
+    <div class="field">
+      <span class="label">
+        Area <span class="req">*</span>
+        <span class="label-hint">Where your organization is based. Drives /theatres grouping + the digest's area filter.</span>
+      </span>
+      <div class="chip-row" class:error={!!form?.errors?.area_id}>
+        {#each data.areas as a (a.id)}
+          <label class="chip" class:on={pickedAreaId === a.id}>
+            <input
+              type="radio"
+              name="area_id"
+              value={a.id}
+              checked={pickedAreaId === a.id}
+              onchange={() => (pickedAreaId = a.id)}
+              required
+            />
+            <span>{a.name}</span>
+          </label>
+        {/each}
+      </div>
+      {#if form?.errors?.area_id}
+        <p class="field-error">{form.errors.area_id}</p>
+      {/if}
+    </div>
+
+    <div class="field">
+      <span class="label">
+        Categories <span class="req">*</span>
+        <span class="label-hint">Pick all that apply. Drives the chip filter + badges on /theatres. An organization that operates both a mainstage and an educational department should pick both.</span>
+      </span>
+      <div class="cat-grid">
+        {#each data.categoryOptions as opt (opt.slug)}
+          <label class="cat-opt" class:on={pickedCategories.includes(opt.slug)}>
+            <input
+              type="checkbox"
+              name="categories"
+              value={opt.slug}
+              checked={pickedCategories.includes(opt.slug)}
+              onchange={() => toggleCategory(opt.slug)}
+            />
+            <span>{opt.label}</span>
+          </label>
+        {/each}
+      </div>
+      {#if form?.errors?.categories}
+        <p class="field-error">{form.errors.categories}</p>
+      {/if}
     </div>
 
     <div class="submit-row">
@@ -171,7 +230,63 @@
     border-color: var(--accent);
   }
   .input.error { border-color: var(--warn); }
-  .textarea { resize: vertical; line-height: 1.5; }
+  .textarea { resize: vertical; line-height: 1.5; min-height: 5rem; }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 4px;
+  }
+  .chip-row.error { outline: 1px solid var(--warn); border-radius: var(--radius); padding: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.on {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .chip input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+  }
+
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px 14px;
+    margin-top: 4px;
+  }
+  .cat-opt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .cat-opt input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+  .cat-opt.on { color: var(--ink); font-weight: 500; }
   .field-error { font-size: 12px; color: var(--warn); margin: 0; }
   .form-error {
     background: color-mix(in oklch, var(--warn), var(--bg) 80%);
