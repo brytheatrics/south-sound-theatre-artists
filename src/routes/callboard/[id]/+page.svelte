@@ -3,7 +3,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const { post, verifiedOrgName, typeLabel } = data;
+  const { post, verifiedOrgName, isVerified, typeLabel } = data;
 
   function isClosingSoon(expiresAt: string | null): boolean {
     if (!expiresAt) return false;
@@ -36,7 +36,7 @@
   <main class="post-main">
     <div class="post-top">
       <span class="type-badge">{typeLabel}</span>
-      {#if post.organization_id}
+      {#if isVerified}
         <span class="verified-badge" title="Verified producing company">&#10003;</span>
         {#if verifiedOrgName}
           <span class="verified-label">Verified company</span>

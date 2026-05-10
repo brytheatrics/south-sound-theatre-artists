@@ -24,15 +24,22 @@ export const load: PageServerLoad = async ({ params }) => {
   if (err) throw error(500, "Something went wrong.");
   if (!data) throw error(404, "Post not found.");
 
-  // Fetch verified org name if applicable.
+  // Resolve the linked org's name + verified flag together. The
+  // "Verified company" badge gates on verified=true, NOT on
+  // organization_id alone - admin-authored posts can link to a
+  // producing-but-unverified theatre via organization_id without
+  // earning the badge.
   let orgName: string | null = null;
+  let isVerified = false;
   if (data.organization_id) {
     const { data: org } = await supabaseAdmin
       .from("organizations")
-      .select("name")
+      .select("name, verified")
       .eq("id", data.organization_id)
+      .is("deleted_at", null)
       .maybeSingle();
     orgName = org?.name ?? null;
+    isVerified = org?.verified === true;
   }
 
   // Look up the type's display label from callboard_post_types so the
@@ -46,7 +53,8 @@ export const load: PageServerLoad = async ({ params }) => {
 
   return {
     post: data,
-    verifiedOrgName: orgName,
+    verifiedOrgName: isVerified ? orgName : null,
+    isVerified,
     typeLabel: typeRow?.label ?? data.post_type,
   };
 };

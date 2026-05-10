@@ -141,7 +141,7 @@
           <td data-label="Post">
             <div class="post-title">
               <a href="/callboard/{p.id}" target="_blank" rel="noopener">{p.title}</a>
-              {#if p.organization_id}
+              {#if p.is_verified}
                 <span class="verified-badge" title="Verified org">&#10003;</span>
               {/if}
             </div>

@@ -6,6 +6,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
+import { loadVerifiedOrgIds } from "$lib/server/verifiedOrgs";
 
 const PAGE_SIZE = 50;
 
@@ -73,9 +74,15 @@ export const load: PageServerLoad = async ({ url }) => {
   const areaNameById = new Map(
     (areaRows ?? []).map((a) => [a.id, a.name]),
   );
+  // Resolve "verified" badges from the actual orgs.verified flag, not
+  // from the presence of organization_id (admin-authored posts can
+  // legitimately link to an unverified producing theatre and shouldn't
+  // earn the verified badge).
+  const verifiedOrgIds = await loadVerifiedOrgIds();
   const enrichedPosts = (data ?? []).map((p) => ({
     ...p,
     area_name: p.area_id ? areaNameById.get(p.area_id) ?? null : null,
+    is_verified: !!p.organization_id && verifiedOrgIds.has(p.organization_id),
   }));
 
   return {
