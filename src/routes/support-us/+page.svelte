@@ -1,6 +1,5 @@
 <script lang="ts">
   import { renderMarkdown } from "$lib/util/markdown";
-  import KofiWidget from "$lib/components/KofiWidget.svelte";
   let { data } = $props();
 </script>
 
@@ -11,7 +10,6 @@
 <main>
   <span class="eyebrow"><span class="num">·</span>Support us</span>
   <article class="prose">{@html renderMarkdown(data.content.body_markdown)}</article>
-  <KofiWidget />
 </main>
 
 <style>
