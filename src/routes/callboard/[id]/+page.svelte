@@ -79,7 +79,7 @@
     {#if post.ticket_url}
       <div class="ticket-row">
         <a class="bt bt-acc" href={post.ticket_url} target="_blank" rel="noopener">
-          Tickets &amp; info &rarr;
+          {post.post_type === "production" ? "Tickets & info" : "More info"} &rarr;
         </a>
       </div>
     {/if}
