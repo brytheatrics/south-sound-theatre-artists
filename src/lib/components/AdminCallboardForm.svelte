@@ -16,6 +16,7 @@
     compensation_type?: string | null;
     compensation?: string | null;
     contact_info?: string | null;
+    publish_at?: string | null;
     expires_at?: string | null;
     ticket_url?: string | null;
     status?: string;
@@ -43,17 +44,35 @@
   /* svelte-ignore state_referenced_locally */
   let pickedPostType = $state<string>(initial.post_type ?? "");
 
-  // Convert ISO timestamp -> "YYYY-MM-DDTHH:MM" for <input type="datetime-local">.
-  function toLocalInput(iso: string | null | undefined): string {
+  // Convert ISO timestamp -> "YYYY-MM-DD" for <input type="date">.
+  function toDateInput(iso: string | null | undefined): string {
     if (!iso) return "";
     const d = new Date(iso);
     if (isNaN(d.getTime())) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return (
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-      `T${pad(d.getHours())}:${pad(d.getMinutes())}`
-    );
+    return d.toISOString().slice(0, 10);
   }
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  /* svelte-ignore state_referenced_locally */
+  let publishAt = $state<string>(toDateInput(initial.publish_at) || todayIso);
+  /* svelte-ignore state_referenced_locally */
+  let expiresAt = $state<string>(toDateInput(initial.expires_at));
+
+  // Auto-remove cap = publish_at + 90 days, mirroring the public form.
+  const expiresMax = $derived.by(() => {
+    if (!publishAt) return "";
+    const d = new Date(`${publishAt}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 90);
+    return d.toISOString().slice(0, 10);
+  });
+
+  /* svelte-ignore state_referenced_locally */
+  let compensationType = $state<string>(initial.compensation_type ?? "");
+  // Compensation Details only makes sense for paid / stipend. Mirror
+  // the public submit form's "hide when None" UX.
+  const showCompensationDetails = $derived(
+    compensationType === "paid" || compensationType === "stipend",
+  );
 </script>
 
 <form method="POST" action={actionUrl} class="form">
@@ -148,46 +167,69 @@
 
   <div class="row-2">
     <label class="field">
-      <span>Compensation type</span>
-      <select name="compensation_type" value={initial.compensation_type ?? ""}>
-        <option value="">— pick —</option>
+      <span>Compensation type <span class="req">*</span></span>
+      <select
+        name="compensation_type"
+        bind:value={compensationType}
+        required
+      >
+        <option value="">-- pick --</option>
         <option value="paid">Paid</option>
         <option value="stipend">Stipend</option>
-        <option value="volunteer">Volunteer</option>
-        <option value="none">Unspecified</option>
+        <option value="none">None / unpaid</option>
       </select>
       {#if formErrors.compensation_type}<p class="field-error">{formErrors.compensation_type}</p>{/if}
     </label>
-    <label class="field">
-      <span>Compensation detail</span>
-      <input
-        name="compensation"
-        type="text"
-        value={initial.compensation ?? ""}
-        placeholder="$500 stipend, free housing, etc."
-      />
-    </label>
+    {#if showCompensationDetails}
+      <label class="field">
+        <span>Compensation detail</span>
+        <input
+          name="compensation"
+          type="text"
+          value={initial.compensation ?? ""}
+          placeholder="$500 stipend, free housing, etc."
+        />
+      </label>
+    {/if}
   </div>
 
   <label class="field">
-    <span>Contact info</span>
-    <textarea name="contact_info" rows="3">{initial.contact_info ?? ""}</textarea>
+    <span>Contact info <span class="req">*</span></span>
+    <textarea name="contact_info" rows="3" required>{initial.contact_info ?? ""}</textarea>
     <span class="hint">
-      Free text. Email, phone, link to a sign-up form - whatever the
-      poster wants visitors to do.
+      Email, Casting Manager URL, phone, sign-up form - whatever an
+      interested artist should do next.
     </span>
+    {#if formErrors.contact_info}<p class="field-error">{formErrors.contact_info}</p>{/if}
   </label>
 
-  <label class="field">
-    <span>Auto-unpublish at</span>
-    <input
-      name="expires_at"
-      type="datetime-local"
-      value={toLocalInput(initial.expires_at)}
-    />
-    {#if formErrors.expires_at}<p class="field-error">{formErrors.expires_at}</p>{/if}
-    <span class="hint">When this passes, the post drops off the public callboard.</span>
-  </label>
+  <div class="row-2">
+    <label class="field">
+      <span>Post date <span class="req">*</span></span>
+      <input
+        name="publish_at"
+        type="date"
+        bind:value={publishAt}
+        min={mode === "new" ? todayIso : undefined}
+        required
+      />
+      <span class="hint">When the listing goes live. Defaults to today; pick a future date to schedule.</span>
+      {#if formErrors.publish_at}<p class="field-error">{formErrors.publish_at}</p>{/if}
+    </label>
+    <label class="field">
+      <span>Expiration date <span class="req">*</span></span>
+      <input
+        name="expires_at"
+        type="date"
+        bind:value={expiresAt}
+        min={publishAt || todayIso}
+        max={expiresMax}
+        required
+      />
+      <span class="hint">Post hides automatically on this date. Up to 90 days after the post date.</span>
+      {#if formErrors.expires_at}<p class="field-error">{formErrors.expires_at}</p>{/if}
+    </label>
+  </div>
 
   <label class="field">
     <span>Ticket / sign-up URL</span>
@@ -275,7 +317,7 @@
   }
   .field-error { font-size: 12px; color: var(--warn); margin: 0; }
 
-  input[type="text"], input[type="url"], input[type="datetime-local"], select, textarea {
+  input[type="text"], input[type="url"], input[type="date"], select, textarea {
     padding: 9px 12px;
     border: 1px solid var(--rule);
     border-radius: var(--radius);
