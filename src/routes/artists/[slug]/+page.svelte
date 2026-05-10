@@ -283,8 +283,22 @@
           </div>
         {/if}
 
+        {#if visibleSkills.length > 0}
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "03" : "02"}</span>Skills</span>
+          <ul class="rd-list compact">
+            {#each visibleSkills as s (s.id)}
+              <li class="rd-row">
+                <span class="rd-primary">
+                  <strong>{s.data?.category}</strong>
+                  {#if s.data?.items}<span class="rd-role"> - {s.data.items}</span>{/if}
+                </span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
         {#if visibleCredits.length > 0}
-          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "03" : "02"}</span>Credits</span>
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "04" : "03"}</span>Credits</span>
           <ul class="rd-list">
             {#each visibleCredits as c (c.id)}
               <li class="rd-row">
@@ -302,7 +316,7 @@
         {/if}
 
         {#if visibleTraining.length > 0}
-          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "04" : "03"}</span>Training</span>
+          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "05" : "04"}</span>Training</span>
           <ul class="rd-list">
             {#each visibleTraining as t (t.id)}
               <li class="rd-row">
@@ -315,20 +329,6 @@
                     {#if t.data?.year}{t.data.year}{/if}{#if t.data?.year && t.data?.notes} · {/if}{#if t.data?.notes}{t.data.notes}{/if}
                   </span>
                 {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-
-        {#if visibleSkills.length > 0}
-          <span class="eyebrow"><span class="num">{data.resumeSnapshot.resumes.length > 1 ? "05" : "04"}</span>Skills</span>
-          <ul class="rd-list compact">
-            {#each visibleSkills as s (s.id)}
-              <li class="rd-row">
-                <span class="rd-primary">
-                  <strong>{s.data?.category}</strong>
-                  {#if s.data?.items}<span class="rd-role"> - {s.data.items}</span>{/if}
-                </span>
               </li>
             {/each}
           </ul>

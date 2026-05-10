@@ -327,7 +327,7 @@
         {#if headshotUrl}
           <label class="checkbox">
             <input type="checkbox" name="headshot_consent" bind:checked={headshotConsent} />
-            <span>I confirm I have the rights to use this image.</span>
+            <span>I confirm I have the rights to use this image. <span class="req">*</span></span>
           </label>
           {#if errors.headshot_consent}<span class="error">{errors.headshot_consent}</span>{/if}
         {/if}
@@ -408,27 +408,30 @@
 
     <fieldset>
       <legend>Mentorship</legend>
-      <p class="hint">
-        Optional. Visible on your profile and filterable on the directory.
-      </p>
-      <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
-      <DisciplinePicker
-        items={data.disciplines}
-        categoryOrder={data.disciplineCategories}
-        selected={mentorshipOffering}
-        onToggle={(n) => (mentorshipOffering = toggleSet(mentorshipOffering, n))}
-        inputName="mentorship_offering"
-        showOtherInput={false}
-      />
-      <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
-      <DisciplinePicker
-        items={data.disciplines}
-        categoryOrder={data.disciplineCategories}
-        selected={mentorshipSeeking}
-        onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
-        inputName="mentorship_seeking"
-        showOtherInput={false}
-      />
+      <details open={mentorshipOffering.size > 0 || mentorshipSeeking.size > 0} class="mentorship-disclosure">
+        <summary>Open to mentoring others, or looking to learn? Tap to choose.</summary>
+        <p class="hint">
+          Optional. Visible on your profile and filterable on the directory.
+        </p>
+        <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
+        <DisciplinePicker
+          items={data.disciplines}
+          categoryOrder={data.disciplineCategories}
+          selected={mentorshipOffering}
+          onToggle={(n) => (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+          inputName="mentorship_offering"
+          showOtherInput={false}
+        />
+        <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
+        <DisciplinePicker
+          items={data.disciplines}
+          categoryOrder={data.disciplineCategories}
+          selected={mentorshipSeeking}
+          onToggle={(n) => (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+          inputName="mentorship_seeking"
+          showOtherInput={false}
+        />
+      </details>
     </fieldset>
 
     <fieldset>
@@ -560,6 +563,23 @@
 </main>
 
 <style>
+  .mentorship-disclosure > summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+  .mentorship-disclosure > summary::-webkit-details-marker { display: none; }
+  .mentorship-disclosure > summary::after {
+    content: "▼";
+    margin-left: 0.5em;
+    color: var(--accent);
+    font-size: 0.85em;
+    display: inline-block;
+    transition: transform 120ms;
+  }
+  .mentorship-disclosure[open] > summary::after { transform: rotate(180deg); }
+
   main {
     max-width: 720px;
     margin: 0 auto;

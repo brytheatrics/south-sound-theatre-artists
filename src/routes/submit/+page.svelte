@@ -52,8 +52,17 @@
     mentorshipOffering?: string[];
     mentorshipSeeking?: string[];
   };
+  // Prefill priority: a previous validation-fail's posted values win, then
+  // a resubmit-token prefill from the load function (?token=... after
+  // rejection), then empty. We capture all three at module init - the
+  // form is single-purpose and shouldn't reactively re-init when the
+  // user types.
   // svelte-ignore state_referenced_locally
-  const v: FormValues = (form?.values ?? {}) as FormValues;
+  const v: FormValues = (form?.values ?? data.prefill?.values ?? {}) as FormValues;
+  // svelte-ignore state_referenced_locally
+  const resubmitToken = data.prefill?.token ?? null;
+  // svelte-ignore state_referenced_locally
+  const resubmitReason = data.prefill?.rejectionReason ?? null;
 
   let fullName = $state(v.fullName ?? "");
   let email = $state(v.email ?? "");
@@ -173,6 +182,15 @@
     </div>
   {/if}
 
+  {#if resubmitToken}
+    <div class="resubmit-banner" role="status">
+      <p><strong>Editing your earlier submission.</strong> Your previous answers are filled in - update what needs to change and resubmit.</p>
+      {#if resubmitReason}
+        <p class="resubmit-reason"><strong>Reason it was rejected:</strong> {resubmitReason}</p>
+      {/if}
+    </div>
+  {/if}
+
   <form
     method="POST"
     use:enhance={() => {
@@ -201,6 +219,9 @@
       };
     }}
   >
+    {#if resubmitToken}
+      <input type="hidden" name="resubmit_token" value={resubmitToken} />
+    {/if}
     <div class="honeypot" aria-hidden="true">
       <label for="website_url_extra">Leave this empty</label>
       <input
@@ -357,7 +378,7 @@
             />
             <span>
               I confirm I have the rights to use this image, including any
-              photographer credit if applicable.
+              photographer credit if applicable. <span class="req">*</span>
             </span>
           </label>
           {#if errors.headshot_consent}
@@ -442,32 +463,35 @@
 
     <fieldset>
       <legend>Mentorship</legend>
-      <p class="hint">
-        Optional. Both directions are visible on your profile and the
-        directory has filters for either.
-      </p>
+      <details open={mentorshipOffering.size > 0 || mentorshipSeeking.size > 0} class="mentorship-disclosure">
+        <summary>Open to mentoring others, or looking to learn? Tap to choose.</summary>
+        <p class="hint">
+          Optional. Both directions are visible on your profile and the
+          directory has filters for either.
+        </p>
 
-      <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
-      <DisciplinePicker
-        items={data.disciplines}
-        categoryOrder={data.disciplineCategories}
-        selected={mentorshipOffering}
-        onToggle={(n) =>
-          (mentorshipOffering = toggleSet(mentorshipOffering, n))}
-        inputName="mentorship_offering"
-        showOtherInput={false}
-      />
+        <h3 class="field-label" style="margin-top: 0.5rem">Open to mentoring in</h3>
+        <DisciplinePicker
+          items={data.disciplines}
+          categoryOrder={data.disciplineCategories}
+          selected={mentorshipOffering}
+          onToggle={(n) =>
+            (mentorshipOffering = toggleSet(mentorshipOffering, n))}
+          inputName="mentorship_offering"
+          showOtherInput={false}
+        />
 
-      <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
-      <DisciplinePicker
-        items={data.disciplines}
-        categoryOrder={data.disciplineCategories}
-        selected={mentorshipSeeking}
-        onToggle={(n) =>
-          (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
-        inputName="mentorship_seeking"
-        showOtherInput={false}
-      />
+        <h3 class="field-label" style="margin-top: 1rem">Looking to learn</h3>
+        <DisciplinePicker
+          items={data.disciplines}
+          categoryOrder={data.disciplineCategories}
+          selected={mentorshipSeeking}
+          onToggle={(n) =>
+            (mentorshipSeeking = toggleSet(mentorshipSeeking, n))}
+          inputName="mentorship_seeking"
+          showOtherInput={false}
+        />
+      </details>
     </fieldset>
 
     <fieldset>
@@ -714,6 +738,34 @@
 />
 
 <style>
+  .resubmit-banner {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-raised);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    color: var(--ink);
+  }
+  .resubmit-banner p { margin: 0.25rem 0; font-size: 14px; line-height: 1.5; }
+  .resubmit-reason { color: var(--ink-soft); }
+
+  .mentorship-disclosure > summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+  .mentorship-disclosure > summary::-webkit-details-marker { display: none; }
+  .mentorship-disclosure > summary::after {
+    content: "▼";
+    margin-left: 0.5em;
+    color: var(--accent);
+    font-size: 0.85em;
+    display: inline-block;
+    transition: transform 120ms;
+  }
+  .mentorship-disclosure[open] > summary::after { transform: rotate(180deg); }
+
   main {
     max-width: 720px;
     margin: 0 auto;

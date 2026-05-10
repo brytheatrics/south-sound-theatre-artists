@@ -342,7 +342,7 @@
   {/if}
 
   <!-- ===== Credits ===== -->
-  <details class="section collapsible-section" open>
+  <details class="section collapsible-section">
     <summary class="sec-head">
       <h3 class="sec-title">Theatre credits <span class="sec-count">({credits.length})</span></h3>
       <button
