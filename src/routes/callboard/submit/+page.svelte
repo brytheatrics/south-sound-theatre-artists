@@ -218,10 +218,8 @@
           <span class="label-hint">
             {#if postType === "audition"}
               Roles available, production details, what to prepare, etc.
-            {:else if postType === "designer"}
-              Design scope, tech specs, aesthetic direction, mentorship notes, etc.
-            {:else if postType === "crew"}
-              Duties, schedule, experience needed, etc.
+            {:else if postType === "production_team"}
+              Open positions (designer / SM / crew / etc.), show or season details, scope, schedule, experience needed.
             {:else if postType === "production"}
               Show info, company, what audiences can expect.
             {:else}
