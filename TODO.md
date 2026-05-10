@@ -102,7 +102,11 @@ Code / DB work that doesn't depend on launch state. I'll knock these out wheneve
 
 ## 4. Parking lot
 
-Discussed and parked. Revisit if real usage signals demand.
+Discussed and parked. Mostly speculative - revisit if real usage signals demand. The first sub-section is the exception: definite builds that just got sequenced for after launch.
+
+### Definite builds (post-launch)
+
+- **Self-serve edit for callboard posts.** Today there's no public path to edit a posted call - posters have to email Lexi. Build an "Edit this post" link near the bottom of `/callboard/[id]` (or on the post-submit thanks page) that takes them to a small form: re-enter the name + email they used at submit time, system emails them a fresh magic-link to `/callboard/edit/[token]`. Token TTL = until expires_at, or 30 days max. Reuses most of the public submit form's component. ~3-4 hrs total: token issuance + edit page + edit-link request page + email template. Mirrors the artist-side `/edit-link` + `/edit/[token]` flow that already works for profiles, just scoped to callboard rows.
 
 ### v2.x roadmap (deferred)
 
