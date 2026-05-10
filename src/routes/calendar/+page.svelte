@@ -408,6 +408,23 @@
   </section>
 {/if}
 
+<!-- FOOTER CTA -->
+<footer class="board-footer">
+  <div class="footer-copy">
+    <span class="eyebrow"><span class="num">+</span>For producing companies</span>
+    <h2 class="footer-heading">Post a performance. <span class="serif-it">It's free.</span></h2>
+    <p class="footer-body">
+      Verified South Sound companies can post plays, musicals, staged readings,
+      and other performances at no cost. Anyone can submit - new companies are
+      vetted by hand, usually within 48 hours.
+    </p>
+  </div>
+  <div class="footer-actions">
+    <a class="bt bt-pri" href="/calendar/submit">Post a performance</a>
+    <a class="bt bt-ghost" href="/callboard/apply-verified">Get verified</a>
+  </div>
+</footer>
+
 <!-- WEEKLY DIGEST CTA -->
 <aside class="digest-cta">
   <span class="eyebrow"><span class="num">·</span>Weekly digest</span>
@@ -418,6 +435,68 @@
 </aside>
 
 <style>
+  /* FOOTER CTA - mirrors /callboard's footer */
+  .board-footer {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 3rem;
+    align-items: center;
+    border-top: 1px solid var(--rule);
+    padding: 2.5rem var(--page-pad-x) 3.5rem;
+    margin-top: 1rem;
+    background: var(--bg-raised);
+  }
+  .footer-heading {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0.875rem 0 0;
+  }
+  .footer-heading .serif-it {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .footer-body {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0.875rem 0 0;
+    max-width: 480px;
+  }
+  .footer-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    align-items: flex-start;
+  }
+  .bt {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.2;
+  }
+  .bt-pri {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .bt-pri:hover { background: var(--accent); border-color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px) {
+    .board-footer { grid-template-columns: 1fr; }
+  }
+
   /* WEEKLY DIGEST CTA - shared shape with /callboard's strip */
   .digest-cta {
     margin: 1.5rem var(--page-pad-x);

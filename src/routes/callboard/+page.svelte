@@ -281,7 +281,7 @@
               <div class="eyebrow warn-text closing-flag">&#9679; Closing soon</div>
             {/if}
           {/if}
-          <a class="bt bt-pri apply-btn" href="/callboard/{p.id}">Read &amp; apply</a>
+          <a class="bt bt-pri apply-btn" href="/callboard/{p.id}">Read more</a>
         </div>
       </article>
     {/each}
