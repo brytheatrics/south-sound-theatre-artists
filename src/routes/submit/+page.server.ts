@@ -20,7 +20,79 @@ import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
-export const load: PageServerLoad = async () => {
+// Load any prefill data from a single-use resubmit token (?token=...).
+// Mints come from rejectOne in /admin/+page.server.ts. Returns null if
+// the token is missing, unknown, used, expired, wrong purpose, or the
+// underlying pending_submissions row no longer exists.
+async function loadResubmitPrefill(rawToken: string | null) {
+  if (!rawToken || rawToken.length < 16) return null;
+  const tokenHash = hashToken(rawToken);
+  const { data: tk } = await supabaseAdmin
+    .from("magic_link_tokens")
+    .select("id, target_id, expires_at, used_at, purpose")
+    .eq("token_hash", tokenHash)
+    .eq("purpose", "resubmit_profile")
+    .maybeSingle();
+  if (!tk || tk.used_at || !tk.target_id) return null;
+  if (new Date(tk.expires_at) < new Date()) return null;
+  const { data: sub } = await supabaseAdmin
+    .from("pending_submissions")
+    .select(
+      `email, full_name, pronouns, bio, disciplines, headshot_url,
+       headshot_consent, geographic_area, city, resumes, resume_data,
+       mentorship_offering, mentorship_seeking, phone,
+       playable_age_min, playable_age_max, languages, unions,
+       instagram_handle, facebook_url, tiktok_handle, linkedin_url,
+       twitter_handle, youtube_url, website_url, desired_slug, ethnicities,
+       is_minor, guardian_email, guardian_name, rejection_reason, status`,
+    )
+    .eq("id", tk.target_id)
+    .maybeSingle();
+  if (!sub) return null;
+  // Map DB columns to the form's camelCase shape.
+  return {
+    token: rawToken,
+    rejectionReason: sub.rejection_reason ?? null,
+    values: {
+      fullName: sub.full_name ?? "",
+      email: sub.email ?? "",
+      phone: sub.phone ?? "",
+      slug: sub.desired_slug ?? "",
+      bio: sub.bio ?? "",
+      pronouns: sub.pronouns ?? "",
+      headshotUrl: sub.headshot_url ?? "",
+      headshotConsent: !!sub.headshot_consent,
+      isMinor: !!sub.is_minor,
+      guardianEmail: sub.guardian_email ?? "",
+      guardianName: sub.guardian_name ?? "",
+      area: sub.geographic_area ?? "",
+      city: sub.city ?? "",
+      playableAgeMin: sub.playable_age_min != null ? String(sub.playable_age_min) : "",
+      playableAgeMax: sub.playable_age_max != null ? String(sub.playable_age_max) : "",
+      languages: Array.isArray(sub.languages) ? sub.languages.join(", ") : "",
+      instagram: sub.instagram_handle ?? "",
+      facebook: sub.facebook_url ?? "",
+      tiktok: sub.tiktok_handle ?? "",
+      linkedin: sub.linkedin_url ?? "",
+      twitter: sub.twitter_handle ?? "",
+      youtube: sub.youtube_url ?? "",
+      website: sub.website_url ?? "",
+      disciplines: Array.isArray(sub.disciplines) ? sub.disciplines : [],
+      disciplineOther: "",
+      unions: Array.isArray(sub.unions) ? sub.unions : [],
+      unionOther: "",
+      ethnicities: Array.isArray(sub.ethnicities) ? sub.ethnicities : [],
+      ethnicityOther: "",
+      resumes: Array.isArray(sub.resumes) ? sub.resumes : [],
+      resumeData: sub.resume_data ?? null,
+      mentorshipOffering: Array.isArray(sub.mentorship_offering) ? sub.mentorship_offering : [],
+      mentorshipSeeking: Array.isArray(sub.mentorship_seeking) ? sub.mentorship_seeking : [],
+    },
+  };
+}
+
+export const load: PageServerLoad = async ({ url }) => {
+  const prefill = await loadResubmitPrefill(url.searchParams.get("token"));
   const [disciplinesRes, categoriesRes, areasRes, unionsRes, ethnicitiesRes] =
     await Promise.all([
       supabaseAdmin
@@ -62,6 +134,7 @@ export const load: PageServerLoad = async () => {
         (r: { name: string }) => r.name,
       ),
     },
+    prefill,
   };
 };
 
@@ -391,6 +464,30 @@ export const actions: Actions = {
       console.error(
         `verification email failed for submission, reason=${sendResult.reason}`,
       );
+    }
+
+    // If this submission came from a resubmit token (rejected → fix → resend),
+    // burn the token and mark the prior pending_submissions row as superseded
+    // so it stops showing up in admin queues.
+    const resubmitTokenRaw = ((data.get("resubmit_token") as string) ?? "").trim();
+    if (resubmitTokenRaw) {
+      const tokenHash = hashToken(resubmitTokenRaw);
+      const { data: tk } = await supabaseAdmin
+        .from("magic_link_tokens")
+        .select("id, target_id, used_at, expires_at, purpose")
+        .eq("token_hash", tokenHash)
+        .eq("purpose", "resubmit_profile")
+        .maybeSingle();
+      if (tk && !tk.used_at && new Date(tk.expires_at) >= new Date() && tk.target_id) {
+        await supabaseAdmin
+          .from("magic_link_tokens")
+          .update({ used_at: new Date().toISOString() })
+          .eq("id", tk.id);
+        await supabaseAdmin
+          .from("pending_submissions")
+          .update({ status: "superseded" })
+          .eq("id", tk.target_id);
+      }
     }
 
     throw redirect(303, "/submit/thanks");

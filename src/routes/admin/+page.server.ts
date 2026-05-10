@@ -344,9 +344,24 @@ async function rejectOne(id: string, reason: string): Promise<void> {
     })
     .eq("id", id);
 
+  // Mint a 30-day single-use token so the artist can come back, see what
+  // they entered prefilled, fix the issue, and resubmit without retyping.
+  const resubmitToken = generateToken();
+  const { error: tokenErr } = await supabaseAdmin.from("magic_link_tokens").insert({
+    token_hash: hashToken(resubmitToken),
+    email: sub.email,
+    purpose: "resubmit_profile",
+    target_id: id,
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+  if (tokenErr) {
+    console.error("resubmit token insert failed", tokenErr);
+  }
+  const resubmitUrl = `${PUBLIC_SITE_URL}/submit?token=${resubmitToken}`;
+
   await sendEmail({
     to: sub.email,
     templateSlug: "rejection",
-    vars: { name: sub.full_name, reason },
+    vars: { name: sub.full_name, reason, resubmit_url: resubmitUrl },
   });
 }
