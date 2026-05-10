@@ -269,6 +269,7 @@
 
   <form
     method="POST"
+    action="?/save"
     use:enhance={() => {
       submitting = true;
       return async ({ update, result }) => {

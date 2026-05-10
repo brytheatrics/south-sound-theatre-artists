@@ -153,7 +153,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ params, request }) => {
+  save: async ({ params, request }) => {
     const token = await loadValidToken(params.token);
     if (!token || !token.target_id) {
       return fail(401, { error: "Edit link is invalid or expired." });
