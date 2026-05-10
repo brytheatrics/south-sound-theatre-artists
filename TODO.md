@@ -1,13 +1,15 @@
 # TODO
 
-Master list of outstanding work. Reorganized 2026-05-09 around three real
-ownership questions:
+Master list of outstanding work. Reorganized 2026-05-09 / -10 around three
+real ownership questions:
 
 1. **Launch-day sequence** - the ordered checklist for the .org cutover
 2. **You need to do** - human-only work (decisions, accounts, eyeballs on the live site)
 3. **Claude can do** - codeable work that doesn't depend on launch state
 
 Plus the standing sections: review queue, maintenance, parking lot, confirmed skips, and the v1.1 ship-review checklist that's still pending your pass.
+
+> **Currently 65+ commits unpushed.** See HISTORY.md "v1.4 launch-prep batch" for the full list of what shipped in this branch.
 
 ---
 
@@ -17,7 +19,7 @@ These are gated on the .org domain flip and should happen roughly in order.
 
 ### Pre-flip prep (any time before launch day)
 
-- [ ] **Push the 53 unpushed commits to main.** Includes everything in this session: launch-grace pipeline (migs 100-101), callboard scheduled publish (mig 103), digest dated subject + Sunday-night cron move, /digest page restructure, expanded backup table coverage, anti-spam on 4 more endpoints, deadline-text removal, email-test panel removal, About page alignment fix, calendar search + typeahead, resume builder polish, etc.
+- [ ] **Push the 65+ unpushed commits to main.** Includes everything from the May 9-10 launch-prep sessions: launch-grace pipeline (migs 100-101), callboard scheduled publish (mig 103), profile phone field (mig 104), organizations.categories multi-badge (mig 105), production_team post type consolidation (mig 106), digest dated subject + Sunday-night cron move, /digest page restructure, expanded backup table coverage, anti-spam on 4 more endpoints, verified-badge bug fix, apply-verified area + categories, clickable team headshots/names, removed Ko-Fi widget, calendar search + typeahead, resume builder polish, email-test panel removal, etc. See HISTORY.md "v1.4 launch-prep batch" for the full breakdown.
 - [ ] **Add `ANTHROPIC_API_KEY` to GitHub Actions secrets.** Calendar-sync cron silently skips it now; without the key the workflow fails on `ai-generic` adapter sources. Add at `Settings → Secrets and variables → Actions → New repository secret`. Value is the `sk-ant-...` from console.anthropic.com.
 - [ ] **Manual-trigger the backup workflow on main after push** to verify the expanded 31-table dump runs cleanly. Check the `ssta-backups` repo afterward for a `snapshots/<today>/` folder with 31 JSON files.
 - [ ] **Manual-trigger the calendar-sync workflow** once `ANTHROPIC_API_KEY` is in. Next scheduled run is 2026-06-01; manual trigger gives fresh data ahead of launch. (Earliest you should run it: 2026-06-01, when the Anthropic monthly spend cap resets.)
@@ -46,7 +48,7 @@ These are gated on the .org domain flip and should happen roughly in order.
 ### Lexi handoff
 
 - [ ] **Service-account 2FA / password transfers** to Lexi's phone: Squarespace registrar, Netlify, Supabase, Cloudinary, Resend.
-- [ ] **Ko-fi onboarding.** Lexi connects Stripe / PayPal in her Ko-fi dashboard. Until then the embed shows a barebones "Powered by Ko-fi" panel with no working donation form. (Profile already at `ko-fi.com/lexibarnettssta`.)
+- [ ] **Ko-fi onboarding.** Lexi connects Stripe / PayPal in her Ko-fi dashboard. The widget itself was removed from /support-us in commit `250d320` (was rendering as the empty "Powered by Ko-fi" panel). Once she's onboarded, swap `<KofiWidget />` back into `src/routes/support-us/+page.svelte` (the component file is still in `$lib/components/`) and update the page copy to mention donations are live.
 
 ---
 
@@ -56,7 +58,7 @@ Items that are gated on a human - your decisions, your accounts, your eyes on th
 
 ### Decisions / approvals
 
-- [ ] **Push approval for the 53-commit batch.** Standing rule: I never push without explicit per-batch approval. When ready, say the word.
+- [ ] **Push approval for the 65+-commit batch.** Standing rule: I never push without explicit per-batch approval. When ready, say the word.
 - [ ] **v1.1 ship-review checklist.** See the bottom of this file - 10+ items I built without your eyes on, that you'll want to walk through before launch.
 
 ### Account / external-service work
@@ -81,6 +83,7 @@ Code / DB work that doesn't depend on launch state. I'll knock these out wheneve
 ### Pre-launch hygiene
 
 - [ ] **Wipe filler info from the callboard.** The 6 seeded posts plus any test productions / placeholder rows that slipped in during staging. DB-side cleanup, similar to the test-fixture wipe we just did.
+- [ ] **Calendar org-category filter.** /theatres now has chip filters for Theatre / Educational Theatre / Opera / etc. (orgs.categories array). The calendar (`/calendar`) doesn't yet filter by org category - someone hunting for "Educational Theatre productions" can't. Plumb the org's categories through to the production list query, add a chip filter row, and update the digest queries the same way for parity. ~1.5-2 hrs. Adding new badges to `KNOWN_CATEGORY_SLUGS` would auto-surface here too once the wiring lands.
 - [ ] **`ADMIN_GUIDE.md` draft** for Lexi. Currently deferred to give her time on the staging deploy first; could draft a skeleton from the admin panel walkthrough now and let her layer in real-use notes after launch. ~1 hr.
 
 ### Adapter / data follow-ups
