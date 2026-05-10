@@ -31,22 +31,31 @@
     : "";
 
   type Link = { href: string; label: string };
-  // Primary nav: the four places people come to *do* something.
-  // Labels come from site_content (editable at /admin/content as
-  // nav.directory / nav.calendar / nav.callboard / nav.resources)
-  // with the hardcoded defaults above as fallback.
+  // Primary nav: the places people come to *do* something. Labels come
+  // from site_content (editable at /admin/content as nav.directory /
+  // nav.calendar / nav.callboard / nav.digest) with the hardcoded
+  // defaults above as fallback. Resources is intentionally NOT in the
+  // header - it lives in the hamburger only so the primary header
+  // doesn't get crowded.
   const links = $derived<Link[]>([
     { href: "/directory", label: labels.directory },
     { href: "/calendar", label: labels.calendar },
     { href: "/callboard", label: labels.callboard },
-    { href: "/resources", label: labels.resources },
     { href: "/digest", label: labels.digest },
     { href: "/blog", label: "Blog" },
   ]);
 
-  // Hamburger menu items: secondary destinations, organized roughly by
-  // "learn" -> "act" -> "legal".
-  const menuLinks: Link[] = [
+  // Hamburger menu items: a complete site map. The primary links also
+  // appear here at the top so people who reach for the hamburger can
+  // jump anywhere. Resources lives only here. Secondary destinations
+  // (about, theatres, contact, etc) follow.
+  const menuLinks = $derived<Link[]>([
+    { href: "/directory", label: labels.directory },
+    { href: "/calendar", label: labels.calendar },
+    { href: "/callboard", label: labels.callboard },
+    { href: "/digest", label: labels.digest },
+    { href: "/blog", label: "Blog" },
+    { href: "/resources", label: labels.resources },
     { href: "/about", label: "About" },
     { href: "/theatres", label: "Theatres" },
     { href: "/mentorship", label: "Mentorship" },
@@ -55,7 +64,7 @@
     { href: "/support-us", label: "Support us" },
     { href: "/privacy", label: "Privacy" },
     { href: "/terms", label: "Terms" },
-  ];
+  ]);
 
   const path = $derived(page.url.pathname);
   const isActive = $derived((href: string) => path === href || path.startsWith(href + "/"));

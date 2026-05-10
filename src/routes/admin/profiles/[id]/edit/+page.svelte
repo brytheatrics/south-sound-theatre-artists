@@ -5,6 +5,7 @@
   import HeadshotUpload from "$lib/components/HeadshotUpload.svelte";
   import ResumesEditor from "$lib/components/ResumesEditor.svelte";
   import MultiResumeBuilder from "$lib/components/MultiResumeBuilder.svelte";
+  import { telHref, formatPhoneDisplay } from "$lib/util/phone";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -13,6 +14,7 @@
   let fullName = $state(p.full_name);
   let slug = $state(p.slug);
   let email = $state(p.email);
+  let phone = $state(p.phone ?? "");
   let pronouns = $state(p.pronouns ?? "");
   let bio = $state(p.bio ?? "");
   let headshotUrl = $state(p.headshot_url ?? "");
@@ -46,6 +48,7 @@
   let twitter = $state(p.twitter_handle ?? "");
   let youtube = $state(p.youtube_url ?? "");
   let website = $state(p.website_url ?? "");
+  let adminNote = $state(p.admin_note ?? "");
 
   // Source of truth for disciplines is an ordered array since the
   // directory + homepage cards render the first two entries. The Set
@@ -232,9 +235,22 @@
     </div>
     <div class="grid-2">
       <label class="field">
+        <span>
+          Phone (private)
+          {#if phone && telHref(phone)}
+            <a class="tel-link" href={telHref(phone)}>{formatPhoneDisplay(phone)} ↗</a>
+          {/if}
+        </span>
+        <input name="phone" type="tel" autocomplete="tel" bind:value={phone} placeholder="253-555-0142" aria-invalid={!!errors.phone} />
+        <span class="hint">Never rendered publicly. Used by theatres in casting / callback workflows. Tap link to call.</span>
+        {#if errors.phone}<span class="error">{errors.phone}</span>{/if}
+      </label>
+      <label class="field">
         <span>Pronouns</span>
         <input name="pronouns" type="text" bind:value={pronouns} placeholder="she/her" />
       </label>
+    </div>
+    <div class="grid-2">
       <label class="field">
         <span>Languages (comma-separated)</span>
         <input name="languages" type="text" bind:value={languages} placeholder="English, Spanish" />
@@ -437,6 +453,21 @@
       </label>
     </div>
   </section>
+
+  <fieldset class="admin-note-block">
+    <legend>Admin note (private)</legend>
+    <p class="admin-note-help">
+      Free-form context for other admins. Useful when a profile is
+      unpublished, hidden, or in trash so the next person knows why.
+      Never shown to the public.
+    </p>
+    <textarea
+      name="admin_note"
+      rows="3"
+      bind:value={adminNote}
+      placeholder="e.g. Hidden 2026-05-08 - reported for repeated harassment in callboard comments. Re-evaluate after 6 months."
+    ></textarea>
+  </fieldset>
 
   <div class="actions">
     <!-- Same banners we render in the header, repeated here so feedback
@@ -687,6 +718,22 @@
     text-transform: none;
     letter-spacing: 0;
   }
+  .tel-link {
+    margin-left: 8px;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .hint {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
   .visually-hidden {
     position: absolute;
     width: 1px;
@@ -697,5 +744,41 @@
   .actions {
     display: flex;
     gap: 8px;
+  }
+  .admin-note-block {
+    margin: 1.5rem 0 0.5rem;
+    padding: 1rem 1.1rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .admin-note-block legend {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    padding: 0 0.4em;
+  }
+  .admin-note-help {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .admin-note-block textarea {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    resize: vertical;
   }
 </style>

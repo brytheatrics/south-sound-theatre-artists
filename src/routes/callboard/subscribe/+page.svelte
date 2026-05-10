@@ -38,6 +38,10 @@
       what you actually care about - or leave everything ticked for
       the broad newsletter.
     </p>
+    <p class="meta">
+      We only send when there's something to share. On a quiet week
+      with nothing new, no email goes out.
+    </p>
 
     <SubscribeFiltersForm
       mode="new"
@@ -65,6 +69,13 @@
     gap: 0.75rem;
   }
   .h1-display { margin: 0.25rem 0 0.5rem; }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 1.25rem;
+  }
   .lede {
     font-family: var(--font-accent);
     font-style: italic;

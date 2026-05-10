@@ -189,6 +189,221 @@ Big batch from a single working session. ~25-35 hrs of focused work distilled to
 - 084 + 085 `production_category_value` + `_backfill` — cast/production simplification
 - 086 `org_ticketing_url`
 - 087 `drop_resume_data_jsonb` — removes the legacy column
+- 088 `resources_cleanup` — drops the `resources.category_id` compat shim from migs 062 + 063
+
+---
+
+## v1.4 — Calendar adapter expansion (shipped 2026-05-08)
+
+Refactored `scripts/_lib/calendar-sync.mjs` so per-org extraction
+dispatches by the `adapter` column on `organizations`. Each adapter
+is a self-contained module under `scripts/_lib/adapters/` that takes
+a source row + opts and returns `{ shows, hash, cost }`; the
+orchestrator handles cache short-circuit, performance expansion, and
+the productions/performances upsert identically across adapters.
+
+### New platform adapters
+
+- **squarespace-json**: fetches `/events?format=json`, paginates,
+  per-item Claude detail prompt against the body HTML. Cheaper +
+  more reliable than scraping Squarespace HTML.
+- **ovationtix**: plain-fetch `web.ovationtix.com/trs/cal/{accountId}`
+  for the season list (server-rendered), then headless-Chromium
+  render of `ci.ovationtix.com/{accountId}/production/{id}` for
+  per-show schedule. Falls back to Fri/Sat 7:30pm + Sun 2pm when
+  Playwright times out (community-theatre default).
+- **ludus**: headless-Chromium render of `{org}.ludus.com` to clear
+  the Cloudflare JS challenge, then Claude extraction.
+- **eventbrite**: headless-Chromium render of
+  `eventbrite.com/o/{organizerId}` then Claude extraction. Per-show
+  detail-crawl on the rendered show page.
+
+### Adapter migrations (applied directly to dev DB)
+
+| Org | Was | Now | Result |
+|---|---|---|---|
+| Bainbridge Performing Arts | manual | squarespace-json | 14 shows, 56 perfs |
+| Centerstage Theatre | manual | ovationtix | 6 shows, 71 perfs |
+| Renton Civic Theatre | manual | ai-generic | 1 of 5 shows (rescue heuristic untested due to Anthropic cap) |
+| Dukesbay Productions | manual | eventbrite | 0 shows (no current Eventbrite events) |
+| Tacoma Little Theatre | ai-generic (main site) | ludus | 4 shows, 37 perfs |
+| ManeStage Theatre Company | ai-generic (main site) | ludus | 2 shows, 20 perfs |
+
+### Infra
+
+Playwright is a dev-only dependency that lives in the GitHub Actions
+runner; never ships to Netlify. Workflow installs Chromium with deps
+and caches the browser binary across runs. `fetchHtmlRendered` helper
+loads playwright lazily so adapters that don't need it have zero
+import cost. `closeBrowser()` in the cron entry script ensures
+Chromium exits cleanly.
+
+Added a conservative "rescue" pass to ai-generic: when Claude returns
+< 3 shows but the season page has >= 3 anchors matching `/shows/`,
+`/show/`, `/productions/`, or `/production/` paths, the unclaimed
+anchors are added as stub shows and pushed through detail-crawl.
+Motivating case: Next.js streaming HTML on rentoncivictheatre.org
+where the duplicated content confuses Claude's enumeration. NOT
+verified live (Anthropic monthly spend cap hit before validation;
+resets 2026-06-01).
+
+### Final cron coverage
+
+19 of 26 orgs now auto-pull (15 ai-generic + 1 squarespace-json + 1
+ovationtix + 2 ludus + 1 eventbrite). 8 manual (placeholder sites,
+touring, login-walled, or insufficient public schedule info). Cron
+runs monthly on the 1st via GitHub Actions.
+
+---
+
+## v1.4 launch-prep batch (May 9-10 2026, unpushed at writing)
+
+Final pre-launch session covering hygiene, schema additions, bug
+fixes, and content infrastructure. ~65 commits stacked on the
+worktree branch; HISTORY entry is here so the next session can pick
+up cold without re-deriving what shipped.
+
+### Schema (migs 100-106)
+
+- **mig 100**: `profiles.invited_at`, `auto_hidden_incomplete`,
+  `completion_warning_sent_at` for the launch-grace pipeline.
+  Bulk-imported profiles get a 30-day window to complete required
+  fields; cron warns at T+27 and auto-hides at T+30. Save handlers
+  on `/edit/[token]` + `/admin/profiles/[id]/edit` auto-republish
+  when the artist fills in the missing fields.
+- **mig 101**: `launch_completion_warning` email template seeded.
+- **mig 102**: digest subject prefixed with `{{digest_date}}` so
+  Gmail stops threading consecutive digests into one collapsed
+  conversation (which was triggering aggressive "trim quoted
+  content" on the footer).
+- **mig 103**: `callboard_posts.publish_at` for scheduled-publish.
+  Public list, single-post page, marquee, /digest, cron, and live
+  preview all gate on `publish_at <= now()`. Submit form's
+  expires_at is now capped at publish_at + 90 days.
+- **mig 104**: `profiles.phone` + `pending_submissions.phone`.
+  Optional, **never rendered publicly** (audited every public
+  query). Display-time formatter `formatPhoneDisplay()` canonicalises
+  the admin's tap-to-call link. Future casting tool will route
+  callbacks here; trust gate may need to escalate when that ships.
+- **mig 105**: `organizations.categories text[]` replacing the old
+  single-value `category` enum. Drives /theatres chip filter +
+  per-card badge render. Vocabulary lives in
+  `src/lib/server/orgCategories.ts` (Theatre, Educational Theatre,
+  Opera, Ballet, Symphony, Youth, Venue, Other) - adding a slug +
+  label there auto-surfaces on /theatres, /admin/organizations, and
+  /callboard/apply-verified. Mig also seeded two new callboard post
+  types: `youth_programming` and `teaching_artist`.
+- **mig 106**: `designer` + `crew` callboard post types consolidated
+  into `production_team` (active=true at sort_order 20). Old slugs
+  set active=false rather than deleted so email_log stays readable.
+
+### Bug fixes
+
+- **Verified-badge gating** (`f57875f`): the "Verified producing
+  company" check on callboard posts was rendering whenever
+  `organization_id` was non-null, regardless of `orgs.verified`.
+  Triggered by admin-authored posts linking to producing-but-
+  unverified theatres. Fixed across /callboard list, /callboard/[id],
+  /admin/callboard list. New `loadVerifiedOrgIds()` helper in
+  `lib/server/verifiedOrgs.ts`.
+- **About page name alignment** (`89de0b7`): when bio paragraph was
+  shorter than the floated headshot, the next member's name h3
+  rendered at the wrong Y. Fixed via `min-height: 260px` on bio
+  paragraphs.
+- **stale-cleanup `todayIso` duplicate const** (`cd49728`): would
+  have crashed Stage B on first run.
+- **test-email column-name mismatches** (`455e23d`, `086a9c9`):
+  used `email_verification_token` (no `_hash` suffix) and a
+  non-existent `submitter_name` column.
+- **Backup script gap** (`2e1ee04`): table list was missing 10
+  critical tables - resumes, resume_entries (every artist's resume
+  builder content), performances (697 rows), production_credits,
+  blog_posts, admin_users (auth bootstrap), event_categories,
+  ethnicities, callboard_post_types, admin_trusted_devices.
+  Restoring from a pre-fix snapshot would have left admin locked
+  out and every artist's resume erased. Now dumps 31 tables / 1513
+  rows.
+- **XSS in markdown link rendering** (earlier in the May-9 work
+  tagged d0543be): `[link](javascript:...)` would render clickable;
+  `"` in the URL could break out of href. Fixed via `safeUrl()`.
+
+### Anti-spam + auth hardening
+
+- Rate limit (5/hour/IP) extended to four previously-unprotected
+  public POST endpoints: `/edit-link`, `/callboard/subscribe`,
+  `/callboard/apply-verified`, `/report` (`36ec29d`).
+- Callboard submit `contact_info` made required (was optional;
+  posts without contact info had no actionable next step).
+
+### Cron schedule
+
+- `callboard-weekly-digest` moved from 01:00 UTC Mon (5/6pm PT
+  Sunday) to **06:59 UTC Mon (11:59 PM PT Sunday PDT / 10:59 PM
+  PST)**. Old timing fired while Sunday-evening shows were still
+  running, filtering them as already-closed. New timing lands the
+  digest after every Sunday performance has ended and still puts it
+  in inboxes for Monday morning.
+
+### Content + UX
+
+- **Phone field**: optional, private. Form wiring + helper utils +
+  bulk-import column + admin display formatter. 21 phones
+  back-filled from earlier email submissions via one-shot script.
+- **Multi-badge orgs on /theatres**: chip filter row at top, badges
+  on each org card. TLT / TMP / Lakewood pre-tagged as both Theatre
+  and Educational Theatre.
+- **/callboard/apply-verified gains area + categories pickers**.
+  New applicants now land cleanly on /theatres without admin having
+  to fill those in by hand.
+- **Admin callboard form parity** with the public submit form:
+  required publish_at + expires_at with the 90-day cap, dropped
+  Volunteer comp option, hide details when type=None, drop
+  `deadline_text`.
+- **/digest page mirrors the email's sub-sections**: New this
+  week / Still open / Closing this week (callboard) and Opening
+  this week / Opening next week / Currently running / Closing
+  this week (calendar). "Still open" plugs the dead-zone where a
+  4-week-out audition would otherwise vanish from the digest after
+  week 1.
+- **Callboard post button label** adapts to post type ("Tickets &
+  info" for production posts, "More info" otherwise).
+- **Callboard production_team consolidation**: designer + crew
+  merged. New post types youth_programming + teaching_artist
+  cover camp / class / educational hiring without conflating
+  artist-facing gigs at educational venues.
+- **Date ranges in digest don't break across lines**: NBSP +
+  non-breaking hyphen used to glue `(May 1‑May 17)` chunks.
+- **Date-prefixed digest subject** stops Gmail thread-collapsing
+  (and the resulting "trim quoted content" on the footer).
+- **Calendar search + typeahead** + page-padding and width caps on
+  the search input.
+- **Resume builder polish**: per-kind collapse, always-visible
+  Inbox tab, refresh-on-claim, smart claim feedback, bigger bio
+  textarea, etc.
+- **About page**: clickable team headshots + names link to public
+  profiles. Leischen Moore + LaNita Hudson Walters added as
+  Advisory Committee. Lexi's title rephrased to "Founder."
+- **Removed pre-launch /admin/email-test panel** + its DB fixtures
+  (Test Profile, Test Org, Test Callboard Post, Test Production,
+  test subscription, magic-link tokens).
+- **/support-us reverted from Ko-Fi widget** to "donations soon +
+  best support is profile + tell friends" pending Lexi finishing
+  her Ko-Fi Stripe/PayPal connect.
+- **TODO.md reorganized** around ownership questions (Launch-day
+  sequence / You need to do / Claude can do / Parking lot / Skips
+  / v1.1 review checklist).
+
+### Known gaps queued for follow-up
+
+- `/calendar` doesn't yet filter by org category (Educational
+  Theatre etc.) - production list query doesn't join orgs.categories.
+  Filed in TODO §3 "Pre-launch hygiene."
+- Self-serve callboard post edit (TODO parking lot, post-launch
+  definite build).
+- Verified-org CSV bulk import (parking lot, demand-driven).
+- /help page (parking lot, demand-driven).
+- Profile CSV export with phone-PII guard (parking lot, when an
+  export feature gets built).
 
 ---
 

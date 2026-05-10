@@ -1,12 +1,21 @@
 name: Callboard weekly digest
 
-# Sunday evening: emails every active subscriber a digest of new
+# Sunday late-night: emails every active subscriber a digest of new
 # callboard posts matching their discipline / post-type filters since
 # their last digest. Skips subscribers with nothing new.
+#
+# Timing rationale: send AFTER all Sunday performances have ended so a
+# show whose final curtain is Sunday evening doesn't get filtered as
+# "already closed" before its last performance happens. Also lands in
+# inboxes for Monday morning.
 
 on:
   schedule:
-    - cron: "0 1 * * 1" # 01:00 UTC Monday = 5pm/6pm PT Sunday
+    # 06:59 UTC Monday = 11:59 PM PT Sunday (PDT) / 10:59 PM PT Sunday
+    # (PST). GitHub Actions schedules don't follow DST, so the wall-
+    # clock send time shifts by one hour twice a year - both options
+    # still land well past Sunday evening show end times.
+    - cron: "59 6 * * 1"
   workflow_dispatch:
 
 jobs:

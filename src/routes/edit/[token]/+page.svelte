@@ -9,6 +9,7 @@
   import ClaimCreditForm from "$lib/components/ClaimCreditForm.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import { page as pageStore } from "$app/state";
+  import { invalidateAll } from "$app/navigation";
 
   let { data, form } = $props();
   // svelte-ignore state_referenced_locally
@@ -16,6 +17,7 @@
 
   let fullName = $state(p.full_name);
   let pronouns = $state(p.pronouns ?? "");
+  let phone = $state(p.phone ?? "");
   let bio = $state(p.bio ?? "");
   let headshotUrl = $state(p.headshot_url ?? "");
   let headshotConsent = $state(p.headshot_consent ?? false);
@@ -157,17 +159,30 @@
   </header>
 
   <!-- Complete-to-publish gate. Bulk-imported profiles ship unpublished
-       when they're missing required info; this banner spells out exactly
-       what the artist needs to fill in. Once they save with everything
-       complete, the action flips published=true automatically. -->
+       when they're missing required info; the launch-grace cron also
+       auto-hides incomplete invited profiles after 30 days. Either way,
+       this banner spells out what the artist needs to fill in. The save
+       action flips published=true automatically once everything's in. -->
   {#if data.missingFields.length > 0}
     <div class="incomplete-banner" role="status">
       <p class="incomplete-title">
-        <strong>Your profile isn't visible to the public yet.</strong>
+        <strong>
+          {#if p.auto_hidden_incomplete}
+            Your profile is currently hidden from the public directory.
+          {:else}
+            Your profile isn't visible to the public yet.
+          {/if}
+        </strong>
       </p>
       <p class="incomplete-body">
-        Please fill in the following before saving and your profile will
-        be published immediately:
+        {#if p.auto_hidden_incomplete}
+          We hid it because it's missing required info. Fill in the
+          following and save - your profile will be visible again
+          immediately:
+        {:else}
+          Please fill in the following before saving and your profile
+          will be published immediately:
+        {/if}
       </p>
       <ul class="incomplete-list">
         {#each data.missingFields as f (f)}
@@ -284,6 +299,18 @@
         <span>Pronouns</span>
         <input name="pronouns" type="text" bind:value={pronouns} placeholder="she/her, they/them, etc." />
       </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input
+          name="phone"
+          type="tel"
+          autocomplete="tel"
+          bind:value={phone}
+          placeholder="253-555-0142"
+        />
+        <span class="hint">Optional. Used by theatres during casting to contact you about callbacks and offers. Never shown on your public profile.</span>
+      </label>
     </fieldset>
 
     {#if !p.is_minor}
@@ -319,10 +346,11 @@
     <fieldset>
       <legend>Bio</legend>
       <p class="hint">
-        Optional. What collaborators should know - training, recent work,
+        Required. What collaborators should know - training, recent work,
         what you're looking for. A few sentences is plenty.
       </p>
-      <textarea name="bio" rows="5" bind:value={bio}></textarea>
+      <textarea name="bio" rows="8" bind:value={bio} aria-invalid={!!errors.bio}></textarea>
+      {#if errors.bio}<span class="error">{errors.bio}</span>{/if}
     </fieldset>
 
     <fieldset>
@@ -333,15 +361,20 @@
         each entry to whichever ones it belongs on. Changes save as you go -
         no need to hit Save below for resume edits.
       </p>
-      <MultiResumeBuilder
-        initial={data.resumeSnapshot}
-        apiBase={`/api/edit/${pageStore.params.token}`}
-      />
+      {#key data.resumeSnapshot}
+        <MultiResumeBuilder
+          initial={data.resumeSnapshot}
+          apiBase={`/api/edit/${pageStore.params.token}`}
+        />
+      {/key}
     </fieldset>
 
     <fieldset>
       <legend>Claim a production credit</legend>
-      <ClaimCreditForm token={pageStore.params.token ?? ""} />
+      <ClaimCreditForm
+        token={pageStore.params.token ?? ""}
+        onClaimed={() => invalidateAll()}
+      />
     </fieldset>
 
     <fieldset>
@@ -640,8 +673,10 @@
     border-color: var(--accent);
   }
   textarea {
+    width: 100%;
+    box-sizing: border-box;
     resize: vertical;
-    min-height: 140px;
+    min-height: 200px;
   }
   .age-row {
     display: flex;

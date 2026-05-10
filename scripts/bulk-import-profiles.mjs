@@ -721,18 +721,22 @@ async function importFolder(db, folderName) {
     // Insert profile.
     const ins = await db.query(
       `insert into profiles
-        (slug, full_name, email, bio, disciplines, headshot_url,
+        (slug, full_name, email, phone, bio, disciplines, headshot_url,
          headshot_consent, geographic_area, city, pronouns,
          playable_age_min, playable_age_max, languages, unions,
          ethnicities, instagram_handle, facebook_url, tiktok_handle,
          linkedin_url, twitter_handle, youtube_url, website_url,
          resumes, trusted, published)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        returning id`,
       [
         slug,
         fullName,
         email,
+        // Optional from meta.txt. Privacy boundary: never rendered
+        // publicly, only seeded so artists who already shared a number
+        // don't have to re-enter when they get their edit link.
+        meta.phone?.trim() || null,
         bio,
         disciplines,
         headshotUrl,

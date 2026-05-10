@@ -59,8 +59,8 @@ export const load: PageServerLoad = async ({ params }) => {
     .from("productions")
     .select(
       `id, title, organization_name, run_start, run_end, detail_url, cover_url,
-       description, category_id, area_id, organization_id, status,
-       rejection_reason, deleted_at, admin_edited_at, created_at, updated_at`,
+       description, category_id, area_id, organization_id, status, is_ssta_event,
+       rejection_reason, deleted_at, hidden_at, admin_edited_at, created_at, updated_at`,
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -128,6 +128,7 @@ export const actions: Actions = {
     const category_id = String(fd.get("category_id") ?? "").trim() || null;
     const area_id = String(fd.get("area_id") ?? "").trim() || null;
     const status = String(fd.get("status") ?? "").trim();
+    const is_ssta_event = fd.get("is_ssta_event") === "1";
 
     if (!title) return fail(400, { error: "Title is required." });
     if (!organization_name) return fail(400, { error: "Organization is required." });
@@ -147,6 +148,7 @@ export const actions: Actions = {
         category_id,
         area_id,
         status,
+        is_ssta_event,
         // Mark admin-edited so the cron's upsert will skip this row on
         // future syncs. Auto-pop'd entries become admin-owned the
         // moment Lexi saves; manual entries are already organization_id=null
@@ -212,5 +214,21 @@ export const actions: Actions = {
       .update({ admin_edited_at: null })
       .eq("id", params.id);
     return { unlocked: true };
+  },
+
+  hide: async ({ params }) => {
+    await supabaseAdmin
+      .from("productions")
+      .update({ hidden_at: new Date().toISOString() })
+      .eq("id", params.id);
+    return { hidden: true };
+  },
+
+  show: async ({ params }) => {
+    await supabaseAdmin
+      .from("productions")
+      .update({ hidden_at: null })
+      .eq("id", params.id);
+    return { shown: true };
   },
 };

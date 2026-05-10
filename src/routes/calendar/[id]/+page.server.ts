@@ -16,12 +16,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .from("productions")
     .select(
       `id, title, description, run_start, run_end, show_dates, detail_url, cover_url, status,
-       category_id,
+       category_id, hidden_at,
        organizations:organization_id ( id, name, slug, homepage_url, ticketing_url, logo_url )`,
     )
     .eq("id", params.id)
     .is("deleted_at", null);
-  if (!isAdmin) query = query.eq("status", "approved");
+  if (!isAdmin) {
+    query = query.eq("status", "approved").is("hidden_at", null);
+  }
   const { data, error: err } = await query.maybeSingle();
   if (err) throw err;
   if (!data) error(404, "Production not found");

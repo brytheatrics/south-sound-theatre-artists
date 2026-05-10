@@ -126,7 +126,7 @@ export async function createProductionCredit(input: {
   category: ProductionCreditCategory;
   source: ProductionCreditSource;
   created_by_email?: string | null;
-}): Promise<ProductionCreditRow> {
+}): Promise<ProductionCreditRow & { resume_placement: ResumePlacement }> {
   const display_name = trimName(input.display_name);
   const position = trimPosition(input.position);
   if (!display_name) throw new Error("Name is required.");
@@ -170,7 +170,11 @@ export async function createProductionCredit(input: {
       .ilike("position", position)
       .is("deleted_at", null)
       .maybeSingle();
-    if (dup) return dup as ProductionCreditRow;
+    if (dup) {
+      return Object.assign(dup as ProductionCreditRow, {
+        resume_placement: "duplicate" as ResumePlacement,
+      });
+    }
   }
 
   // Sort: append to the bottom of the same category section.
@@ -203,20 +207,35 @@ export async function createProductionCredit(input: {
   }
   const credit = data as ProductionCreditRow;
 
+  let resumePlacement: ResumePlacement = "skipped";
   if (credit.profile_id) {
-    await autoCreateLinkedResumeEntry(credit);
+    resumePlacement = await autoCreateLinkedResumeEntry(credit);
   }
 
-  return credit;
+  // Stash the placement on the returned object so callers (the artist
+  // self-claim endpoint, in particular) can tell the user whether the
+  // credit landed in their inbox or got merged into an existing hand
+  // row. Lives in a non-DB property; consumers ignore it when they
+  // don't care.
+  return Object.assign(credit, { resume_placement: resumePlacement });
 }
+
+export type ResumePlacement = "promoted" | "inboxed" | "duplicate" | "skipped";
 
 /** Auto-create a linked resume_entries row when a production credit is
  *  tagged on a real profile. Lands in the artist's inbox (unassigned)
  *  by default - they assign it to specific resumes from the editor.
  *  Dedup: if an existing hand-entered row matches title+company+year,
- *  promote it to linked instead of creating a duplicate. */
-async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise<void> {
-  if (!credit.profile_id) return;
+ *  promote it to linked instead of creating a duplicate.
+ *
+ *  Return value tells the caller which path fired so user-facing
+ *  messaging can match: "promoted" = upgraded an existing hand row,
+ *  "inboxed" = new row in the inbox, "skipped" = no profile to file
+ *  against (free-text credit; no resume entry possible). */
+async function autoCreateLinkedResumeEntry(
+  credit: ProductionCreditRow,
+): Promise<ResumePlacement> {
+  if (!credit.profile_id) return "skipped";
 
   // Pull production data to denormalize into the resume entry.
   const { data: production } = await supabaseAdmin
@@ -224,7 +243,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
     .select("id, title, run_start, organization_id")
     .eq("id", credit.production_id)
     .maybeSingle();
-  if (!production) return;
+  if (!production) return "skipped";
   let companyName = "";
   if (production.organization_id) {
     const { data: org } = await supabaseAdmin
@@ -267,7 +286,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
           data,
         })
         .eq("id", row.id);
-      return;
+      return "promoted";
     }
   }
 
@@ -280,6 +299,7 @@ async function autoCreateLinkedResumeEntry(credit: ProductionCreditRow): Promise
     resume_ids: [], // inbox - artist assigns later
     sort_order: 0,
   });
+  return "inboxed";
 }
 
 /** Soft-delete a credit. The linked resume row (if any) gets converted
@@ -480,6 +500,84 @@ export async function loadProductionCredits(productionId: string): Promise<{
  *  Each row carries the credit's category so the artist profile can
  *  render cast credits as "Currently appearing in" and production-team
  *  credits as "Currently working on". */
+/** Marquee feeder: every credit whose production is currently in
+ *  run window AND whose linked artist profile is published + not a
+ *  minor. Returns one row per credit; the homepage's marquee builder
+ *  projects each into a ticker item with a link to the artist profile. */
+export async function loadCurrentAppearancesForMarquee(): Promise<
+  Array<{
+    profile_slug: string;
+    profile_name: string;
+    production_title: string;
+    org_name: string | null;
+    position: string;
+    category: ProductionCreditCategory;
+    run_start: string;
+  }>
+> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabaseAdmin
+    .from("production_credits")
+    .select(
+      `id, position, category, profile_id,
+       productions:production_id ( id, title, run_start, run_end, status,
+                                   deleted_at, hidden_at, organization_id,
+                                   organizations:organization_id ( name ) ),
+       profiles:profile_id ( slug, full_name, published, is_minor, deleted_at )`,
+    )
+    .is("deleted_at", null)
+    .not("profile_id", "is", null)
+    .limit(500);
+
+  type Row = {
+    position: string;
+    category: string;
+    productions: {
+      title: string;
+      run_start: string;
+      run_end: string | null;
+      status: string;
+      deleted_at: string | null;
+      hidden_at: string | null;
+      organizations: { name: string } | null;
+    } | null;
+    profiles: {
+      slug: string;
+      full_name: string;
+      published: boolean;
+      is_minor: boolean;
+      deleted_at: string | null;
+    } | null;
+  };
+
+  return (data ?? [])
+    .map((row) => {
+      const r = row as unknown as Row;
+      const p = r.productions;
+      const a = r.profiles;
+      if (!p || !a) return null;
+      if (p.status !== "approved" || p.deleted_at || p.hidden_at) return null;
+      if (!a.published || a.is_minor || a.deleted_at) return null;
+      const start = p.run_start;
+      const end = p.run_end ?? p.run_start;
+      // Strict in-run-window: today between start and end (inclusive).
+      // Upcoming-but-not-yet-running shows aren't surfaced here - those
+      // already get visibility via the calendar block of the marquee.
+      if (start > today) return null;
+      if (end < today) return null;
+      return {
+        profile_slug: a.slug,
+        profile_name: a.full_name,
+        production_title: p.title,
+        org_name: p.organizations?.name ?? null,
+        position: r.position,
+        category: coerceCategory(r.category),
+        run_start: p.run_start,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+}
+
 export async function loadCurrentAppearances(profileId: string): Promise<
   Array<{
     production_id: string;

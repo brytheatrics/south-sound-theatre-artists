@@ -19,6 +19,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 export const load: PageServerLoad = async ({ url }) => {
   // Pull options for the form. All four lists are admin-managed so any
@@ -61,7 +62,7 @@ function collapseTickedAll(picked: Set<string>, allValid: Set<string>): string[]
 }
 
 export const actions: Actions = {
-  default: async ({ request }) => {
+  default: async ({ request, getClientAddress }) => {
     const fd = await request.formData();
 
     // Honeypot
@@ -70,6 +71,11 @@ export const actions: Actions = {
     }
 
     const email = ((fd.get("email") as string) ?? "").trim().toLowerCase();
+
+    const rl = await checkSubmitRateLimit(getClientAddress(), "subscribe");
+    if (!rl.ok) {
+      return fail(429, { error: RATE_LIMIT_MESSAGE, values: { email } });
+    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return fail(400, { error: "Enter a valid email address.", values: { email } });
     }
@@ -104,6 +110,7 @@ export const actions: Actions = {
     const callboardAreaIds = collapseTickedAll(tickedCallboardAreas, validAreaIds);
     const calendarCategoryIds = collapseTickedAll(tickedCategories, validCategoryIds);
     const calendarAreaIds = collapseTickedAll(tickedCalendarAreas, validAreaIds);
+    const includeBlog = fd.get("include_blog") === "1";
 
     // Look up existing subscription. We only re-fire confirmation when
     // the row hasn't been confirmed yet OR was unsubscribed; an active
@@ -131,6 +138,7 @@ export const actions: Actions = {
           callboard_area_ids: callboardAreaIds,
           calendar_category_ids: calendarCategoryIds,
           calendar_area_ids: calendarAreaIds,
+          include_blog: includeBlog,
           confirmation_token: confirmToken,
           confirmed_at: null,
           unsubscribed_at: null,
@@ -146,6 +154,7 @@ export const actions: Actions = {
           callboard_area_ids: callboardAreaIds,
           calendar_category_ids: calendarCategoryIds,
           calendar_area_ids: calendarAreaIds,
+          include_blog: includeBlog,
           confirmation_token: confirmToken,
           preferences_updated_at: nowIso,
         });

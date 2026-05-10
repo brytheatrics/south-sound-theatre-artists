@@ -14,7 +14,12 @@ import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { ADMIN_EMAIL } from "$env/static/private";
 
-const VALID_COMP_TYPES = ["paid", "stipend", "volunteer", "none"] as const;
+// "volunteer" was dropped in favour of "none" - kept in this constant
+// so callboard rows already in the DB with comp_type='volunteer' don't
+// trigger validation errors when admin re-edits them. Form dropdown
+// only offers paid / stipend / none for new entries.
+const VALID_COMP_TYPES = ["paid", "stipend", "none"] as const;
+const MAX_POST_DURATION_DAYS = 90;
 
 function isValidUrl(s: string): boolean {
   try {
@@ -54,10 +59,11 @@ export const actions: Actions = {
     const compensation_type = String(fd.get("compensation_type") ?? "").trim();
     const compensation = String(fd.get("compensation") ?? "").trim();
     const contact_info = String(fd.get("contact_info") ?? "").trim();
-    const deadline_text = String(fd.get("deadline_text") ?? "").trim();
+    const publish_at_raw = String(fd.get("publish_at") ?? "").trim();
     const expires_at_raw = String(fd.get("expires_at") ?? "").trim();
     const ticket_url = String(fd.get("ticket_url") ?? "").trim();
     const published = fd.get("published") === "on";
+    const is_ssta_event = fd.get("is_ssta_event") === "1";
 
     const errors: Record<string, string> = {};
     if (!title) errors.title = "Required.";
@@ -82,21 +88,56 @@ export const actions: Actions = {
       .maybeSingle();
     if (!typeRow) errors.post_type = "Pick a post type.";
 
-    if (
-      compensation_type &&
-      !VALID_COMP_TYPES.includes(compensation_type as typeof VALID_COMP_TYPES[number])
-    ) {
+    if (!compensation_type) {
+      errors.compensation_type = "Pick a compensation type.";
+    } else if (!VALID_COMP_TYPES.includes(compensation_type as typeof VALID_COMP_TYPES[number])) {
       errors.compensation_type = "Invalid compensation type.";
+    }
+    if (!contact_info) {
+      errors.contact_info = "Required - tell artists how to reach you or apply.";
     }
     if (ticket_url && !isValidUrl(ticket_url)) {
       errors.ticket_url = "Must be a valid URL.";
     }
 
+    // Post date + expiration: required + 90-day cap, mirroring the
+    // public submit form. Server-side compare on the YYYY-MM-DD string
+    // so timezone math doesn't shift the boundary.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let publish_at: string | null = null;
+    if (!publish_at_raw) {
+      errors.publish_at = "Required.";
+    } else {
+      const d = new Date(`${publish_at_raw}T00:00:00Z`);
+      if (isNaN(d.getTime())) {
+        errors.publish_at = "Enter a valid date.";
+      } else if (publish_at_raw < todayIso) {
+        errors.publish_at = "Post date can't be in the past.";
+      } else {
+        publish_at = d.toISOString();
+      }
+    }
+
     let expires_at: string | null = null;
-    if (expires_at_raw) {
-      const d = new Date(expires_at_raw);
-      if (isNaN(d.getTime())) errors.expires_at = "Enter a valid date.";
-      else expires_at = d.toISOString();
+    if (!expires_at_raw) {
+      errors.expires_at = "Required.";
+    } else {
+      const exp = new Date(`${expires_at_raw}T00:00:00Z`);
+      if (isNaN(exp.getTime())) {
+        errors.expires_at = "Enter a valid date.";
+      } else if (publish_at) {
+        if (expires_at_raw < publish_at_raw) {
+          errors.expires_at = "Expiration must be on or after the post date.";
+        } else {
+          const maxExp = new Date(publish_at);
+          maxExp.setUTCDate(maxExp.getUTCDate() + MAX_POST_DURATION_DAYS);
+          if (exp > maxExp) {
+            errors.expires_at = `Expiration can be at most ${MAX_POST_DURATION_DAYS} days after the post date.`;
+          } else {
+            expires_at = exp.toISOString();
+          }
+        }
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -122,9 +163,14 @@ export const actions: Actions = {
         description,
         roles,
         compensation_type: compensation_type || null,
-        compensation: compensation || null,
+        // Detail only carries meaning for paid / stipend; null out
+        // anything the form leaks for "none".
+        compensation:
+          compensation_type === "paid" || compensation_type === "stipend"
+            ? compensation || null
+            : null,
         contact_info: contact_info || null,
-        deadline_text: deadline_text || null,
+        publish_at,
         expires_at,
         ticket_url: ticket_url || null,
         // Admin-authored: stamp the admin email + auto-approve. The
@@ -134,6 +180,7 @@ export const actions: Actions = {
         submitter_email: ADMIN_EMAIL.toLowerCase(),
         status: "approved",
         published,
+        is_ssta_event,
         reviewed_at: new Date().toISOString(),
       })
       .select("id")

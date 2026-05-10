@@ -22,6 +22,7 @@ export type Performance = {
     category_name: string | null;
     area_id: string | null;
     area_name: string | null;
+    is_ssta_event: boolean;
   };
 };
 
@@ -65,8 +66,18 @@ export const load: PageServerLoad = async ({ url }) => {
   const monthIso = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
+  // ---- Search ------------------------------------------------------
+  // When q is set, the page widens the date window from "just this
+  // month" to "today through 12 months out" so a search hits across
+  // months. Productions are filtered server-side by ilike on title +
+  // organization_name. The grid view doesn't make sense across a
+  // multi-month range, so we force list view while a search is active.
+  const q = (params.get("q") ?? "").trim();
+  const isSearching = q.length > 0;
+
   // ---- View --------------------------------------------------------
-  const view = params.get("view") === "list" ? "list" : "grid";
+  // List view is forced when searching; otherwise honour the URL.
+  const view = isSearching || params.get("view") === "list" ? "list" : "grid";
 
   // ---- Categories --------------------------------------------------
   const { data: catData } = await supabaseAdmin
@@ -102,30 +113,53 @@ export const load: PageServerLoad = async ({ url }) => {
     ? areas.filter((a) => activeAreaNames.includes(a.name)).map((a) => a.id)
     : null;
 
-  // ---- Performances in this month ---------------------------------
+  // ---- Performances ------------------------------------------------
+  // Date window: just the current month for the regular calendar view,
+  // or today -> 12 months out when a search is active so results hit
+  // across months. Soft cap on row count keeps the response sane if the
+  // search is broad.
+  const perfStart = isSearching ? new Date() : monthStart;
+  const perfEnd = isSearching
+    ? new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), now.getUTCDate(), 8, 0, 0))
+    : monthEnd;
+
   const { data: perfRows } = await supabaseAdmin
     .from("performances")
     .select("id, performs_at, note, production_id")
-    .gte("performs_at", monthStart.toISOString())
-    .lt("performs_at", monthEnd.toISOString())
+    .gte("performs_at", perfStart.toISOString())
+    .lt("performs_at", perfEnd.toISOString())
     .eq("cancelled", false)
-    .order("performs_at");
+    .order("performs_at")
+    .limit(isSearching ? 800 : 400);
 
   const perfs = perfRows ?? [];
   const productionIds = [...new Set(perfs.map((p) => p.production_id))];
 
   let productionsMap = new Map<string, any>();
   if (productionIds.length > 0) {
-    const { data: prodRows } = await supabaseAdmin
+    let prodQuery = supabaseAdmin
       .from("productions")
       .select(
         `id, title, organization_name, detail_url, run_start, run_end,
-         status, deleted_at, category_id, organization_id, area_id`,
+         status, deleted_at, hidden_at, category_id, organization_id, area_id,
+         is_ssta_event`,
       )
       .in("id", productionIds)
       .eq("status", "approved")
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .is("hidden_at", null);
 
+    if (isSearching) {
+      // Escape the % wildcard meaning so user input doesn't accidentally
+      // build broader patterns. Stick a regular % at start + end so the
+      // match is "contains anywhere."
+      const safe = q.replace(/[%_,]/g, "");
+      prodQuery = prodQuery.or(
+        `title.ilike.%${safe}%,organization_name.ilike.%${safe}%`,
+      );
+    }
+
+    const { data: prodRows } = await prodQuery;
     productionsMap = new Map((prodRows ?? []).map((p) => [p.id, p]));
   }
 
@@ -191,10 +225,27 @@ export const load: PageServerLoad = async ({ url }) => {
           category_name: cat?.name ?? null,
           area_id: areaId ?? null,
           area_name: area?.name ?? null,
+          is_ssta_event: !!prod.is_ssta_event,
         },
       };
     })
     .filter((p): p is Performance => p !== null);
+
+  // Re-sort within each calendar day so SSTA-tagged events pin to the
+  // top of the day. The original query already ordered by performs_at;
+  // a stable sort here re-groups SSTA-true within each day cluster
+  // without touching cross-day order. The performs_at sort key is the
+  // ISO timestamp string, which sorts day-then-time lexicographically.
+  performances.sort((a, b) => {
+    const ad = a.performs_at.slice(0, 10);
+    const bd = b.performs_at.slice(0, 10);
+    if (ad !== bd) return ad < bd ? -1 : 1;
+    // Within the same day: SSTA first, then time.
+    if (a.production.is_ssta_event !== b.production.is_ssta_event) {
+      return a.production.is_ssta_event ? -1 : 1;
+    }
+    return a.performs_at < b.performs_at ? -1 : 1;
+  });
 
   // Total upcoming (forward-looking, all months) for masthead. We count
   // raw performances; RLS-cascade via productions.deleted_at would be
@@ -222,6 +273,8 @@ export const load: PageServerLoad = async ({ url }) => {
     areas,
     activeAreas: activeAreaNames, // null = show all
     view,
+    q,
+    isSearching,
     monthIso: monthIso(monthStart),
     monthLabel: monthStart.toLocaleString("en-US", {
       month: "long",

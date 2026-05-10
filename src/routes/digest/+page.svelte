@@ -39,6 +39,18 @@
     ];
     return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
   }
+
+  const hasCallboard = $derived(
+    data.postsNew.length > 0 ||
+      data.postsStillOpen.length > 0 ||
+      data.postsClosing.length > 0,
+  );
+  const hasCalendar = $derived(
+    data.prodsOpeningThisWeek.length > 0 ||
+      data.prodsOpeningNextWeek.length > 0 ||
+      data.prodsCurrentlyRunning.length > 0 ||
+      data.prodsClosingThisWeek.length > 0,
+  );
 </script>
 
 <svelte:head>
@@ -61,14 +73,12 @@
     </p>
   </header>
 
-  <!-- Subscribe CTA. Visible right at the top - the page exists partly
-       as a way to demo the digest content so people will subscribe. -->
   <section class="subscribe-cta">
     <div class="subscribe-copy">
       <h2 class="subscribe-h">Get this in your inbox.</h2>
       <p class="subscribe-body">
-        Every Sunday evening, just the new stuff from the week, with the
-        option to filter by post type, area, or category.
+        Every Sunday night, a roundup of what's new, what's still open,
+        and what's playing - filterable by post type, area, or category.
       </p>
     </div>
     <a class="bt subscribe-btn" href="/callboard/subscribe">
@@ -76,7 +86,7 @@
     </a>
   </section>
 
-  <!-- Callboard slice: posts created in the past 7 days. -->
+  <!-- Callboard slice: New this week + Closing this week. -->
   <section class="block">
     <header class="block-hd">
       <h2 class="block-h">On the callboard</h2>
@@ -84,11 +94,57 @@
         New auditions, designer / crew calls, and opportunities from the past week.
       </p>
     </header>
-    {#if data.posts.length === 0}
+
+    {#if !hasCallboard}
       <p class="empty">Nothing new on the callboard this week.</p>
-    {:else}
+    {/if}
+
+    {#if data.postsNew.length > 0}
+      <h3 class="sub-h">New this week</h3>
       <ul class="post-list">
-        {#each data.posts as p (p.id)}
+        {#each data.postsNew as p (p.id)}
+          <li class="post-row">
+            <a class="post-link" href={`/callboard/${p.id}`}>
+              <span class="post-type">{labelFor(p.post_type)}</span>
+              <span class="post-title">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              {#if p.deadline_text}
+                <span class="post-tail">{p.deadline_text}</span>
+              {:else if p.location}
+                <span class="post-tail">{p.location}</span>
+              {/if}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.postsStillOpen.length > 0}
+      <h3 class="sub-h">Still open</h3>
+      <ul class="post-list">
+        {#each data.postsStillOpen as p (p.id)}
+          <li class="post-row">
+            <a class="post-link" href={`/callboard/${p.id}`}>
+              <span class="post-type">{labelFor(p.post_type)}</span>
+              <span class="post-title">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              {#if p.deadline_text}
+                <span class="post-tail">{p.deadline_text}</span>
+              {:else if p.location}
+                <span class="post-tail">{p.location}</span>
+              {/if}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.postsClosing.length > 0}
+      <h3 class="sub-h">Closing this week</h3>
+      <ul class="post-list">
+        {#each data.postsClosing as p (p.id)}
           <li class="post-row">
             <a class="post-link" href={`/callboard/${p.id}`}>
               <span class="post-type">{labelFor(p.post_type)}</span>
@@ -107,22 +163,78 @@
     {/if}
   </section>
 
-  <!-- Calendar slice: productions opening in the next 14 days. -->
+  <!-- Calendar slice: 4 buckets matching the email. -->
   <section class="block">
     <header class="block-hd">
-      <h2 class="block-h">Opening soon</h2>
-      <p class="block-sub">Productions starting in the next two weeks.</p>
+      <h2 class="block-h">What's playing</h2>
+      <p class="block-sub">
+        Productions opening soon, currently running, or wrapping up.
+      </p>
     </header>
-    {#if data.productions.length === 0}
-      <p class="empty">Nothing new on the calendar this week.</p>
-    {:else}
+
+    {#if !hasCalendar}
+      <p class="empty">Nothing on the calendar this week.</p>
+    {/if}
+
+    {#if data.prodsOpeningThisWeek.length > 0}
+      <h3 class="sub-h">Opening this week</h3>
       <ul class="prod-list">
-        {#each data.productions as p (p.id)}
+        {#each data.prodsOpeningThisWeek as p (p.id)}
           <li class="prod-row">
-            <span class="prod-name">
-              <strong>{p.organization_name}</strong> - {p.title}
-            </span>
-            <span class="prod-dates">{fmtRun(p.run_start, p.run_end)}</span>
+            <a class="prod-link" href={`/calendar/${p.id}`}>
+              <span class="prod-name">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              <span class="prod-dates">{fmtRun(p.run_start, p.run_end)}</span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.prodsOpeningNextWeek.length > 0}
+      <h3 class="sub-h">Opening next week</h3>
+      <ul class="prod-list">
+        {#each data.prodsOpeningNextWeek as p (p.id)}
+          <li class="prod-row">
+            <a class="prod-link" href={`/calendar/${p.id}`}>
+              <span class="prod-name">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              <span class="prod-dates">{fmtRun(p.run_start, p.run_end)}</span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.prodsCurrentlyRunning.length > 0}
+      <h3 class="sub-h">Currently running</h3>
+      <ul class="prod-list">
+        {#each data.prodsCurrentlyRunning as p (p.id)}
+          <li class="prod-row">
+            <a class="prod-link" href={`/calendar/${p.id}`}>
+              <span class="prod-name">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              <span class="prod-dates">{fmtRun(p.run_start, p.run_end)}</span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if data.prodsClosingThisWeek.length > 0}
+      <h3 class="sub-h">Closing this week</h3>
+      <ul class="prod-list">
+        {#each data.prodsClosingThisWeek as p (p.id)}
+          <li class="prod-row">
+            <a class="prod-link" href={`/calendar/${p.id}`}>
+              <span class="prod-name">
+                <strong>{p.organization_name}</strong> - {p.title}
+              </span>
+              <span class="prod-dates">{fmtRun(p.run_start, p.run_end)}</span>
+            </a>
           </li>
         {/each}
       </ul>
@@ -231,6 +343,14 @@
     line-height: 1.5;
     margin: 0;
   }
+  .sub-h {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 16px;
+    margin: 1.25rem 0 0.5rem;
+    letter-spacing: -0.005em;
+  }
   .empty {
     font-family: var(--font-body);
     font-size: 14px;
@@ -295,7 +415,7 @@
   }
 
   /* Productions list */
-  .prod-row {
+  .prod-link {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -305,6 +425,10 @@
     font-size: 14px;
     color: var(--ink);
     flex-wrap: wrap;
+    text-decoration: none;
+  }
+  .prod-link:hover {
+    background: color-mix(in oklch, var(--accent), var(--bg) 94%);
   }
   .prod-name {
     flex: 1 1 280px;

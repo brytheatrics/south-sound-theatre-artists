@@ -90,6 +90,7 @@ export const actions: Actions = {
     // back to its org row keeps /theatres counts + the calendar page's
     // org-name consistency working.
     const organization_id = String(fd.get("organization_id") ?? "").trim() || null;
+    const is_ssta_event = fd.get("is_ssta_event") === "1";
 
     if (!title)
       return fail(400, { error: "Title is required.", values: Object.fromEntries(fd) });
@@ -107,6 +108,7 @@ export const actions: Actions = {
         category_id,
         area_id,
         organization_id,
+        is_ssta_event,
         status: "approved",
         admin_edited_at: new Date().toISOString(),
       })

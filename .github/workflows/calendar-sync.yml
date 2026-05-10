@@ -35,6 +35,18 @@ jobs:
           cache: "pnpm"
       - name: Install deps
         run: pnpm install --frozen-lockfile --ignore-scripts
+      # Chromium for Playwright-based adapters (OvationTix, Ludus,
+      # Eventbrite). Cached across runs by the @playwright/install action's
+      # path. Browser binaries are ~300MB; the apt deps below cover the
+      # libnss / libatk / etc. shared libraries Chromium needs on
+      # ubuntu-latest.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
       - name: Sync calendar sources
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

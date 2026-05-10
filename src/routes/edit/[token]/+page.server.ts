@@ -19,7 +19,9 @@ import {
   ensureDefaultResume,
   loadProfileResumes,
 } from "$lib/server/resumes";
+import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
+import { isValidPhone, normalizePhone } from "$lib/util/phone";
 
 function parseResumes(raw: unknown): Array<{ label: string; url: string }> {
   if (typeof raw !== "string" || !raw) return [];
@@ -118,6 +120,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const p = profileRes.data;
   const missingFields: string[] = [];
   if (!p.full_name) missingFields.push("Name");
+  if (!p.bio || !p.bio.trim()) missingFields.push("Bio");
   // Headshot is suppressed for minor profiles (we never display it
   // publicly), so it isn't required for them. The same exception
   // applies to the headshot_consent check below.
@@ -160,6 +163,10 @@ export const actions: Actions = {
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
     const bio = ((data.get("bio") as string) ?? "").trim();
+    const phone = normalizePhone(data.get("phone") as string);
+    if (phone && !isValidPhone(phone)) {
+      return fail(400, { error: "Phone must have at least 7 digits or be left blank." });
+    }
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
     const headshotConsent = data.get("headshot_consent") === "on";
     const area = ((data.get("area") as string) ?? "").trim();
@@ -196,6 +203,7 @@ export const actions: Actions = {
 
     const errors: Record<string, string> = {};
     if (!fullName) errors.full_name = "Required.";
+    if (!bio) errors.bio = "Add a short bio so people can learn who you are.";
     if (!headshotUrl) {
       errors.headshot_url = "Add a clear photo of yourself.";
     } else if (!headshotConsent) {
@@ -299,6 +307,13 @@ export const actions: Actions = {
 
     const minorUpdate: Record<string, unknown> = {
       pronouns: pronouns || null,
+      // Phone: never rendered publicly; treated as a minor field today.
+      // CASTING-TOOL-DAY: revisit. When phone routes callbacks, an
+      // attacker who hijacks an account could rewrite it to impersonate
+      // the artist to theatres - at that point phone may need to gate
+      // through flagged_edits for untrusted profiles like other
+      // load-bearing fields do.
+      phone: phone || null,
       headshot_consent: headshotConsent,
       geographic_area: finalArea,
       city: city || null,
@@ -344,31 +359,27 @@ export const actions: Actions = {
     }
 
     // Auto-publish gate: bulk-imported profiles ship unpublished when
-    // they're missing required info. After this save, refetch the row
-    // and check the publishable bar against actual DB state (untrusted
-    // users' major-field edits go to flagged_edits, not the row, so we
-    // can't trust the form submission alone). Flip published only when
-    // every required field is genuinely present.
+    // they're missing required info, AND launch-grace auto-hide flips
+    // published=false on incomplete invited profiles after T+30. After
+    // this save, refetch the row and check the publishable bar against
+    // actual DB state (untrusted users' major-field edits go to
+    // flagged_edits, not the row, so we can't trust the form submission
+    // alone). Flip published only when every required field is
+    // genuinely present.
     const { data: updated } = await supabaseAdmin
       .from("profiles")
       .select(
-        "full_name, geographic_area, disciplines, headshot_url, headshot_consent, published",
+        "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent, published, auto_hidden_incomplete",
       )
       .eq("id", token.target_id)
       .maybeSingle();
-    if (updated && !updated.published) {
-      const isComplete =
-        !!updated.full_name &&
-        !!updated.headshot_url &&
-        !!updated.geographic_area &&
-        (updated.disciplines ?? []).length > 0 &&
-        updated.headshot_consent;
-      if (isComplete) {
-        await supabaseAdmin
-          .from("profiles")
-          .update({ published: true })
-          .eq("id", token.target_id);
-      }
+    if (updated && !updated.published && !isProfileIncomplete(updated)) {
+      // Clear auto_hidden_incomplete when re-publishing so the next
+      // hide cycle (if it ever fires again) treats it as a fresh case.
+      await supabaseAdmin
+        .from("profiles")
+        .update({ published: true, auto_hidden_incomplete: false })
+        .eq("id", token.target_id);
     }
 
     let queued = false;

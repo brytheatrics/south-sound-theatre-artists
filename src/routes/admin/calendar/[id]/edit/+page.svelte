@@ -174,6 +174,14 @@
     </select>
   </label>
 
+  <label class="field check-field">
+    <input type="checkbox" name="is_ssta_event" value="1" checked={data.production.is_ssta_event} />
+    <span>
+      <strong>SSTA event</strong>
+      <span class="hint">— SSTA itself is hosting / sponsoring this. Pins to the top of its day on the public calendar and shows an "SSTA" badge.</span>
+    </span>
+  </label>
+
   <h2 class="block-title perf-title">Performances</h2>
   <p class="perf-help">
     Times in Pacific Time. Mark cancelled to keep a record visible without
@@ -240,6 +248,25 @@
   </form>
 {/if}
 
+<form method="POST" action={data.production.hidden_at ? "?/show" : "?/hide"} class="hide-zone" use:enhance>
+  <h3 class="resync-title">{data.production.hidden_at ? "Currently hidden from public" : "Visible to public"}</h3>
+  <p class="confirm-text">
+    {#if data.production.hidden_at}
+      This production is hidden from the public calendar. Click to unhide
+      and put it back on the calendar.
+    {:else}
+      Hide this production from the public calendar without deleting it.
+      Useful when the cron pulled a show before the theatre formally
+      announced it. The cron will leave it alone while it's hidden, so
+      flipping it back on later restores it exactly as it is now.
+    {/if}
+  </p>
+  <button type="submit" class="bt bt-ghost">
+    {data.production.hidden_at ? "Unhide and show on calendar" : "Hide from public calendar"}
+  </button>
+</form>
+
+
 <form method="POST" action="?/softDelete" class="delete-zone" use:enhance>
   <h3 class="danger-title">Danger zone</h3>
   {#if !confirmingDelete}
@@ -297,7 +324,7 @@
     max-width: 720px;
   }
   .info-soft em { font-style: italic; }
-  .resync-zone {
+  .resync-zone, .hide-zone {
     margin-top: 1.5rem;
     padding: 1rem 1.25rem;
     background: var(--bg-raised);
@@ -342,6 +369,9 @@
   .perf-help { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.6rem; }
 
   .field { display: block; margin-bottom: 0.95rem; }
+  .check-field { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.6rem 0.85rem; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: var(--radius); }
+  .check-field input { margin-top: 0.25rem; }
+  .check-field .hint { color: var(--muted); font-size: 0.85rem; font-weight: normal; }
   .field > span:first-child {
     display: block;
     font-family: var(--font-mono);

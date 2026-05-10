@@ -3,7 +3,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const { post, verifiedOrgName, typeLabel } = data;
+  const { post, verifiedOrgName, isVerified, typeLabel } = data;
 
   function isClosingSoon(expiresAt: string | null): boolean {
     if (!expiresAt) return false;
@@ -36,7 +36,7 @@
   <main class="post-main">
     <div class="post-top">
       <span class="type-badge">{typeLabel}</span>
-      {#if post.organization_id}
+      {#if isVerified}
         <span class="verified-badge" title="Verified producing company">&#10003;</span>
         {#if verifiedOrgName}
           <span class="verified-label">Verified company</span>
@@ -51,7 +51,12 @@
       {/if}
     </div>
 
-    <h1 class="post-title">{post.title}</h1>
+    <h1 class="post-title">
+      {#if post.is_ssta_event}
+        <span class="ssta-pill" title="SSTA event">SSTA</span>
+      {/if}
+      {post.title}
+    </h1>
 
     {#if post.compensation}
       <div class="comp-line mono-label">{post.compensation}</div>
@@ -74,7 +79,7 @@
     {#if post.ticket_url}
       <div class="ticket-row">
         <a class="bt bt-acc" href={post.ticket_url} target="_blank" rel="noopener">
-          Tickets &amp; info &rarr;
+          {post.post_type === "production" ? "Tickets & info" : "More info"} &rarr;
         </a>
       </div>
     {/if}
@@ -208,6 +213,20 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .ssta-pill {
+    display: inline-block;
+    padding: 0.05em 0.5em;
+    margin-right: 0.4em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.4em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: 0.55em;
+    font-weight: 600;
   }
   .post-title {
     font-family: var(--font-display);

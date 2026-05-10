@@ -192,8 +192,11 @@
       <article class="card">
         <div class="card-top">
           <span class="type-badge">{POST_TYPE_LABELS[p.post_type] ?? p.post_type}</span>
-          {#if p.organization_id}
+          {#if p.is_verified}
             <span class="verified-badge" title="Verified producing company">&#10003;</span>
+          {/if}
+          {#if p.is_ssta_event}
+            <span class="ssta-pill" title="SSTA event">SSTA</span>
           {/if}
         </div>
         <div class="card-company">{p.organization_name}</div>
@@ -234,7 +237,7 @@
         <div class="post-mid">
           <div class="post-org">
             <a class="org-name serif-it" href="/callboard/{p.id}">{p.organization_name}</a>
-            {#if p.organization_id}
+            {#if p.is_verified}
               <span class="verified-badge" title="Verified producing company">&#10003;</span>
             {/if}
             {#if p.location}
@@ -242,6 +245,9 @@
             {/if}
           </div>
           <h2 class="post-title">
+            {#if p.is_ssta_event}
+              <span class="ssta-pill" title="SSTA event">SSTA</span>
+            {/if}
             <a href="/callboard/{p.id}">{p.title}</a>
           </h2>
           {#if p.description}
@@ -540,6 +546,21 @@
     color: var(--ink);
     padding: 4px 8px;
     border-radius: 2px;
+  }
+  .ssta-pill {
+    display: inline-block;
+    padding: 0 0.4em;
+    margin-right: 0.3em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.65em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.6;
+    vertical-align: 0.15em;
+    font-weight: 600;
   }
   .verified-badge {
     display: inline-flex;

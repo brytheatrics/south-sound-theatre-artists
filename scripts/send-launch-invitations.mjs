@@ -165,6 +165,17 @@ async function main() {
       });
 
       if (result.ok) {
+        // Stamp invited_at on the row so the launch-grace cron knows
+        // when the 30-day completion clock started for this artist.
+        // coalesce keeps the original timestamp if a re-run somehow
+        // bypasses the recent-invite guard - we want the FIRST invite
+        // to anchor the clock, not subsequent reminders.
+        await db.query(
+          `update profiles
+              set invited_at = coalesce(invited_at, now())
+            where id = $1`,
+          [p.id],
+        );
         sent++;
         console.log(`sent ${p.slug}`);
       } else {

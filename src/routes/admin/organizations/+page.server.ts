@@ -18,6 +18,7 @@ import { sendEmail } from "$lib/server/email";
 import { PUBLIC_SITE_URL } from "$env/static/public";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { env as privateEnv } from "$env/dynamic/private";
+import { KNOWN_CATEGORY_SLUGS, CATEGORY_LABELS } from "$lib/server/orgCategories";
 
 const { Client } = pg;
 
@@ -31,7 +32,7 @@ export const load: PageServerLoad = async ({ url }) => {
        last_status, last_show_count, last_checked_at, last_successful_at,
        last_error, cooldown_until, notes, updated_at, area_id,
        description, homepage_url, ticketing_url, public_email, logo_url, logo_bg,
-       contact_email, verified, created_at`,
+       contact_email, verified, created_at, categories`,
     )
     .is("deleted_at", null)
     .order("name");
@@ -57,6 +58,10 @@ export const load: PageServerLoad = async ({ url }) => {
     autoSources: enriched.filter((o) => !o.is_manual),
     manualSources: enriched.filter((o) => o.is_manual),
     areas: areas ?? [],
+    categoryOptions: KNOWN_CATEGORY_SLUGS.map((slug) => ({
+      slug,
+      label: CATEGORY_LABELS[slug],
+    })),
     justCreated,
   };
 };
@@ -77,6 +82,14 @@ export const actions: Actions = {
     const ticketingUrl = String(fd.get("ticketing_url") ?? "").trim();
     const logoUrl = String(fd.get("logo_url") ?? "").trim();
     const logoBg = String(fd.get("logo_bg") ?? "paper").trim();
+    // Multi-badge categories. Filter to known slugs so a tampered form
+    // can't write arbitrary strings into the array - admin can still
+    // coin a new slug by adding it to the orgCategories vocabulary
+    // (one-line change, no migration).
+    const categories = fd
+      .getAll("categories")
+      .map(String)
+      .filter((s) => (KNOWN_CATEGORY_SLUGS as readonly string[]).includes(s));
 
     if (!name) return fail(400, { error: "Name is required." });
     if (name.length > 120) return fail(400, { error: "Name should be under 120 characters." });
@@ -123,6 +136,7 @@ export const actions: Actions = {
         ticketing_url: ticketingUrl || null,
         logo_url: logoUrl || null,
         logo_bg: logoBg,
+        categories,
       })
       .eq("id", id)
       .select("slug")

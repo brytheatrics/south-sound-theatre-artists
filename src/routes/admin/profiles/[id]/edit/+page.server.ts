@@ -14,7 +14,9 @@ import {
 } from "$lib/server/resumes";
 import { sendEmail } from "$lib/server/email";
 import { generateToken, hashToken } from "$lib/server/tokens";
+import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
+import { isValidPhone, normalizePhone } from "$lib/util/phone";
 
 const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -113,6 +115,7 @@ export const actions: Actions = {
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const slug = ((data.get("slug") as string) ?? "").trim().toLowerCase();
     const email = ((data.get("email") as string) ?? "").trim().toLowerCase();
+    const phone = normalizePhone(data.get("phone") as string);
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
     const bio = ((data.get("bio") as string) ?? "").trim();
     const headshotUrl = ((data.get("headshot_url") as string) ?? "").trim();
@@ -134,6 +137,7 @@ export const actions: Actions = {
     const unionOther = ((data.get("union_other") as string) ?? "").trim();
     const ethnicities = data.getAll("ethnicities").map(String).filter(Boolean);
     const ethnicityOther = ((data.get("ethnicity_other") as string) ?? "").trim();
+    const adminNote = ((data.get("admin_note") as string) ?? "").trim();
     const resumes = parseResumes(data.get("resumes"));
     // Resume builder entries are now relational (mig 078) and saved live
     // via the /api/admin/profiles/[id]/* endpoints during the edit
@@ -154,6 +158,9 @@ export const actions: Actions = {
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Valid email required.";
+    }
+    if (phone && !isValidPhone(phone)) {
+      errors.phone = "Phone must have at least 7 digits or be left blank.";
     }
     // Admin save: only the slug + email are truly required (those gate
     // routing + magic-link delivery). Disciplines and area are required
@@ -216,12 +223,21 @@ export const actions: Actions = {
       ),
     );
 
+    // Snapshot the row BEFORE the update so we can spot the
+    // "auto-hidden -> now complete" transition and re-publish.
+    const { data: priorRow } = await supabaseAdmin
+      .from("profiles")
+      .select("auto_hidden_incomplete, published")
+      .eq("id", params.id)
+      .maybeSingle();
+
     const { error: updateErr } = await supabaseAdmin
       .from("profiles")
       .update({
         full_name: fullName,
         slug,
         email,
+        phone: phone || null,
         pronouns: pronouns || null,
         bio: bio || null,
         headshot_url: headshotUrl || null,
@@ -248,6 +264,7 @@ export const actions: Actions = {
         website_url: normalizeUrl(website) || null,
         mentorship_offering: mentorshipOffering,
         mentorship_seeking: mentorshipSeeking,
+        admin_note: adminNote || null,
       })
       .eq("id", params.id);
 
@@ -256,6 +273,27 @@ export const actions: Actions = {
       return fail(500, {
         errors: { _form: "Could not save changes. Please try again." },
       });
+    }
+
+    // Auto-republish: if the row was auto-hidden by the launch-grace
+    // cron and the admin's edit just brought it up to complete, flip
+    // published back on. Mirrors the artist-side /edit/[token] handler.
+    // Admin manual unpublishes (auto_hidden_incomplete=false) are not
+    // affected.
+    if (priorRow?.auto_hidden_incomplete && !priorRow?.published) {
+      const { data: updated } = await supabaseAdmin
+        .from("profiles")
+        .select(
+          "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent",
+        )
+        .eq("id", params.id)
+        .maybeSingle();
+      if (updated && !isProfileIncomplete(updated)) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ published: true, auto_hidden_incomplete: false })
+          .eq("id", params.id);
+      }
     }
 
     return { saved: true };

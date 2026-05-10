@@ -15,7 +15,11 @@ const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 type PostType = string;
 
-const VALID_COMP_TYPES = ["paid", "stipend", "volunteer", "none"] as const;
+// "volunteer" was dropped in favour of "none" - kept in the legacy
+// constant for backfill rows already in the DB but never offered to new
+// submitters. The form only sends paid / stipend / none going forward.
+const VALID_COMP_TYPES = ["paid", "stipend", "none"] as const;
+const MAX_POST_DURATION_DAYS = 90;
 
 export const load: PageServerLoad = async () => {
   // Areas now drive a required area picker (mig 071); return id +
@@ -48,7 +52,7 @@ type Values = {
   compensation: string;
   contactInfo: string;
   keyDates: KeyDate[];
-  deadlineText: string;
+  publishAt: string;
   expiresAt: string;
   ticketUrl: string;
   submitterName: string;
@@ -121,7 +125,7 @@ export const actions: Actions = {
       compensation: ((data.get("compensation") as string) ?? "").trim(),
       contactInfo: ((data.get("contact_info") as string) ?? "").trim(),
       keyDates: parseKeyDates(data.get("key_dates")),
-      deadlineText: ((data.get("deadline_text") as string) ?? "").trim(),
+      publishAt: ((data.get("publish_at") as string) ?? "").trim(),
       expiresAt: ((data.get("expires_at") as string) ?? "").trim(),
       ticketUrl: ((data.get("ticket_url") as string) ?? "").trim(),
       submitterName: ((data.get("submitter_name") as string) ?? "").trim(),
@@ -145,6 +149,7 @@ export const actions: Actions = {
     if (!values.submitterName) errors.submitter_name = "Required.";
     if (!isValidEmail(values.submitterEmail)) errors.submitter_email = "Enter a valid email address.";
     if (!values.description) errors.description = "Required.";
+    if (!values.contactInfo) errors.contact_info = "Required - tell artists how to reach you or apply.";
 
     // Area is required at submit time going forward (mig 071). Validate
     // the FK against the live areas table so we don't write a dangling
@@ -160,7 +165,9 @@ export const actions: Actions = {
       if (!areaRow) errors.area_id = "That area isn't recognised.";
     }
 
-    if (values.compensationType && !VALID_COMP_TYPES.includes(values.compensationType as typeof VALID_COMP_TYPES[number])) {
+    if (!values.compensationType) {
+      errors.compensation_type = "Pick a compensation type.";
+    } else if (!VALID_COMP_TYPES.includes(values.compensationType as typeof VALID_COMP_TYPES[number])) {
       errors.compensation_type = "Invalid compensation type.";
     }
 
@@ -168,15 +175,49 @@ export const actions: Actions = {
       errors.ticket_url = "Must be a valid URL.";
     }
 
-    let expiresAtIso: string | null = null;
-    if (values.expiresAt) {
-      const d = new Date(values.expiresAt);
+    // Post date: required, defaults to today on the form. Server
+    // re-validates so a backdated value from a stale tab can't slip in.
+    // Compare on the date string (YYYY-MM-DD) rather than Date object so
+    // we don't fight timezone math at midnight boundaries.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let publishAtIso: string | null = null;
+    if (!values.publishAt) {
+      errors.publish_at = "Required.";
+    } else {
+      const d = new Date(`${values.publishAt}T00:00:00Z`);
       if (isNaN(d.getTime())) {
-        errors.expires_at = "Enter a valid date.";
-      } else if (d < new Date()) {
-        errors.expires_at = "Expiration date must be in the future.";
+        errors.publish_at = "Enter a valid date.";
+      } else if (values.publishAt < todayIso) {
+        errors.publish_at = "Post date can't be in the past.";
       } else {
-        expiresAtIso = d.toISOString();
+        publishAtIso = d.toISOString();
+      }
+    }
+
+    // Auto-remove date: required, must be on or after the post date,
+    // and capped at post_date + 90 days so stale posts can't sit on
+    // the board indefinitely. Validates against the parsed publishAtIso
+    // when present, else the raw publishAt string when only one of the
+    // two failed validation upstream.
+    let expiresAtIso: string | null = null;
+    if (!values.expiresAt) {
+      errors.expires_at = "Required.";
+    } else {
+      const exp = new Date(`${values.expiresAt}T00:00:00Z`);
+      if (isNaN(exp.getTime())) {
+        errors.expires_at = "Enter a valid date.";
+      } else if (publishAtIso) {
+        if (values.expiresAt < values.publishAt) {
+          errors.expires_at = "Auto-remove date must be on or after the post date.";
+        } else {
+          const maxExp = new Date(publishAtIso);
+          maxExp.setUTCDate(maxExp.getUTCDate() + MAX_POST_DURATION_DAYS);
+          if (exp > maxExp) {
+            errors.expires_at = `Auto-remove date can be at most ${MAX_POST_DURATION_DAYS} days after the post date.`;
+          } else {
+            expiresAtIso = exp.toISOString();
+          }
+        }
       }
     }
 
@@ -219,10 +260,17 @@ export const actions: Actions = {
         description: values.description,
         roles,
         compensation_type: values.compensationType || null,
-        compensation: values.compensation || null,
+        // Details only carry meaning for paid / stipend - "None /
+        // unpaid" is self-explanatory, so any text leaked through from
+        // a stale form gets dropped.
+        compensation:
+          values.compensationType === "paid" ||
+          values.compensationType === "stipend"
+            ? values.compensation || null
+            : null,
         contact_info: values.contactInfo || null,
         key_dates: values.keyDates,
-        deadline_text: values.deadlineText || null,
+        publish_at: publishAtIso,
         expires_at: expiresAtIso,
         ticket_url: values.ticketUrl || null,
         submitter_email: values.submitterEmail,

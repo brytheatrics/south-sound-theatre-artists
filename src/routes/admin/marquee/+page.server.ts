@@ -14,7 +14,8 @@ export const load: PageServerLoad = async () => {
       .from("marquee_settings")
       .select(
         `enabled, include_all_callboard, include_callboard_post_ids,
-         include_all_calendar, include_calendar_production_ids`,
+         include_all_calendar, include_calendar_production_ids,
+         include_appearing_in`,
       )
       .eq("id", 1)
       .maybeSingle(),
@@ -45,6 +46,7 @@ export const load: PageServerLoad = async () => {
       include_callboard_post_ids: [],
       include_all_calendar: true,
       include_calendar_production_ids: [],
+      include_appearing_in: true,
     },
     callboardPosts: postsRes.data ?? [],
     postTypes: typesRes.data ?? [],
@@ -58,6 +60,7 @@ export const actions: Actions = {
     const enabled = data.get("enabled") === "on";
     const cycleAllCallboard = data.get("include_all_callboard") === "on";
     const cycleAllCalendar = data.get("include_all_calendar") === "on";
+    const includeAppearingIn = data.get("include_appearing_in") === "on";
     const pickedPostIds = data
       .getAll("post_id")
       .map(String)
@@ -76,6 +79,7 @@ export const actions: Actions = {
         include_callboard_post_ids: cycleAllCallboard ? [] : pickedPostIds,
         include_all_calendar: cycleAllCalendar,
         include_calendar_production_ids: cycleAllCalendar ? [] : pickedProductionIds,
+        include_appearing_in: includeAppearingIn,
       })
       .eq("id", 1);
     if (error) return fail(500, { error: "Could not save." });

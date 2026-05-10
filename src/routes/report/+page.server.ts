@@ -4,6 +4,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
 
 export const load: PageServerLoad = async ({ url }) => {
   const slug = url.searchParams.get("profile") ?? "";
@@ -19,10 +20,18 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ request, url }) => {
+  default: async ({ request, url, getClientAddress }) => {
     const data = await request.formData();
     if ((data.get("website_url_extra") as string)?.trim()) {
       throw redirect(303, "/report/done");
+    }
+
+    const rl = await checkSubmitRateLimit(getClientAddress(), "report");
+    if (!rl.ok) {
+      return fail(429, {
+        errors: { _form: RATE_LIMIT_MESSAGE },
+        values: { reason: "", reporterEmail: "" },
+      });
     }
 
     const slug = url.searchParams.get("profile") ?? "";

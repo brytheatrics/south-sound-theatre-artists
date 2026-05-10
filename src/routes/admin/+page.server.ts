@@ -271,6 +271,10 @@ async function approveOne(
       pronouns: sub.pronouns,
       ethnicities: sub.ethnicities,
       email: sub.email,
+      // Phone is private (never rendered publicly) and optional. Carries
+      // through the submit -> verify -> approve pipeline via this column
+      // so artists who entered one don't have to re-enter on first edit.
+      phone: sub.phone ?? null,
       // Carry the minor / guardian flags through so the profile renders
       // correctly (suppressed headshot, contact-form notice, admin badge).
       is_minor: sub.is_minor ?? false,

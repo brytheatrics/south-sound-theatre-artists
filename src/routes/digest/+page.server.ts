@@ -1,74 +1,189 @@
 // /digest: public preview of what the weekly digest email will contain.
 // Mirrors the unfiltered "firehose" view of the cron at
 // scripts/callboard-weekly-digest.mjs - someone who subscribed without
-// narrowing down their preferences would get exactly this content.
+// narrowing down their preferences would get exactly this content,
+// bucketed into the same sub-sections (Opening this week, Currently
+// running, etc.) so the page and the email read as the same thing.
 //
-// The cron runs Sunday-evening (01:00 UTC Mon = 17:00 PT Sun). This page
-// uses the same windows so it lines up with what's about to land in
-// inboxes:
-//   - callboard posts created in the past 7 days
-//   - productions with run_start in the next 14 days
-//
-// No per-subscriber filtering. The /callboard/subscribe form is the path
-// to a personalised digest.
+// Cron now runs Sunday 11:59 PM PT (06:59 UTC Mon). This page uses the
+// same windows it does so what's shown here is what subscribers will
+// see in their inbox.
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 
+type Production = {
+  id: string;
+  title: string;
+  organization_name: string;
+  run_start: string | null;
+  run_end: string | null;
+};
+
+type CallboardPost = {
+  id: string;
+  post_type: string;
+  title: string;
+  organization_name: string;
+  deadline_text: string | null;
+  location: string | null;
+  expires_at: string | null;
+  created_at: string;
+};
+
 export const load: PageServerLoad = async () => {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const today = new Date().toISOString().slice(0, 10);
-  const horizon = new Date(Date.now() + 14 * 86_400_000)
+  const weekHorizon = new Date(Date.now() + 7 * 86_400_000)
     .toISOString()
     .slice(0, 10);
+  const twoWeekHorizon = new Date(Date.now() + 14 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const nowIso = new Date().toISOString();
 
-  const [postsRes, productionsRes, postTypeLabelsRes] = await Promise.all([
-    supabaseAdmin
-      .from("callboard_posts")
-      .select(
-        "id, post_type, title, organization_name, deadline_text, location, created_at",
-      )
-      .eq("status", "approved")
-      .eq("published", true)
-      .is("deleted_at", null)
-      .gte("created_at", sevenDaysAgo)
-      .order("created_at", { ascending: false })
-      .limit(60),
-    supabaseAdmin
-      .from("productions")
-      .select("id, title, organization_name, run_start, run_end")
-      .eq("status", "approved")
-      .is("deleted_at", null)
-      .not("run_start", "is", null)
-      .gte("run_start", today)
-      .lte("run_start", horizon)
-      .order("run_start", { ascending: true })
-      .limit(60),
-    supabaseAdmin.from("callboard_post_types").select("slug, label"),
-  ]);
+  const [
+    newPostsRes,
+    closingPostsRes,
+    stillOpenPostsRes,
+    productionsRes,
+    postTypeLabelsRes,
+  ] = await Promise.all([
+      // Callboard "new this week" - posts that went live in the last 7
+      // days. publish_at, not created_at, so scheduled-publish posts
+      // surface in the right week. publish_at <= now() also keeps
+      // not-yet-live posts out of every section.
+      supabaseAdmin
+        .from("callboard_posts")
+        .select(
+          "id, post_type, title, organization_name, deadline_text, location, expires_at, created_at",
+        )
+        .eq("status", "approved")
+        .eq("published", true)
+        .is("deleted_at", null)
+        .lte("publish_at", nowIso)
+        .gte("publish_at", sevenDaysAgo)
+        .order("is_ssta_event", { ascending: false })
+        .order("publish_at", { ascending: false })
+        .limit(60),
+      // Callboard "closing this week" - posts whose expires_at is within
+      // the next 7 days, regardless of when they were posted. Dedup
+      // against the new list at render time so a post created yesterday
+      // and closing Friday lives only in Closing.
+      supabaseAdmin
+        .from("callboard_posts")
+        .select(
+          "id, post_type, title, organization_name, deadline_text, location, expires_at, created_at",
+        )
+        .eq("status", "approved")
+        .eq("published", true)
+        .is("deleted_at", null)
+        .lte("publish_at", nowIso)
+        .not("expires_at", "is", null)
+        .gte("expires_at", today)
+        .lte("expires_at", weekHorizon)
+        .order("is_ssta_event", { ascending: false })
+        .order("expires_at", { ascending: true })
+        .limit(40),
+      // Callboard "still open" - dated posts not new and not closing
+      // this week. Plugs the dead-zone middle weeks of a 4-week-out
+      // audition.
+      supabaseAdmin
+        .from("callboard_posts")
+        .select(
+          "id, post_type, title, organization_name, deadline_text, location, expires_at, created_at",
+        )
+        .eq("status", "approved")
+        .eq("published", true)
+        .is("deleted_at", null)
+        .lte("publish_at", nowIso)
+        .not("expires_at", "is", null)
+        .gt("expires_at", weekHorizon)
+        .lt("publish_at", sevenDaysAgo)
+        .order("is_ssta_event", { ascending: false })
+        .order("expires_at", { ascending: true })
+        .limit(20),
+      // Calendar - pull everything that could conceivably surface in any
+      // bucket: starts within 14 days OR is currently running. The JS
+      // filter below trims to non-closed + buckets each row.
+      supabaseAdmin
+        .from("productions")
+        .select("id, title, organization_name, run_start, run_end")
+        .eq("status", "approved")
+        .is("deleted_at", null)
+        .is("hidden_at", null)
+        .not("run_start", "is", null)
+        .lte("run_start", twoWeekHorizon)
+        .order("run_start", { ascending: true })
+        .limit(120),
+      supabaseAdmin.from("callboard_post_types").select("slug, label"),
+    ]);
 
-  if (postsRes.error) throw postsRes.error;
+  if (newPostsRes.error) throw newPostsRes.error;
+  if (closingPostsRes.error) throw closingPostsRes.error;
+  if (stillOpenPostsRes.error) throw stillOpenPostsRes.error;
   if (productionsRes.error) throw productionsRes.error;
   if (postTypeLabelsRes.error) throw postTypeLabelsRes.error;
+
+  const closingIds = new Set((closingPostsRes.data ?? []).map((p) => p.id));
+  const postsNew = (newPostsRes.data ?? []).filter(
+    (p) => !closingIds.has(p.id),
+  ) as CallboardPost[];
+  const postsClosing = (closingPostsRes.data ?? []) as CallboardPost[];
+  const seenIds = new Set([
+    ...postsClosing.map((p) => p.id),
+    ...postsNew.map((p) => p.id),
+  ]);
+  const postsStillOpen = (stillOpenPostsRes.data ?? []).filter(
+    (p) => !seenIds.has(p.id),
+  ) as CallboardPost[];
+
+  // Bucket productions exactly the way digest-build.ts does. Keep the
+  // logic tight - this is the spot most likely to drift from the email
+  // version, so the comparison is intentionally line-for-line readable.
+  const prods = (productionsRes.data ?? []).filter((p) => {
+    if (!p.run_start) return false;
+    const end = p.run_end ?? p.run_start;
+    return end >= today;
+  }) as Production[];
+
+  const prodsOpeningThisWeek: Production[] = [];
+  const prodsOpeningNextWeek: Production[] = [];
+  const prodsCurrentlyRunning: Production[] = [];
+  const prodsClosingThisWeek: Production[] = [];
+  for (const p of prods) {
+    const start = p.run_start as string;
+    const end = (p.run_end ?? p.run_start) as string;
+    if (start >= today && start <= weekHorizon) {
+      prodsOpeningThisWeek.push(p);
+    } else if (start > weekHorizon && start <= twoWeekHorizon) {
+      prodsOpeningNextWeek.push(p);
+    } else if (start < today && end >= today) {
+      if (end <= weekHorizon) prodsClosingThisWeek.push(p);
+      else prodsCurrentlyRunning.push(p);
+    }
+  }
 
   const postTypeLabels = Object.fromEntries(
     (postTypeLabelsRes.data ?? []).map((r) => [r.slug, r.label]),
   ) as Record<string, string>;
 
-  // Date the next digest will be sent, so the page can say "next digest
-  // sends [date]." Cron schedule: 01:00 UTC Monday = Sunday evening PT.
-  // Find the next Sunday (or today if it's already Sunday past digest hour).
+  // Date the next digest will be sent. Cron runs Sunday 11:59 PM PT
+  // (06:59 UTC Mon). Find the next Sunday for display.
   const now = new Date();
   const nextSunday = new Date(now);
   const daysUntilSunday = (7 - now.getUTCDay()) % 7 || 7;
   nextSunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  // The cron runs at 01:00 UTC the following Monday, which is "Sunday
-  // evening" PT. Approximate as Sunday for display.
   nextSunday.setUTCHours(0, 0, 0, 0);
 
   return {
-    posts: postsRes.data ?? [],
-    productions: productionsRes.data ?? [],
+    postsNew,
+    postsStillOpen,
+    postsClosing,
+    prodsOpeningThisWeek,
+    prodsOpeningNextWeek,
+    prodsCurrentlyRunning,
+    prodsClosingThisWeek,
     postTypeLabels,
     nextDigestAt: nextSunday.toISOString(),
   };

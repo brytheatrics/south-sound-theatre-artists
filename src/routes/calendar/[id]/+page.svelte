@@ -12,6 +12,7 @@
     detail_url: string | null; cover_url: string | null;
     status: string; category_id: string | null;
     organizations: Org | Org[] | null; category_name: string | null;
+    is_ssta_event?: boolean;
   };
   // svelte-ignore state_referenced_locally
   const p: Omit<Production, "organizations"> & { organizations: Org | null } = (() => {
@@ -72,7 +73,12 @@
     <span class="eyebrow">
       <span class="num">·</span>{p.category_name ?? "Production"}
     </span>
-    <h1 class="title">{p.title}</h1>
+    <h1 class="title">
+      {#if p.is_ssta_event}
+        <span class="ssta-pill" title="SSTA event">SSTA</span>
+      {/if}
+      {p.title}
+    </h1>
     {#if p.organizations}
       <p class="org">
         {#if p.organizations.homepage_url}
@@ -218,6 +224,20 @@
   }
   .num {
     color: var(--accent);
+  }
+  .ssta-pill {
+    display: inline-block;
+    padding: 0.05em 0.5em;
+    margin-right: 0.4em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.4em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: 0.55em;
+    font-weight: 600;
   }
   .title {
     font-family: var(--font-display);

@@ -2,9 +2,126 @@
   import type { PageData } from "./$types";
   import { renderMarkdownInline } from "$lib/util/markdown";
   import { page } from "$app/state";
+  import { goto } from "$app/navigation";
   import { onMount } from "svelte";
 
   let { data }: { data: PageData } = $props();
+
+  // ---- Typeahead state ------------------------------------------
+  type Suggestion = {
+    id: string;
+    title: string;
+    organization_name: string;
+    run_start: string | null;
+    run_end: string | null;
+    is_ssta_event: boolean;
+  };
+  let searchValue = $state(data.q || "");
+  let suggestions = $state<Suggestion[]>([]);
+  let suggestOpen = $state(false);
+  let activeIndex = $state(-1);
+  let suggestRoot: HTMLElement | undefined = $state();
+  let searchInput: HTMLInputElement | undefined = $state();
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastFetchedQuery = "";
+
+  function scheduleSearch() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSuggestSearch, 200);
+  }
+
+  async function runSuggestSearch() {
+    const q = searchValue.trim();
+    if (q.length < 2) {
+      suggestions = [];
+      suggestOpen = false;
+      activeIndex = -1;
+      return;
+    }
+    if (q === lastFetchedQuery) return;
+    lastFetchedQuery = q;
+    try {
+      const res = await fetch(`/api/calendar/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return;
+      const body = (await res.json()) as { matches: Suggestion[] };
+      // Discard if the user has typed past this query in the meantime.
+      if (lastFetchedQuery !== q) return;
+      suggestions = body.matches ?? [];
+      suggestOpen = suggestions.length > 0;
+      activeIndex = suggestOpen ? 0 : -1;
+    } catch {
+      // network blip; just leave the dropdown closed
+    }
+  }
+
+  function pickSuggestion(s: Suggestion) {
+    suggestOpen = false;
+    suggestions = [];
+    activeIndex = -1;
+    goto(`/calendar/${s.id}`);
+  }
+
+  function handleSearchKey(e: KeyboardEvent) {
+    if (!suggestOpen) {
+      if (e.key === "ArrowDown" && suggestions.length > 0) {
+        suggestOpen = true;
+        activeIndex = 0;
+        e.preventDefault();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      activeIndex = Math.min(activeIndex + 1, suggestions.length - 1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      activeIndex = Math.max(activeIndex - 1, 0);
+      e.preventDefault();
+    } else if (e.key === "Enter" && activeIndex >= 0 && suggestions[activeIndex]) {
+      e.preventDefault();
+      pickSuggestion(suggestions[activeIndex]);
+    } else if (e.key === "Escape") {
+      suggestOpen = false;
+      activeIndex = -1;
+    }
+  }
+
+  function handleSearchInput() {
+    scheduleSearch();
+  }
+
+  function handleSearchFocus() {
+    if (suggestions.length > 0) suggestOpen = true;
+  }
+
+  // Close the dropdown on outside click. Mirrors the Nav hamburger
+  // pattern.
+  $effect(() => {
+    if (!suggestOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!suggestRoot) return;
+      if (!suggestRoot.contains(e.target as Node)) suggestOpen = false;
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  });
+
+  function fmtRun(start: string | null, end: string | null): string {
+    if (!start) return "";
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const parse = (s: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      if (!m) return null;
+      return { y: +m[1], mo: +m[2] - 1, d: +m[3] };
+    };
+    const s = parse(start);
+    if (!s) return "";
+    const sLabel = `${months[s.mo]} ${s.d}`;
+    if (!end || end === start) return sLabel;
+    const e = parse(end);
+    if (!e) return sLabel;
+    if (s.mo === e.mo && s.y === e.y) return `${sLabel} - ${e.d}`;
+    return `${sLabel} - ${months[e.mo]} ${e.d}`;
+  }
 
   // Highlight support: when the homepage marquee deep-links here with
   // ?highlight=<production_id>, find every grid perf-pill + list row
@@ -46,10 +163,11 @@
   // ---- URL state helper ------------------------------------------
   function buildUrl(overrides: Record<string, string | null>) {
     const base: Record<string, string | null> = {
-      month: data.monthIso,
-      view: data.view === "list" ? "list" : null,
+      month: data.isSearching ? null : data.monthIso,
+      view: data.view === "list" && !data.isSearching ? "list" : null,
       cats: serializeCats(data.activeCats, data.categories),
       areas: serializeAreas(data.activeAreas, data.areas),
+      q: data.q || null,
     };
     const merged = { ...base, ...overrides };
     const p = new URLSearchParams();
@@ -253,6 +371,67 @@
   </div>
 </header>
 
+<!-- SEARCH BAR -->
+<div class="search-bar" bind:this={suggestRoot}>
+  <form class="search-form" method="GET" data-sveltekit-noscroll>
+    <!-- Preserve current filters as hidden fields so submitting search
+         doesn't drop the user's category / area picks. -->
+    {#if data.activeCats.length > 0}
+      <input type="hidden" name="cats" value={data.activeCats.join(",")} />
+    {/if}
+    {#if data.activeAreas !== null && data.activeAreas.length > 0}
+      <input type="hidden" name="areas" value={data.activeAreas.join(",")} />
+    {/if}
+    <input
+      type="search"
+      name="q"
+      bind:this={searchInput}
+      bind:value={searchValue}
+      placeholder="Search shows or theatres..."
+      aria-label="Search shows or theatres"
+      aria-autocomplete="list"
+      autocomplete="off"
+      oninput={handleSearchInput}
+      onkeydown={handleSearchKey}
+      onfocus={handleSearchFocus}
+    />
+    <button type="submit" class="search-btn">Search</button>
+    {#if data.isSearching || searchValue}
+      <a class="search-clear" href={buildUrl({ q: null })} title="Clear search">Clear</a>
+    {/if}
+  </form>
+  {#if suggestOpen && suggestions.length > 0}
+    <ul class="suggest-list" role="listbox">
+      {#each suggestions as s, i (s.id)}
+        <li
+          role="option"
+          aria-selected={i === activeIndex}
+          class="suggest-row"
+          class:active={i === activeIndex}
+          onmousedown={(e) => { e.preventDefault(); pickSuggestion(s); }}
+          onmouseenter={() => (activeIndex = i)}
+        >
+          <div class="suggest-title">
+            {#if s.is_ssta_event}<span class="ssta-pill">SSTA</span>{/if}
+            {s.title}
+          </div>
+          <div class="suggest-meta">
+            {s.organization_name}{#if fmtRun(s.run_start, s.run_end)} <span class="suggest-dates">· {fmtRun(s.run_start, s.run_end)}</span>{/if}
+          </div>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+</div>
+
+{#if data.isSearching}
+  <p class="search-meta">
+    Showing {data.performances.length}
+    {data.performances.length === 1 ? "performance" : "performances"} matching
+    <strong>"{data.q}"</strong> over the next 12 months.
+  </p>
+{/if}
+
 <!-- CATEGORY FILTER STRIP -->
 <div class="filter-strip" data-sveltekit-noscroll data-sveltekit-replacestate>
   <span class="filter-label eyebrow">Show</span>
@@ -290,7 +469,9 @@
   {/if}
 </div>
 
-<!-- SECONDARY: month nav + view toggle -->
+<!-- SECONDARY: month nav + view toggle (hidden when searching since
+     results span the next 12 months) -->
+{#if !data.isSearching}
 <div class="secondary-row" data-sveltekit-noscroll data-sveltekit-replacestate>
   <div class="month-nav">
     <a class="nav-btn" href={buildUrl({ month: data.prevMonthIso })} aria-label="Previous month">‹</a>
@@ -318,14 +499,20 @@
     </a>
   </div>
 </div>
+{/if}
 
 {#if data.performances.length === 0}
   <div class="empty">
-    <p>No performances match your filters this month.</p>
-    {#if data.activeCats.length < data.categories.length}
-      <a class="bt bt-ghost" href={buildUrl({ cats: data.categories.map(c => c.slug).join(",") })}>
-        Show all categories
-      </a>
+    {#if data.isSearching}
+      <p>No upcoming performances match <strong>"{data.q}"</strong>.</p>
+      <a class="bt bt-ghost" href={buildUrl({ q: null })}>Clear search</a>
+    {:else}
+      <p>No performances match your filters this month.</p>
+      {#if data.activeCats.length < data.categories.length}
+        <a class="bt bt-ghost" href={buildUrl({ cats: data.categories.map(c => c.slug).join(",") })}>
+          Show all categories
+        </a>
+      {/if}
     {/if}
   </div>
 {:else}
@@ -357,7 +544,12 @@
                   data-production-id={p.production.id}
                 >
                   <span class="perf-time">{fmtTime(p.performs_at)}</span>
-                  <span class="perf-title">{p.production.title}</span>
+                  <span class="perf-title">
+                    {#if p.production.is_ssta_event}
+                      <span class="ssta-pill" title="SSTA event">SSTA</span>
+                    {/if}
+                    {p.production.title}
+                  </span>
                   <span class="perf-org">{p.production.organization_name}</span>
                   {#if p.note}
                     <span class="note-badge" aria-label={p.note}>✦</span>
@@ -389,7 +581,12 @@
             <li class="perf-row" data-production-id={p.production.id}>
               <span class="perf-time-list">{fmtTime(p.performs_at)}</span>
               <div class="perf-meat">
-                <a class="perf-title-list" href={`/calendar/${p.production.id}`}>{p.production.title}</a>
+                <a class="perf-title-list" href={`/calendar/${p.production.id}`}>
+                  {#if p.production.is_ssta_event}
+                    <span class="ssta-pill" title="SSTA event">SSTA</span>
+                  {/if}
+                  {p.production.title}
+                </a>
                 <div class="perf-org-list">
                   {p.production.organization_name}
                   {#if p.note}
@@ -586,6 +783,127 @@
   }
 
   /* FILTER STRIP */
+  .search-bar {
+    position: relative;
+    margin: 0 0 1rem;
+    padding: 0 var(--page-pad-x);
+    /* Cap at 540px + page padding so the box sits like a search box,
+       not a banner, on wide viewports. */
+    max-width: calc(540px + 2 * var(--page-pad-x));
+  }
+  .search-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  /* Typeahead dropdown anchored to the search input. */
+  .suggest-list {
+    position: absolute;
+    top: 100%;
+    left: var(--page-pad-x);
+    right: var(--page-pad-x);
+    margin: 4px 0 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgba(14, 13, 12, 0.12);
+    z-index: 50;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .suggest-row {
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .suggest-row.active,
+  .suggest-row:hover {
+    background: var(--paper);
+  }
+  .suggest-title {
+    font-family: var(--font-display);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .suggest-meta {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .suggest-dates {
+    color: var(--ink-soft);
+  }
+  .suggest-row .ssta-pill {
+    display: inline-block;
+    padding: 0 0.4em;
+    margin-right: 0.3em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.65em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.6;
+    vertical-align: 0.1em;
+    font-weight: 600;
+  }
+  .search-bar input[type="search"] {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .search-bar input[type="search"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .search-btn {
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .search-btn:hover { background: var(--accent); border-color: var(--accent); }
+  .search-clear {
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .search-clear:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .search-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+    padding: 0 var(--page-pad-x);
+  }
+  .search-meta strong { color: var(--accent); font-weight: 500; }
+
   .filter-strip {
     display: flex;
     flex-wrap: wrap;
@@ -789,6 +1107,21 @@
      performance has a note (Pay-What-You-Can, ASL, Talkback, etc).
      Hovering the pill reveals the full note text via the title attr.
      The list view shows the note inline so this is grid-only. */
+  .ssta-pill {
+    display: inline-block;
+    padding: 0 0.4em;
+    margin-right: 0.3em;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 0.65em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.6;
+    vertical-align: 0.1em;
+    font-weight: 600;
+  }
   .note-badge {
     position: absolute;
     top: 1px;
