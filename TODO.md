@@ -1,5 +1,10 @@
 # TODO
 
+> ⚠️ **PUSH BEFORE THURSDAY 2026-05-14.** Blake is out of town May 14 - ~May 25. Two digest-Sundays fall during travel (May 17 + May 24). Without a push, the scheduled crons send broken empty plain-text digests. Currently queued local-only commits on `main`:
+> - `dc6d670` Cron emails: render markdown + brand wrapper
+> - `188a8dd` Fix: weekly digest empty - keep pg date columns as YYYY-MM-DD strings
+> - Plus the SKIP_SLUGS edit to `scripts/send-launch-invitations.mjs` (uncommitted) — Blake removed himself so he gets included in the bulk send
+
 Master list of outstanding work. Reorganized 2026-05-09 / -10 around three
 real ownership questions:
 

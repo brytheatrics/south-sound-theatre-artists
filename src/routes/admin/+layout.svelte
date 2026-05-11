@@ -25,6 +25,10 @@
 
     // Directory
     { href: "/admin/profiles", label: "All profiles", group: true },
+    { href: "/admin/invitations", label: "Invitations" },
+    { href: "/admin/recent-edits", label: "Recent edits" },
+    { href: "/admin/contact", label: "Contact" },
+    { href: "/admin/contact-categories", label: "Contact routing" },
 
     // Homepage curation - listed in the order the elements appear on
     // the page itself (announcement banner up top, then the spotlight

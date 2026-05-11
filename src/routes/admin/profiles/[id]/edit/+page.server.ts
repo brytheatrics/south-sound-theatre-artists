@@ -13,6 +13,7 @@ import {
   loadProfileResumes,
 } from "$lib/server/resumes";
 import { sendEmail } from "$lib/server/email";
+import { logProfileEdit } from "$lib/server/profile-edit-log";
 import { generateToken, hashToken } from "$lib/server/tokens";
 import { isProfileIncomplete } from "$lib/server/profile-completeness";
 import { normalizeUrl } from "$lib/util/url";
@@ -110,7 +111,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-  save: async ({ params, request }) => {
+  save: async ({ params, request, locals }) => {
     const data = await request.formData();
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const slug = ((data.get("slug") as string) ?? "").trim().toLowerCase();
@@ -224,10 +225,11 @@ export const actions: Actions = {
     );
 
     // Snapshot the row BEFORE the update so we can spot the
-    // "auto-hidden -> now complete" transition and re-publish.
+    // "auto-hidden -> now complete" transition and re-publish, and so
+    // the audit log gets a full before-state to diff against.
     const { data: priorRow } = await supabaseAdmin
       .from("profiles")
-      .select("auto_hidden_incomplete, published")
+      .select("*")
       .eq("id", params.id)
       .maybeSingle();
 
@@ -280,21 +282,40 @@ export const actions: Actions = {
     // published back on. Mirrors the artist-side /edit/[token] handler.
     // Admin manual unpublishes (auto_hidden_incomplete=false) are not
     // affected.
+    let republished = false;
     if (priorRow?.auto_hidden_incomplete && !priorRow?.published) {
-      const { data: updated } = await supabaseAdmin
+      const { data: justSaved } = await supabaseAdmin
         .from("profiles")
         .select(
           "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent",
         )
         .eq("id", params.id)
         .maybeSingle();
-      if (updated && !isProfileIncomplete(updated)) {
+      if (justSaved && !isProfileIncomplete(justSaved)) {
         await supabaseAdmin
           .from("profiles")
           .update({ published: true, auto_hidden_incomplete: false })
           .eq("id", params.id);
+        republished = true;
       }
     }
+
+    // Audit log: refetch the after-state and diff against priorRow.
+    const { data: afterRow } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (priorRow && afterRow) {
+      await logProfileEdit(supabaseAdmin, {
+        profileId: params.id,
+        before: priorRow,
+        after: afterRow,
+        kind: "admin",
+        editorEmail: locals.admin?.email ?? null,
+      });
+    }
+    void republished;
 
     return { saved: true };
   },

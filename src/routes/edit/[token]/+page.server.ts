@@ -20,6 +20,7 @@ import {
   loadProfileResumes,
 } from "$lib/server/resumes";
 import { isProfileIncomplete } from "$lib/server/profile-completeness";
+import { logProfileEdit } from "$lib/server/profile-edit-log";
 import { normalizeUrl } from "$lib/util/url";
 import { isValidPhone, normalizePhone } from "$lib/util/phone";
 
@@ -160,9 +161,16 @@ export const actions: Actions = {
     }
 
     const data = await request.formData();
+    // Normalize CRLF to LF on every multi-line text field at the input
+    // boundary. Browsers serialize textareas with the platform's native
+    // line ending, but our stored bios came in over various paths
+    // (bulk importer, admin edit form, public submit) with mixed
+    // endings. Normalizing here means the trust-gate's bytewise compare
+    // doesn't spuriously flag CRLF<->LF as a content change.
+    const nlNorm = (s: string) => s.replace(/\r\n/g, "\n");
     const fullName = ((data.get("full_name") as string) ?? "").trim();
     const pronouns = ((data.get("pronouns") as string) ?? "").trim();
-    const bio = ((data.get("bio") as string) ?? "").trim();
+    const bio = nlNorm(((data.get("bio") as string) ?? "").trim());
     const phone = normalizePhone(data.get("phone") as string);
     if (phone && !isValidPhone(phone)) {
       return fail(400, { error: "Phone must have at least 7 digits or be left blank." });
@@ -255,13 +263,13 @@ export const actions: Actions = {
       ),
     );
 
-    // Pull current row to compare for the trust gate. Couldn't do this in
-    // load() because we need the freshest version at submit time.
+    // Pull current row to compare for the trust gate + to seed the
+    // before-state for the audit log. The `*` is fine here - rows are
+    // small and we already pay one round trip; this dedupes between the
+    // trust-gate check below and the diff in profile-edit-log.
     const { data: current } = await supabaseAdmin
       .from("profiles")
-      .select(
-        "trusted, full_name, bio, headshot_url, disciplines, resumes",
-      )
+      .select("*")
       .eq("id", token.target_id)
       .maybeSingle();
     if (!current) {
@@ -277,7 +285,11 @@ export const actions: Actions = {
         proposedMajor.full_name = fullName;
       }
       const newBio = bio || null;
-      if (newBio !== (current.bio ?? null)) {
+      // Normalize both sides' line endings before comparing - existing
+      // rows might still have CRLF from legacy imports while `bio` was
+      // normalized at the input boundary above.
+      const curBioNorm = current.bio ? nlNorm(current.bio) : null;
+      if (newBio !== curBioNorm) {
         proposedMajor.bio = newBio;
       }
       const newHeadshot = headshotUrl || null;
@@ -368,9 +380,7 @@ export const actions: Actions = {
     // genuinely present.
     const { data: updated } = await supabaseAdmin
       .from("profiles")
-      .select(
-        "full_name, bio, geographic_area, disciplines, headshot_url, headshot_consent, published, auto_hidden_incomplete",
-      )
+      .select("*")
       .eq("id", token.target_id)
       .maybeSingle();
     if (updated && !updated.published && !isProfileIncomplete(updated)) {
@@ -380,6 +390,25 @@ export const actions: Actions = {
         .from("profiles")
         .update({ published: true, auto_hidden_incomplete: false })
         .eq("id", token.target_id);
+      // Reflect those two field changes in the diff snapshot too.
+      if (updated) {
+        updated.published = true;
+        updated.auto_hidden_incomplete = false;
+      }
+    }
+
+    // Audit log: capture what actually changed. Trusted users' edits all
+    // applied above; untrusted users' major-field changes are still in
+    // proposedMajor (about to be queued in flagged_edits), so the diff
+    // here only reflects the minor-field part that landed in the row.
+    if (current && updated) {
+      await logProfileEdit(supabaseAdmin, {
+        profileId: token.target_id,
+        before: current,
+        after: updated,
+        kind: "artist",
+        editorEmail: null,
+      });
     }
 
     let queued = false;
