@@ -13,6 +13,7 @@
 // workflow's `env:` block for CI.
 
 import { createHash } from "node:crypto";
+import { renderMarkdownLite, wrapHtmlEmail } from "./email-html.mjs";
 import "dotenv/config";
 import pg from "pg";
 
@@ -87,6 +88,7 @@ export async function sendCronEmail(db, { to, templateSlug, vars, replyTo }) {
         to: recipient,
         subject,
         text: body,
+        html: wrapHtmlEmail(renderMarkdownLite(body)),
         ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
