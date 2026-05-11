@@ -17,7 +17,16 @@ import { renderMarkdownLite, wrapHtmlEmail } from "./email-html.mjs";
 import "dotenv/config";
 import pg from "pg";
 
-const { Client } = pg;
+const { Client, types } = pg;
+
+// Keep `date` columns (oid 1082) as YYYY-MM-DD strings instead of JS
+// Date objects. The weekly-digest script (and any future cron that
+// queries date columns) does template-string date math like
+// `${p.run_start}T12:00:00Z` and `formatRunDate(p.run_start)` that
+// expects strings. Without this override, every Date object turns
+// into "Fri Jun 04 2026 00:00:00 GMT-0700 (Pacific Daylight Time)T..."
+// which parses as Invalid Date and silently skips every row.
+types.setTypeParser(1082, (val) => val);
 
 export function getDb() {
   const url = process.env.SUPABASE_DB_URL;
