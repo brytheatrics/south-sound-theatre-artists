@@ -143,7 +143,7 @@
                   use:enhance={() => { busyId = f.id; return async ({ update }) => { await update(); busyId = null; rejectingId = null; openId = null; }; }}>
                   <input type="hidden" name="id" value={f.id} />
                   <label>
-                    <span>Reason (optional, included if you set a notify-on-reject)</span>
+                    <span>Reason - included in the email sent to the artist (leave blank to reject silently with no email)</span>
                     <textarea name="reason" rows="3"></textarea>
                   </label>
                   <button type="submit" class="bt bt-warn" disabled={busyId === f.id}>

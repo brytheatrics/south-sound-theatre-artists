@@ -7,7 +7,9 @@
 
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { sendEmail } from "$lib/server/email";
 
 type ProposedChanges = Record<string, unknown>;
 
@@ -106,6 +108,25 @@ export const actions: Actions = {
     const reason = ((data.get("reason") as string) ?? "").trim();
     if (!id) return fail(400, { error: "Missing id." });
 
+    // Pull the profile email + name before flipping status, so we can
+    // notify the artist with the typed reason after the update lands.
+    const { data: flag } = await supabaseAdmin
+      .from("flagged_edits")
+      .select("profile_id")
+      .eq("id", id)
+      .maybeSingle();
+    let notifyTarget: { email: string; full_name: string } | null = null;
+    if (flag?.profile_id) {
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", flag.profile_id)
+        .maybeSingle();
+      if (prof?.email) {
+        notifyTarget = { email: prof.email, full_name: prof.full_name };
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from("flagged_edits")
       .update({
@@ -119,6 +140,26 @@ export const actions: Actions = {
       console.error("flagged_edits reject failed", error);
       return fail(500, { error: "Could not reject." });
     }
+
+    // Email the artist with the typed reason so they know what happened.
+    // Failures are non-fatal - the status flip already saved.
+    if (notifyTarget && reason) {
+      const res = await sendEmail({
+        to: notifyTarget.email,
+        templateSlug: "edit_rejected",
+        vars: {
+          name: notifyTarget.full_name,
+          reason,
+          site_url: PUBLIC_SITE_URL,
+        },
+      });
+      if (!res.ok) {
+        console.error(
+          `edit_rejected email failed for flagged_edit ${id}, reason=${res.reason}`,
+        );
+      }
+    }
+
     return { rejectedId: id };
   },
 };
