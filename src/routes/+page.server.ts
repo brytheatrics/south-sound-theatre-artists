@@ -6,6 +6,7 @@
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { loadCurrentAppearancesForMarquee } from "$lib/server/productionCredits";
+import { CACHE_MEDIUM } from "$lib/server/cache-headers";
 
 type ProfileRow = {
   slug: string;
@@ -31,7 +32,8 @@ export type MarqueeItem = {
 // whose post_type slug was deleted from the types table - rare but
 // possible if a slug was renamed without re-tagging existing posts.
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_MEDIUM });
   const todayIso = new Date().toISOString().slice(0, 10);
   const [
     countRes,

@@ -3,13 +3,15 @@
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { CACHE_SHORT } from "$lib/server/cache-headers";
 
 // 60 fits 2/3/4/5/6-column grids cleanly and means most current users
 // see everyone on one page (~27 profiles in the launch batch). Headshots
 // lazy-load so DOM size is the main cost; tractable up to a few hundred.
 const PAGE_SIZE = 60;
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_SHORT });
   const params = url.searchParams;
   const q = (params.get("q") ?? "").trim();
   const disciplines = params.getAll("d").filter(Boolean);

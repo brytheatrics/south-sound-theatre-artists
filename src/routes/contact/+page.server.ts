@@ -9,10 +9,12 @@ import { PUBLIC_SITE_URL } from "$env/static/public";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { sendEmail } from "$lib/server/email";
 import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit";
+import { CACHE_LONG } from "$lib/server/cache-headers";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_LONG });
   const { data: categories, error } = await supabaseAdmin
     .from("contact_categories")
     .select("slug, label, description")

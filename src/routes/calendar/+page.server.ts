@@ -6,6 +6,7 @@
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { CACHE_SHORT } from "$lib/server/cache-headers";
 
 export type Performance = {
   id: string;
@@ -40,7 +41,8 @@ export type Area = {
   sort_order: number;
 };
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_SHORT });
   const params = url.searchParams;
 
   // ---- Month -------------------------------------------------------

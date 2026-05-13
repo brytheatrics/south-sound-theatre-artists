@@ -13,9 +13,13 @@ import { checkSubmitRateLimit, RATE_LIMIT_MESSAGE } from "$lib/server/rate-limit
 import { loadProfileResumes } from "$lib/server/resumes";
 import { loadCurrentAppearances } from "$lib/server/productionCredits";
 import { buildOgCardUrl } from "$lib/server/cloudinary";
+import { CACHE_MEDIUM } from "$lib/server/cache-headers";
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
   const isAdmin = !!locals.admin;
+  // Cache for public visitors only - admins see extra fields (incomplete
+  // profile pre-publish, admin note) and should always get a fresh render.
+  if (!isAdmin) setHeaders({ "cache-control": CACHE_MEDIUM });
   let query = supabaseAdmin
     .from("profiles")
     .select(

@@ -2,8 +2,10 @@
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { CACHE_MEDIUM } from "$lib/server/cache-headers";
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_MEDIUM });
   const [postsRes, lederes] = await Promise.all([
     supabaseAdmin
       .from("blog_posts")

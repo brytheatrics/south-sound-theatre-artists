@@ -10,6 +10,7 @@
 // filters the page to orgs whose categories array contains that slug.
 
 import type { PageServerLoad } from "./$types";
+import { CACHE_MEDIUM } from "$lib/server/cache-headers";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { CATEGORY_LABELS, KNOWN_CATEGORY_SLUGS } from "$lib/server/orgCategories";
 
@@ -25,7 +26,8 @@ export type TheatreRow = {
   categories: string[];
 };
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_MEDIUM });
   const areaFilter = url.searchParams.get("area") ?? "";
   const categoryFilter = url.searchParams.get("category") ?? "";
 

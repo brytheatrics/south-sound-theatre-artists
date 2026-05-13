@@ -5,6 +5,7 @@
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { loadVerifiedOrgIds } from "$lib/server/verifiedOrgs";
+import { CACHE_SHORT } from "$lib/server/cache-headers";
 
 const PAGE_SIZE = 20;
 const CLOSING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
@@ -29,7 +30,8 @@ export type CallboardPost = {
   created_at: string;
 };
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, setHeaders }) => {
+  setHeaders({ "cache-control": CACHE_SHORT });
   const params = url.searchParams;
   // Multi-select filter: ?types=audition,designer (comma-separated).
   // Backwards-compatible with the older single-value ?type= param.

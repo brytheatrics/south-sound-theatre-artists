@@ -9,9 +9,11 @@ import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { loadProductionCredits } from "$lib/server/productionCredits";
+import { CACHE_MEDIUM } from "$lib/server/cache-headers";
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
   const isAdmin = !!locals.admin;
+  if (!isAdmin) setHeaders({ "cache-control": CACHE_MEDIUM });
   let query = supabaseAdmin
     .from("productions")
     .select(
