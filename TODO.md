@@ -1,9 +1,12 @@
 # TODO
 
-> ⚠️ **PUSH BEFORE THURSDAY 2026-05-14.** Blake is out of town May 14 - ~May 25. Two digest-Sundays fall during travel (May 17 + May 24). Without a push, the scheduled crons send broken empty plain-text digests. Currently queued local-only commits on `main`:
-> - `dc6d670` Cron emails: render markdown + brand wrapper
-> - `188a8dd` Fix: weekly digest empty - keep pg date columns as YYYY-MM-DD strings
-> - Plus the SKIP_SLUGS edit to `scripts/send-launch-invitations.mjs` (uncommitted) — Blake removed himself so he gets included in the bulk send
+## When Blake gets back (~May 25)
+
+**Hosting cost.** The Netlify free tier burned through credits in 2 days post-launch (functions + production deploys). Migrated to Blake's paid `brytheatrics` Netlify team mid-launch as a stopgap. Long-term move: **migrate to Cloudflare Pages** for unlimited bandwidth + generous function quota. Setup: swap `@sveltejs/adapter-netlify` for `@sveltejs/adapter-cloudflare`, DNS swap at Cloudflare to point at Pages instead of Netlify, copy env vars. Realistic time: 2-3 hours. The 8 commits we shipped on 2026-05-13 include edge-cache headers + GoatCounter API memoization to mitigate burn in the meantime.
+
+**Uptime monitoring.** Set up UptimeRobot (or BetterStack / StatusCake — all free-tier-friendly). **Critical:** point the monitor at a static asset like `https://southsoundtheatreartists.org/favicon.ico`, NOT the root. Hitting a static asset uses the CDN with zero function invocation. Default 5-min checks against `/` would burn ~8,640 function invocations per month just from monitoring.
+
+---
 
 Master list of outstanding work. Reorganized 2026-05-09 / -10 around three
 real ownership questions:
