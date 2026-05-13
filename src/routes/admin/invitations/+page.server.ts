@@ -4,6 +4,7 @@
 
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
+import { fetchProfileViewCounts } from "$lib/server/goatcounter";
 
 export const load: PageServerLoad = async () => {
   // All profiles that received an invitation. invited_at is stamped by
@@ -44,8 +45,20 @@ export const load: PageServerLoad = async () => {
     return !!p.geographic_area && !!p.headshot_url && (p.disciplines?.length ?? 0) > 0 && !!p.bio;
   }
 
+  // Profile view counts via GoatCounter, per-profile window starting
+  // from each artist's invited_at so pre-invite admin testing doesn't
+  // leak into the count. Failures silently fall back to 0 (helper
+  // logs the error) so the table still renders.
+  const viewsBySlug = await fetchProfileViewCounts(
+    (profiles ?? []).map((p) => ({
+      slug: p.slug,
+      sinceIso: p.invited_at ?? null,
+    })),
+  );
+
   const rows = (profiles ?? []).map((p) => {
     const lastClick = lastUsedByProfile.get(p.id) ?? null;
+    const views = viewsBySlug.get(p.slug) ?? 0;
     return {
       id: p.id,
       slug: p.slug,
@@ -54,6 +67,9 @@ export const load: PageServerLoad = async () => {
       invited_at: p.invited_at as string,
       last_click: lastClick,
       clicked: !!lastClick,
+      profile_views: views,
+      // Either signal counts as "engaged" with their profile in some way.
+      engaged: !!lastClick || views > 0,
       published: p.published,
       auto_hidden_incomplete: p.auto_hidden_incomplete,
       complete: isComplete(p),
@@ -61,12 +77,12 @@ export const load: PageServerLoad = async () => {
     };
   });
 
-  // Sort: clicked-but-incomplete first (need attention), then unclicked
-  // (chase), then clicked-and-complete (done). Within each, most recent
-  // activity first.
+  // Sort: engaged-but-incomplete first (need attention), then not
+  // engaged at all (chase), then engaged-and-complete (done). Within
+  // each, most recent activity first.
   rows.sort((a, b) => {
     const bucket = (r: typeof a) =>
-      r.clicked && !r.complete ? 0 : !r.clicked ? 1 : 2;
+      r.engaged && !r.complete ? 0 : !r.engaged ? 1 : 2;
     const ba = bucket(a);
     const bb = bucket(b);
     if (ba !== bb) return ba - bb;
@@ -80,6 +96,8 @@ export const load: PageServerLoad = async () => {
     summary: {
       total: rows.length,
       clicked: rows.filter((r) => r.clicked).length,
+      viewed_profile: rows.filter((r) => r.profile_views > 0).length,
+      engaged: rows.filter((r) => r.engaged).length,
       complete: rows.filter((r) => r.complete).length,
       auto_hidden: rows.filter((r) => r.auto_hidden_incomplete).length,
     },

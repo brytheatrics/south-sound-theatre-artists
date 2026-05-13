@@ -36,7 +36,9 @@
     </p>
     <ul class="summary">
       <li><strong>{data.summary.total}</strong> invited</li>
-      <li><strong>{data.summary.clicked}</strong> clicked their link</li>
+      <li><strong>{data.summary.clicked}</strong> clicked edit link</li>
+      <li><strong>{data.summary.viewed_profile}</strong> viewed their profile</li>
+      <li><strong>{data.summary.engaged}</strong> engaged (either)</li>
       <li><strong>{data.summary.complete}</strong> profile complete</li>
       {#if data.summary.auto_hidden > 0}
         <li class="warn"><strong>{data.summary.auto_hidden}</strong> auto-hidden (30-day grace expired)</li>
@@ -50,7 +52,8 @@
         <th>Artist</th>
         <th>Email</th>
         <th>Invited</th>
-        <th>Clicked their link</th>
+        <th>Clicked edit link</th>
+        <th>Profile views</th>
         <th>Profile</th>
       </tr>
     </thead>
@@ -66,6 +69,13 @@
           <td><a href="mailto:{r.email}">{r.email}</a></td>
           <td class="time">{fmtRelative(r.invited_at)}</td>
           <td><span class="badge badge-{click.tone}">{click.text}</span></td>
+          <td>
+            {#if r.profile_views > 0}
+              <span class="badge badge-ok">{r.profile_views} view{r.profile_views === 1 ? "" : "s"}</span>
+            {:else}
+              <span class="badge badge-muted">0</span>
+            {/if}
+          </td>
           <td><span class="badge badge-{comp.tone}">{comp.text}</span></td>
         </tr>
       {/each}
