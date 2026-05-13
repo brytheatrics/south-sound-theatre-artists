@@ -1,10 +1,19 @@
 # TODO
 
+> Launch shipped 2026-05-11. Site is live on `southsoundtheatreartists.org`. All v1.5 launch + post-launch hardening commits pushed 2026-05-13 (9 commits including the cron HTML pipeline, the pg date fix, audit log, contact form, edit-rejected email, Ko-Fi restore, cache headers, GoatCounter view tracking). See HISTORY.md "v1.5" for the full rundown.
+
 ## When Blake gets back (~May 25)
 
-**Hosting cost.** The Netlify free tier burned through credits in 2 days post-launch (functions + production deploys). Migrated to Blake's paid `brytheatrics` Netlify team mid-launch as a stopgap. Long-term move: **migrate to Cloudflare Pages** for unlimited bandwidth + generous function quota. Setup: swap `@sveltejs/adapter-netlify` for `@sveltejs/adapter-cloudflare`, DNS swap at Cloudflare to point at Pages instead of Netlify, copy env vars. Realistic time: 2-3 hours. The 8 commits we shipped on 2026-05-13 include edge-cache headers + GoatCounter API memoization to mitigate burn in the meantime.
+**Hosting cost.** The Netlify free tier burned through credits in 2 days post-launch (functions + production deploys). Migrated to Blake's paid `brytheatrics` Netlify team mid-launch as a stopgap. Long-term move: **migrate to Cloudflare Pages** for unlimited bandwidth + generous function quota. Setup: swap `@sveltejs/adapter-netlify` for `@sveltejs/adapter-cloudflare`, DNS swap at Cloudflare to point at Pages instead of Netlify, copy env vars. Realistic time: 2-3 hours. Edge-cache headers + GoatCounter API memoization shipped 2026-05-13 mitigate burn in the meantime.
 
 **Uptime monitoring.** Set up UptimeRobot (or BetterStack / StatusCake — all free-tier-friendly). **Critical:** point the monitor at a static asset like `https://southsoundtheatreartists.org/favicon.ico`, NOT the root. Hitting a static asset uses the CDN with zero function invocation. Default 5-min checks against `/` would burn ~8,640 function invocations per month just from monitoring.
+
+**Restore-drill the backup.** The weekly backup cron runs cleanly under the new repo (verified 2026-05-13). What we haven't done: actually restore one of the JSON dumps into a fresh Supabase project to confirm the restore pipeline works. Realistic time: 45-60 min including writing a restore script.
+
+**Small backlog from launch sessions** (chips already spawned, click to start in a worktree):
+- Fix slug-collision check to ignore soft-deleted profiles
+- Add `'superseded'` to `pending_submissions.status` CHECK constraint + backfill stale rows
+- Skip email re-verification when an artist resubmits via the rejection-resubmit link
 
 ---
 

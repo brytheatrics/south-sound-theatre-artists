@@ -7,7 +7,7 @@ A free community web platform for theatre artists in the South Sound region of W
 - **`CLAUDE.md`** - project conventions + where-to-look index for Claude Code sessions
 - **`TODO.md`** - master active-work list (launch-blocking, unpushed commits, parking lot, v1.1 build notes)
 - **`ARCHITECTURE.md`** - schema, auth model, conventions, cron schedule, infrastructure
-- **`HISTORY.md`** - what shipped, version-by-version (v1 → v1.3) + the v2.x calendar audit
+- **`HISTORY.md`** - what shipped, version-by-version (v1 → v1.5 launch) + the v2.x calendar audit
 - **`PRODUCT_SPEC.md`** - original product vision (reference only)
 - **`scripts/BULK_IMPORT_README.md`** - operational doc for the artist bulk-importer
 
@@ -20,7 +20,7 @@ A free community web platform for theatre artists in the South Sound region of W
 - **Cloudflare Email Routing** - admin custom-domain forwarding
 - **GitHub Actions** - cron jobs (keepalive, daily digest, weekly backup, volume alerts)
 
-Hard constraint: zero ongoing cost. All services on free tiers.
+**Production hosting:** Netlify (Blake's paid `brytheatrics` team as of v1.5 launch in May 2026). The original "zero ongoing cost" target was relaxed temporarily after Netlify's new credits-based pricing exhausted the free tier in 2 days of launch traffic. Migration to Cloudflare Pages is on the post-launch TODO. All other services (Supabase, Cloudinary, Resend) remain on free tiers.
 
 ## Local Development
 

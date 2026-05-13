@@ -68,8 +68,12 @@ No traditional accounts. Five access tiers:
 | `callboard_subscriptions` | Opt-in weekly digest. `subscriber_email` unique, `disciplines` text[], `post_types` text[], `last_digest_at`, `unsubscribed_at`, per-row `unsubscribe_token` (v1.2). Double-opt-in via `confirmed_at` + `confirmation_token` (mig 069). |
 | `marquee_settings` | Single-row config for homepage scrolling ticker. Cycles callboard posts + calendar productions. Admin-edited at `/admin/marquee` (v1.2 + mig 053). |
 | `resources` + `resource_categories` | Curated link library at `/resources`. Soft-deleted with `deleted_at`. Multi-category tagging via `category_ids` (mig 062 + 063). |
+| `profile_edit_log` | Audit trail of every profile save (mig 108). One row per save with `edited_by_kind` (`'artist'` / `'admin'` / `'org'`), optional `edited_by_email`, and a jsonb `changes` shaped as `{ field: { old, new } }` storing only the fields that actually changed. Powers `/admin/recent-edits`. Diff helper at `src/lib/server/profile-edit-log.ts`. History starts at mig 108 boundary — no backfill. |
+| `contact_categories` + `contact_submissions` | Public site-wide contact form (mig 109). Five seeded categories (general / help / bug / feature / theatre listing) each with `primary_email` + `cc_emails` text[] routing, editable from `/admin/contact-categories`. Submissions land with status (new / in_progress / resolved / spam), append-only `notes` jsonb (each note: author, body, created_at), and trigger an email to the routed admins via the `contact_submission` template (reply_to set to the submitter's address). Admin queue at `/admin/contact`. |
 
 All tables include `created_at`, `updated_at`. Soft-deleted rows have `deleted_at` set; the daily cron hard-deletes rows older than 30 days.
+
+`profiles_set_updated_at` is a `BEFORE UPDATE` trigger on `profiles` that auto-bumps `updated_at = now()`. The `/directory?sort=updated` page reads this column, so it leaks bulk admin operations (publish flips, line-ending normalize) into the public "recently updated" sort. For ops that aren't user content edits, wrap the update in a transaction with `set local session_replication_role = 'replica'` to skip the trigger. Memory file `~/.claude/projects/.../memory/project_bulk_update_trigger_bypass.md` for the details.
 
 ---
 
@@ -116,6 +120,20 @@ All under `.github/workflows/`. Shared infrastructure in `scripts/_lib/cron.mjs`
 
 **All emails go through one wrapper** that logs to `email_log` (with hashed recipient + type + sent_at) before calling Resend. Enables the 70% volume alert.
 
+**In-app vs cron email parity.** Two wrappers exist: `src/lib/server/email.ts` `sendEmail()` for SvelteKit-runtime sends, and `scripts/_lib/cron.mjs` `sendCronEmail()` for GitHub Actions cron sends + one-off CLI scripts. Both must produce identical-looking emails. The cron path's markdown→HTML pipeline lives in `scripts/_lib/email-html.mjs`, mirroring `src/lib/util/markdown.ts` + `src/lib/server/email.ts` `wrapHtmlEmail()`. Resend gets both `text` and `html` from both paths.
+
+**Cache-Control headers on public SSR pages.** `setHeaders({ "cache-control": ... })` in `+page.server.ts` load functions of all public pages, using one of three named profiles from `src/lib/server/cache-headers.ts`:
+
+- `CACHE_SHORT` (60s edge / 120s SWR) — high-churn lists like `/directory`, `/callboard`, `/calendar`
+- `CACHE_MEDIUM` (5 min / 5 min) — `/`, `/artists/[slug]`, `/theatres`, `/blog`, `/blog/[slug]`, `/calendar/[id]`
+- `CACHE_LONG` (30 min / 1 hr) — `/about`, `/privacy`, `/terms`, `/support-us`, `/contact`
+
+All profiles use stale-while-revalidate so the next request after expiry gets the stale cached response immediately while a fresh one regenerates in the background. Admin-visible pages (the ones that include extra fields when `locals.admin` is set) skip caching for admin sessions — admins always get fresh, public visitors get cache. Admin and edit-token routes never set cache headers.
+
+**Date columns and pg-node.** `pg` returns `date` columns as JS Date objects by default. Cron scripts that template-concat dates (`${row.run_start}T12:00:00Z`) need them as strings. `scripts/_lib/cron.mjs` calls `pg.types.setTypeParser(1082, val => val)` to override. Don't undo this without auditing every cron script.
+
+**Bulk admin writes that shouldn't bump `updated_at`.** Wrap in a transaction with `set local session_replication_role = 'replica'` to skip the `profiles_set_updated_at` trigger. Otherwise the public `/directory?sort=updated` view gets polluted with admin operations.
+
 **Soft-delete by default for admin actions.** Rejections and removals go to a 30-day trash before being permanently deleted.
 
 **Markdown + toolbar for admin content editing.** Site copy and email templates are markdown stored in DB tables. Admin sees a toolbar (Bold / Italic / Link / List / Image) above a textarea with live preview alongside. Image button uploads to Cloudinary and inserts markdown syntax.
@@ -154,11 +172,19 @@ These make later phases cheap to add. Bake into v1 even when the immediate need 
 
 Sidebar order mirrors how Lexi works through the day (review queues → directory → homepage → copy → config). Hairline rules between groups using `--rule`.
 
-1. **Review queue** (Pending / Edit review / Reports / Callboard / Organizations) — badged with attention counts, capped at "99+".
-2. **Directory** (All profiles).
+1. **Review queue** (Pending / Edit review / Reports / Callboard / Organizations / Contact) — badged with attention counts, capped at "99+".
+2. **Directory** (All profiles / Invitations / Recent edits).
 3. **Homepage curation** (Announcement / Featured / Marquee).
 4. **Site copy** (Site content / Resources / Email templates).
-5. **Config** (Disciplines / Submit-form options / Blocklist).
+5. **Config** (Disciplines / Submit-form options / Callboard types / Contact routing / Blocklist).
+6. **Admins** (multi-admin management).
+
+Post-launch additions (v1.5):
+
+- **`/admin/invitations`** — engagement dashboard for the launch cohort. Per-profile signals: clicked edit link (from `magic_link_tokens.used_at`) and profile views (from GoatCounter API, filtered per-profile from invited_at forward). Sort prioritizes engaged-but-incomplete. GoatCounter API response cached in-memory 5 min via `src/lib/server/goatcounter.ts`.
+- **`/admin/recent-edits`** — chronological audit log of every profile save, backed by `profile_edit_log`. Renders inline old → new diffs per changed field. Diff helper in `src/lib/server/profile-edit-log.ts`. Writes wired into `/edit/[token]` (`kind='artist'`) and `/admin/profiles/[id]/edit` (`kind='admin'`, with `editorEmail` from `locals.admin`).
+- **`/admin/contact`** + **`/admin/contact/[id]`** — public contact-form submissions queue, filterable by status, with append-only admin notes per submission.
+- **`/admin/contact-categories`** — edit per-category routing (primary email + CC list) for the public `/contact` form without code changes.
 
 Editor UX: markdown + toolbar (Bold / Italic / Link / List / Heading / Image-upload), live preview pane alongside. Image button uploads to Cloudinary and inserts the markdown syntax automatically. Email templates show a variable-placeholder sidebar.
 
@@ -174,9 +200,10 @@ Editor UX: markdown + toolbar (Bold / Italic / Link / List / Heading / Image-upl
 
 ## Staging vs production
 
-- **Staging**: `https://southsoundtheatreartists.netlify.app` — what Lexi reviews. Auto-deploys on push to `main`.
-- **Production (post-launch)**: same Netlify site, but `southsoundtheatreartists.org` DNS points at it. `PUBLIC_SITE_URL` env flips when DNS does.
-- **Repo is public** on GitHub (sidesteps Netlify's free-tier private-repo contributor limit).
+- **Production**: `https://southsoundtheatreartists.org` — live. Hosted on Netlify under Blake's paid `brytheatrics` team (moved from Lexi's free `ssta-admin` team mid-launch when free-tier credits ran out; see HISTORY v1.5). `PUBLIC_SITE_URL=https://southsoundtheatreartists.org` in Netlify env.
+- **Repo**: `github.com/brytheatrics/south-sound-theatre-artists` (transferred from `ssta-admin` during the hosting migration). The Netlify project pulls from this. GitHub Actions cron workflows + secrets travel with the repo.
+- **No separate staging environment** today — Lexi reviews on the live site. If a separate staging surface is needed later, Netlify deploy previews on PR branches are the path.
+- **Long-term**: post-trip migration to Cloudflare Pages is on the TODO list to reduce hosting cost; the Netlify free tier's new credits-based model burns out fast on SSR-heavy SvelteKit.
 
 ---
 

@@ -256,6 +256,273 @@ runs monthly on the 1st via GitHub Actions.
 
 ---
 
+## v1.5 — Launch + post-launch hardening (2026-05-11 → 2026-05-13)
+
+The site went live on `southsoundtheatreartists.org` on 2026-05-11
+with 49 artists invited via the bulk launch script. Three sessions
+of follow-on work to handle the surprises that surfaced.
+
+### Launch sequence (2026-05-10 → 2026-05-11)
+
+- Pushed the v1.1 + v1.4 batch (67+ commits) merged from the
+  `claude/charming-buck-c49abb` worktree branch to `main`.
+- Smoke-tested every transactional email path on staging
+  (`.netlify.app`): magic-link, contact form, admin 2FA, subscribe
+  confirm, profile verification, profile-approved, profile-rejection.
+  HTML rendering verified across Gmail web/mobile.
+- Backup-restore sanity check: ran `scripts/backup-tables.mjs` to
+  confirm format integrity (31 tables, 1542 rows at the time). Full
+  restore-drill deferred to post-launch as its own task.
+- Rotated `ADMIN_PASSWORD` to a stronger value.
+- Populated GitHub Actions secrets for all 6 cron workflows.
+- DNS flip at Cloudflare: replaced the 4 Squarespace A records with a
+  CNAME to `apex-loadbalancer.netlify.com`, both DNS-only. Added
+  `southsoundtheatreartists.org` as a Netlify custom domain;
+  Let's Encrypt cert issued ~5 min.
+- `PUBLIC_SITE_URL` flipped to `https://southsoundtheatreartists.org`
+  in Netlify env + GitHub Actions secrets.
+- Bulk launch invitations sent via `scripts/send-launch-invitations.mjs`
+  to all 49 invitable profiles (SKIP_SLUGS = Lexi + Blake). 7 went
+  out during a cancelled-then-resumed run; Charlie Stevens' send was
+  ambiguous so we re-sent her with `--force`. Final: 49 invited,
+  Lexi excluded (already an admin).
+
+### Launch-day fixes (2026-05-11)
+
+- **`/edit/[token]` save 500** (`167adf9`): the v1.4 batch added a
+  `graduate:` named action without renaming the existing `default:`
+  one. SvelteKit forbids `default` + named in the same file.
+  Renamed to `save:` and pointed the form at `?/save`.
+- **UI polish** (`ed35998`): Theatre credits collapsed by default in
+  MultiResumeBuilder; Skills section moved above Credits on
+  `/artists/[slug]` since credits lists run long; headshot-consent
+  checkbox gets the required-field asterisk; Mentorship section on
+  `/submit` and `/edit/[token]` collapses by default with a moss
+  disclosure arrow (auto-opens for returning artists who already
+  have selections).
+- **Rejection resubmit flow** (`1d55421`, mig 107): rejected
+  submissions now get a 30-day single-use token in the rejection
+  email pointing at `/submit?token=...` which prefills every field
+  the artist had entered. Reduces "fill the whole form again" pain.
+  Added `resubmit_profile` to `magic_link_tokens.purpose` CHECK
+  constraint. Save handler also marks the prior row `'superseded'`
+  and burns the token. Followup task spawned: skip email re-
+  verification on resubmit.
+
+### Post-launch operational (2026-05-11)
+
+- **Bulk-imported incomplete profiles**: 27 profiles were stuck
+  unpublished. Mig 100's launch-grace pipeline assumes they're
+  published with `invited_at` stamped, then auto-hides at T+30 if
+  still incomplete. Manually flipped `published=true` on all 27 so
+  the clock could start. Used `set local session_replication_role
+  = 'replica'` to bypass the `profiles_set_updated_at` trigger,
+  then restored polluted `updated_at` values via the same trigger
+  bypass so the `/directory?sort=updated` view didn't get spammed
+  with admin operations. Memory file in
+  `~/.claude/projects/.../memory/project_bulk_update_trigger_bypass.md`.
+- **`gate-incomplete-profiles.mjs`** marked superseded in TODO.md.
+  The launch-grace pipeline (mig 100) is the new canonical mechanism.
+
+### v1.5 features (2026-05-12 → 2026-05-13)
+
+#### `/admin/invitations` (mig 16126e5 + aaf5b02)
+
+Engagement view post-launch. Two signals per profile:
+
+- **Clicked edit link**: `magic_link_tokens.used_at` for the
+  artist's edit_profile token. Tracks "they opened the editor."
+- **Profile views**: pulled from GoatCounter API
+  (`src/lib/server/goatcounter.ts`), filtered per-profile from each
+  artist's `invited_at` date forward so pre-launch admin testing
+  doesn't leak in. Tracks "they (or someone) viewed their public
+  page" — useful because some artists just look at their page
+  without clicking the editor link.
+
+Engaged = either signal is true. Sort prioritizes
+engaged-but-incomplete first (need a nudge), then unopened (chase),
+then complete (done). GoatCounter API response cached in-memory
+for 5 min so repeated admin refreshes share the call.
+
+#### `/admin/recent-edits` + `profile_edit_log` (mig 108)
+
+Audit log of every profile save. The `profile_edit_log` table
+captures `{ profile_id, edited_by_kind (artist/admin/org),
+edited_by_email, changes, edited_at }`. The `changes` jsonb stores
+only fields that actually changed, as `{ field: { old, new } }`.
+
+Wired into save handlers on both `/edit/[token]` and
+`/admin/profiles/[id]/edit`. Diff computation lives in
+`src/lib/server/profile-edit-log.ts` with a tracked-field allowlist
+covering every user-editable column.
+
+Page renders the log as a chronological feed with inline old → new
+diffs per field. History starts at the migration boundary; no
+backfill.
+
+#### Public site-wide contact form (mig 109)
+
+Replaces the placeholder static `/contact` page. Five seeded
+categories: general, help, bug report, feature request, theatre
+listing. Each routes to a primary email + CC list editable from
+`/admin/contact-categories` without code changes. Submissions:
+
+- Land in `contact_submissions` table with append-only `notes` jsonb
+- Trigger an email via the routed primary + CC list with the
+  `contact_submission` template (`Reply-To` set to the submitter's
+  address so hitting Reply works)
+- Surface in `/admin/contact` queue (filterable by status: new /
+  in_progress / resolved / spam) with per-row detail page for
+  status changes + admin notes
+- Append-only audit notes per submission so admin can leave
+  "emailed them" / "ticket created" breadcrumbs
+
+Apps Script-on-Gmail recipe documented at
+`C:/Users/blake/My Drive/SSTA/Email Pull, submissions contact.txt`
+for Blake's personal sheet sync.
+
+#### Edit-rejection email (`e0ff677`)
+
+When admin rejects a flagged_edit (an untrusted artist's major-field
+edit queued in `flagged_edits`), the artist now gets an email with
+the admin-typed reason. Previously rejections were silent. `/edit/done`
+had promised "we'll email you if anything rejected" but the email
+didn't exist — now it does. Blank reason still rejects silently.
+
+#### Line-ending normalize on `/edit/[token]`
+
+Bug: bulk-imported bios had Windows CRLF line endings but textarea
+saves return LF. The trust-gate compare flagged identical-looking
+text as a major-field change. Fixed: normalize CRLF → LF at the
+input boundary AND on the existing-row side of the compare.
+Backfilled 5 affected profile rows.
+
+#### Cron email HTML pipeline (`dc6d670`)
+
+Cron-script emails (launch invitations, weekly callboard digest,
+admin daily digest, stale-profile pings) previously sent plain text
+only while in-app emails went out as styled HTML. New
+`scripts/_lib/email-html.mjs` mirrors the in-app pipeline
+(`src/lib/util/markdown.ts` + `src/lib/server/email.ts wrapHtmlEmail`):
+small markdown subset + brand wrapper. `sendCronEmail` now sends
+both `text` and `html` to Resend. Verified via the launch invitation
+flow — signature images render correctly now.
+
+#### Weekly digest empty fix (`188a8dd`)
+
+The `callboard-weekly-digest.mjs` script's `bucketProduction` and
+`formatRunDate` both expect ISO date strings, but pg-node returns
+`date` columns as JS Date objects by default. Template concatenation
+produced "Mon May 11 2026 00:00:00 GMT-0700 (Pacific Daylight Time)
+T12:00:00Z" → Invalid Date → silently dropped every production →
+`skipped_empty=1` for every subscriber. Override `pg.types.setTypeParser
+(1082, val => val)` in `getDb()` so date columns come back as
+strings. Now every cron script that queries date columns gets the
+right format.
+
+#### Edge cache + GoatCounter memoization (`d585ff1`)
+
+Cuts function-invocation cost on public pages:
+
+- `setHeaders({ "cache-control": ... })` on `/`, `/directory`,
+  `/artists/[slug]`, `/theatres`, `/blog`, `/blog/[slug]`,
+  `/calendar`, `/calendar/[id]`, `/callboard`, `/about`, `/privacy`,
+  `/terms`, `/support-us`, `/contact`. Three profiles in
+  `src/lib/server/cache-headers.ts` — SHORT/MEDIUM/LONG — tuned to
+  the content's update cadence. All use stale-while-revalidate so
+  perceived latency stays low.
+- Admin-visible pages skip caching when `locals.admin` is set
+  (admins see extra fields and should always get fresh).
+- In-memory cache on the GoatCounter API helper (5-min TTL) so
+  multiple admin refreshes share one outbound API call.
+
+### Hosting migration: Lexi's SSTA team → Blake's `brytheatrics` paid team (2026-05-13)
+
+Netlify's new credits-based pricing model burned through the free
+tier in 2 days post-launch (174 credits used between Apr 26 and
+May 13). Production deploys dominated the cost (~15 credits each,
+multiplied by many push cycles); launch-day function compute
+contributed another ~36 credits.
+
+Rather than upgrade Lexi's team, transferred the GitHub repo from
+`ssta-admin/south-sound-theatre-artists` to
+`brytheatrics/south-sound-theatre-artists` and recreated the Netlify
+project under Blake's paid `brytheatrics` team. Same DB, same
+domain, same env vars — just a different deploy account.
+
+- DNS at Cloudflare unchanged (both projects use the shared
+  `apex-loadbalancer.netlify.com`).
+- Domain handover: removed `southsoundtheatreartists.org` and
+  `www.southsoundtheatreartists.org` from the old paused project,
+  added them to the new one. Cert auto-issued.
+- New Netlify project's secret scanner flagged several env vars
+  whose values appear in build output. Added
+  `SECRETS_SCAN_OMIT_KEYS` listing intentionally-public ones
+  (PUBLIC_* keys + ADMIN_EMAIL + RESEND_FROM_EMAIL +
+  GOATCOUNTER_SITE_CODE).
+- GitHub Actions secrets transferred with the repo. Cron workflows
+  continue running on schedule under the new owner.
+- Manually triggered the weekly backup workflow under the new repo
+  to confirm it works — passed.
+
+Long-term plan logged in TODO.md: migrate to Cloudflare Pages
+(unlimited bandwidth, generous function quota) when Blake's back
+from his trip ~May 25. ~2-3 hour swap.
+
+### Schema migrations applied (107-109)
+
+- **mig 107**: `magic_link_tokens.purpose` CHECK constraint extended
+  to include `'resubmit_profile'`.
+- **mig 108**: `profile_edit_log` audit table for every profile save.
+- **mig 109**: `contact_categories` + `contact_submissions` for the
+  public site-wide contact form. Includes seed data for the five
+  initial categories.
+
+### Memory / process learnings
+
+Saved memory files in `~/.claude/projects/.../memory/` capture
+recurring stumbles for future sessions:
+
+- `project_dev_server_location.md` — dev server can run from any
+  worktree; check `Get-NetTCPConnection -LocalPort 5173` to find it,
+  apply UI edits to that location so HMR picks them up.
+- `feedback_check_docs_before_running_scripts.md` — TODO.md
+  references to launch scripts may be stale (e.g.,
+  `gate-incomplete-profiles.mjs` was superseded by mig 100's
+  launch-grace pipeline). Grep ARCHITECTURE/HISTORY before running.
+- `feedback_route_naming_precision.md` — `/edit-link` (magic-link
+  request page) vs `/edit/[token]` (the editor) are different routes;
+  don't say bare `/edit`.
+- `feedback_calibrate_estimates_down.md` — when Blake asks "how
+  long?" he means wall-clock for the agent, not human-equivalent.
+  Single-digit minutes for most mechanical changes.
+- `project_bulk_update_trigger_bypass.md` — `profiles_set_updated_at`
+  trigger silently pollutes `updated_at` on every bulk admin write.
+  Use `set local session_replication_role = 'replica'` inside a
+  transaction for ops that aren't user content edits.
+- `feedback_paste_verbatim.md` — paste user-supplied content into
+  the site verbatim; no reformatting.
+
+### Followups spawned for post-trip
+
+- Edit-and-resubmit rejection token (cheap fix shipped 2026-05-11;
+  fuller flow doesn't need re-verification on resubmit).
+- Move Skills above Credits on `/artists/[slug]` (shipped 2026-05-11).
+- Collapse Theatre credits + Mentorship by default (shipped 2026-05-11).
+- Add asterisk to headshot-consent checkbox (shipped 2026-05-11).
+- Build proper profile-edit audit-log diff view (shipped as
+  `/admin/recent-edits` 2026-05-12).
+- Cloudflare Pages migration to lower hosting cost.
+- Uptime monitoring (UptimeRobot or similar) pointed at a static
+  asset to avoid burning function credits.
+- Fix slug-collision check to ignore soft-deleted profiles.
+- Add `'superseded'` to `pending_submissions.status` CHECK
+  constraint.
+- Skip re-verification when an artist resubmits via the rejection
+  resubmit link.
+
+---
+
 ## v1.4 launch-prep batch (May 9-10 2026, unpushed at writing)
 
 Final pre-launch session covering hygiene, schema additions, bug

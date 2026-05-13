@@ -53,15 +53,19 @@ Quick reminders. The full set lives in [ARCHITECTURE.md](ARCHITECTURE.md#convent
 
 **Standing permission granted to commit local changes without asking.** Commit at natural breakpoints (feature complete, typecheck passing, before task switch) with clear messages matching the existing repo style. Prefer new commits over amending. Mention what was committed in the response summary so Blake can review in `git log`.
 
-**Never push without explicit permission.** Pushing triggers a Netlify build + deploy on the free tier (300 build minutes / month). Always ask "want me to push these commits?" and wait for approval before `git push`. This is a hard rule - do not override it even if Blake has approved a push earlier in the same session. Each push needs its own approval.
+**Never push without explicit permission.** Pushing triggers a Netlify build + deploy. Each deploy costs ~15 credits on Netlify's new pricing model — see HISTORY v1.5 for the credit-burn story. Always ask "want me to push these commits?" and wait for approval before `git push`. This is a hard rule - do not override it even if Blake has approved a push earlier in the same session. Each push needs its own approval.
 
 **Never deploy manually** (Netlify CLI, deploy hooks, etc.) without explicit permission. Same rationale.
+
+**Repo lives at `github.com/brytheatrics/south-sound-theatre-artists`** (transferred from `ssta-admin` in 2026-05 during the hosting migration). Production deploys land on Blake's paid `brytheatrics` Netlify team.
 
 ---
 
 ## Cost constraints
 
-Zero ongoing cost is a hard constraint. Free-tier ceilings: Resend 3000/mo, Supabase 500MB DB + 7-day pause, Cloudinary 25GB storage / 25GB bandwidth, Netlify 125k function invocations/mo + 300 build minutes/mo. The Supabase keepalive cron in GitHub Actions runs every 3 days and is mandatory.
+Zero ongoing cost was the original hard constraint; relaxed temporarily during launch when Netlify free-tier credits ran out (now on Blake's paid `brytheatrics` team at $19/mo). Long-term plan is to migrate to Cloudflare Pages and return to zero-cost — tracked as a post-trip TODO.
+
+Other free-tier ceilings still apply: Resend 3000/mo (sends), Supabase 500MB DB + 7-day pause, Cloudinary 25GB storage / 25GB bandwidth. The Supabase keepalive cron in GitHub Actions runs every 3 days and is mandatory.
 
 ---
 
