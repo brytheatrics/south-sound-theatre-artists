@@ -65,7 +65,10 @@ User-agent: Omgilibot
 Disallow: /
 
 # Default policy: allow everything else (search engines, RSS readers,
-# preview generators) except sensitive admin / edit routes.
+# preview generators) except sensitive admin / edit routes and the
+# /calendar prev-month nav (which crawlers were following backwards
+# through decades, generating unique cache-miss URLs - see
+# calendar/+page.server.ts for the server-side 410 bound too).
 
 User-agent: *
 Allow: /
@@ -76,6 +79,8 @@ Disallow: /edit-link
 Disallow: /verify/
 Disallow: /report
 Disallow: /org-edit/
+Disallow: /calendar?month=
+Disallow: /calendar?*month=
 Crawl-delay: 5
 
 Sitemap: https://southsoundtheatreartists.org/sitemap.xml

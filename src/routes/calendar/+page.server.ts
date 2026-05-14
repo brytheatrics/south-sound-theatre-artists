@@ -4,6 +4,7 @@
 // URL params so views are shareable. View toggle (grid vs list) is also
 // in URL state; mobile auto-switches to list via CSS regardless.
 
+import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import { supabaseAdmin } from "$lib/server/supabase";
 import { CACHE_SHORT } from "$lib/server/cache-headers";
@@ -47,12 +48,25 @@ export const load: PageServerLoad = async ({ url, setHeaders }) => {
 
   // ---- Month -------------------------------------------------------
   // Format: YYYY-MM. Default to current month in Pacific Time.
+  // Bounded window: 12 months back, 24 months forward from "now".
+  // Anything outside the window returns 410 Gone. Without this bound,
+  // crawlers (we saw this empirically on launch day) follow the
+  // prev-month nav backwards through decades, generating unique
+  // cache-miss URLs at ~1.5 req/sec - every one is a full function
+  // invocation. The bound stops that spiral at the source while
+  // still letting real visitors browse a sensible range.
   const monthParam = params.get("month");
   const now = new Date();
   let monthStart: Date;
   if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
     const [y, m] = monthParam.split("-").map(Number);
-    monthStart = new Date(Date.UTC(y, m - 1, 1, 8, 0, 0)); // ~midnight PT
+    const candidate = new Date(Date.UTC(y, m - 1, 1, 8, 0, 0));
+    const earliest = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1, 8, 0, 0));
+    const latest = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 24, 1, 8, 0, 0));
+    if (candidate < earliest || candidate > latest) {
+      error(410, "Calendar only shows the last 12 months and next 24 months.");
+    }
+    monthStart = candidate;
   } else {
     monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 8, 0, 0));
   }
